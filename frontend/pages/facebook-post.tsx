@@ -3,17 +3,45 @@ import apiClient from '../lib/axios'; // You are already importing the correct c
 import styles from '../styles/FacebookPost.module.css';
 import { GetServerSideProps } from 'next';
 import { withAuth } from '../utils/withAuth';
-
+interface VideoMetadata {
+  duration: number;
+  width: number;
+  height: number;
+}
 const FacebookPostPage = () => {
   const [content, setContent] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setMediaFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setMediaFile(file);
+
+      // If the file is a video, extract metadata
+      if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+          window .URL.revokeObjectURL(video.src);
+          const duration = video.duration;
+          const width = video.videoWidth;
+          const height = video.videoHeight;
+          setVideoMetadata({ duration, width, height });
+         console.log(`Video Metadata: Duration=${duration}s, Size=${width}x${height}`);
+        };
+        video.src = URL.createObjectURL(file);
+      }
+      else {
+        setVideoMetadata(null);
+      }
+    }
+    else{
+      setMediaFile(null);
+      setVideoMetadata(null);
     }
   };
 
@@ -31,6 +59,11 @@ const FacebookPostPage = () => {
     const formData = new FormData();
     formData.append('content', content);
     formData.append('media', mediaFile);
+    if(mediaFile.type.startsWith('video/') && videoMetadata){
+      formData.append('Duration', videoMetadata.duration.toString());
+      formData.append('Width', videoMetadata.width.toString());
+      formData.append('Height', videoMetadata.height.toString());
+    }
 
     try {
       // ✅ CHANGED: Use apiClient and remove the hardcoded URL
@@ -47,6 +80,7 @@ const FacebookPostPage = () => {
       setMessage(response.data.message || 'Successfully posted to Facebook!');
       setContent('');
       setMediaFile(null);
+      setVideoMetadata(null);
     } catch (err: any) {
       setError(err.response?.data?.message || 'An error occurred while posting.');
     } finally {
