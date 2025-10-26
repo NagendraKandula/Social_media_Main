@@ -1,8 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "../styles/ThreadsConnect.module.css";
 import { SiThreads } from "react-icons/si";
 
 const ThreadsConnect = () => {
+  const [loading, setLoading] = useState(false);
+
+  const handleConnectThreads = () => {
+    setLoading(true);
+    try {
+      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+      // Define redirect after successful Threads connection
+      const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?threads=connected`);
+
+      // Redirect user to backend OAuth route
+      window.location.href = `${backendUrl}/auth/threads?redirect=${redirectUri}`;
+    } catch (error) {
+      console.error("Connection error:", error);
+      alert("Unable to connect to Threads. Please try again later.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -43,14 +63,19 @@ const ThreadsConnect = () => {
           <p>🚫 We never post without your approval</p>
         </div>
 
-        <button className={styles.connectButton}>
+        <button
+          className={styles.connectButton}
+          onClick={handleConnectThreads}
+          disabled={loading}
+        >
           <SiThreads />
-          Connect to Threads
+          {loading ? "Connecting..." : "Connect to Threads"}
         </button>
 
         <div className={styles.footerNote}>
           <p>
-            By connecting, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+            By connecting, you agree to our <a href="#">Terms</a> and{" "}
+            <a href="#">Privacy Policy</a>.
           </p>
         </div>
       </div>

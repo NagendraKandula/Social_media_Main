@@ -9,7 +9,7 @@ import { YoutubeModule } from './auth/youtube/youtube.module';
 import { FacebookModule } from './facebook/facebook.module';
 import { YoutubeAnalyticsModule } from './youtube-analytics/youtube-analytics.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
-//import { InstagramModule } from './instagram/instagram.module';
+import { InstagramModule } from './instagram/instagram.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -21,7 +21,7 @@ import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
     FacebookModule,
     YoutubeAnalyticsModule,
      AiAssistantModule,
-    //InstagramModule,
+    InstagramModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],

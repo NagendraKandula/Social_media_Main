@@ -10,16 +10,20 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       clientID: configService.get<string>('FACEBOOK_APP_ID')!,
       clientSecret: configService.get<string>('FACEBOOK_APP_SECRET')!,
       callbackURL: configService.get<string>('FACEBOOK_CALLBACK_URL')!,
-      scope:['email', 
+      scope:[
+        'email', 
         'pages_manage_posts', 
         'pages_read_engagement', 
         'pages_show_list',
         'instagram_basic',
         'instagram_content_publish',
         'business_management',
+        'threads_basic', // <-- ADD THIS
+        'threads_content_publish',
+        'threads_profile_discovery'// <-- ADD THIS
  ]
       ,
-      profileFields: ['emails', 'name'],
+      profileFields: ['id', 'name','emails','photos'],
     });
   }
 
@@ -30,10 +34,12 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     done: (err: any, user: any, info?: any) => void,
   ): Promise<any> {
     // Safely access potentially undefined properties
+    const {name,emails,photos} = profile;
     const user = {
       email: profile.emails?.[0]?.value ?? '', // Use optional chaining and fallback to empty string
       firstName: profile.name?.givenName ?? '', // Use optional chaining and fallback
-      lastName: profile.name?.familyName ?? '', // Use optional chaining and fallback
+      lastName: profile.name?.familyName ?? '', 
+      picture : photos?.[0]?.value ?? '',// Use optional chaining and fallback
       accessToken,
       refreshToken,
     };
