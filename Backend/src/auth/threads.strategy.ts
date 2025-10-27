@@ -12,8 +12,8 @@ export class ThreadsStrategy extends PassportStrategy(Strategy, 'threads') {
     private readonly httpService: HttpService,
   ) {
     const options: StrategyOptions = {
-      authorizationURL: 'https://threads.net/oauth/authorize',
-      tokenURL: 'https://graph.threads.net/oauth/access_token',
+     authorizationURL: 'https://www.threads.com/oauth/authorize',
+      tokenURL: 'https://graph.threads.net/v1.0/oauth/access_token',
       clientID: configService.get<string>('THREADS_APP_ID')!,
       clientSecret: configService.get<string>('THREADS_APP_SECRET')!,
       callbackURL: configService.get<string>('THREADS_REDIRECT_URL')!,
