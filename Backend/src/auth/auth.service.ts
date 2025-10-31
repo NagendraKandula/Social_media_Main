@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
@@ -248,8 +249,8 @@ export class AuthService {
   async resendOtp(dto: ForgotPasswordDto) {
     return this.forgotPassword(dto);
   }
-  // LOGOUT
-  
+  //facebook Login 
+
  async facebookLogin(req, res: Response) {
     if (!req.user) {
       throw new BadRequestException('No user from facebook');
@@ -273,6 +274,7 @@ export class AuthService {
      const frontendUrl = this.config.get<string>('FRONTEND_URL');
      return res.redirect(`${frontendUrl}/facebook-post`);
   }
+  //Threads Login
   async threadslogin(req, res: Response) {
     if (!req.user) {
       throw new BadRequestException('No user from threads');
@@ -288,6 +290,7 @@ export class AuthService {
      return res.redirect(`${frontendUrl}/threads-post`);
     
   }
+  // Youtube Login
     async youtubeLogin(req, res: Response,appUserId: number) {
       //step1:get youtbe info from req.user strategy
     const { accessToken, refreshToken,youtubeId,displayName } = req.user;
@@ -345,5 +348,5 @@ export class AuthService {
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
   }
-
+ 
 }

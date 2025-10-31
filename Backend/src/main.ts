@@ -9,16 +9,13 @@ import * as passport from 'passport';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
   const configService = app.get(ConfigService);
   const frontendUrl = configService.get<string>('FRONTEND_URL');
 
   // Enable CORS using the environment variable
   app.enableCors({
     origin: frontendUrl, // ✅ Use the variable here
-    credentials: true,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type, Accept, Authorization',
+    credentials: true
   });
    app.use(cookieParser());
   // Enables class-validator and class-transformer for all incoming requests

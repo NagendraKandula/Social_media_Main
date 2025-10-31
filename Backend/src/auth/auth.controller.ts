@@ -1,5 +1,5 @@
 // src/auth/auth.controller.ts
-import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException ,Delete} from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -132,6 +132,7 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
     // You can create a new service method for this or reuse the googleLogin logic
     return this.authService.facebookLogin(req, res);
   }
+  //facebook logout
   @Get('threads')
   @UseGuards(AuthGuard('threads'))
   async threadsAuth(@Req() req) {

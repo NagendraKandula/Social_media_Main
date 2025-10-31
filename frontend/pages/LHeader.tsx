@@ -32,7 +32,6 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
       console.error("An error occurred during logout:", error);
     }
   };
-
   return (
     <header className={styles.header}>
       <div className={styles.logo}>☐ LOGO</div>

@@ -9,13 +9,13 @@ const ThreadsConnect = () => {
     setLoading(true);
     try {
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
       // Define redirect after successful Threads connection
       const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?threads=connected`);
 
       // Redirect user to backend OAuth route
-      window.location.href = `${backendUrl}/auth/threads?redirect=${redirectUri}`;
+      window.location.href = `https://0f4cac010244.ngrok-free.app/auth/threads?redirect=${redirectUri}`;
     } catch (error) {
       console.error("Connection error:", error);
       alert("Unable to connect to Threads. Please try again later.");

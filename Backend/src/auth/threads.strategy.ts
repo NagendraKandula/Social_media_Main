@@ -19,7 +19,7 @@ export class ThreadsStrategy extends PassportStrategy(Strategy, 'threads') {
       callbackURL: configService.get<string>('THREADS_REDIRECT_URL')!,
       scope: ['threads_basic', 'threads_content_publish'],
     };
-    console.log('🪄 THREADS STRATEGY CONFIG:', options); 
+    //console.log('🪄 THREADS STRATEGY CONFIG:', options); 
     super(options);
   }
 
