@@ -12,6 +12,8 @@ import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { InstagramModule } from './instagram/instagram.module';
 import { TwitterModule } from './auth/twitter/twitter.module';
 import { ThreadsModule } from './auth/threads/threads.module';
+import { InstagramBusinessModule } from './auth/instagram-business/instagram-business.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -23,7 +25,7 @@ import { ThreadsModule } from './auth/threads/threads.module';
     FacebookModule,
     YoutubeAnalyticsModule,
      AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,
+    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],
