@@ -16,7 +16,7 @@ const InstagramConnect = () => {
 
   const getInstagramAuthUrl = () => {
     const appId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
-    const redirectUri = `https://unsecretive-unlearned-alexzander.ngrok-free.dev/instagram-business/callback`;
+    const redirectUri = process.env.NEXT_PUBLIC_INSTAGRAM_BUSINESS_REDIRECT_URL;
     const scope = "instagram_business_basic,instagram_business_content_publish";
 
     return `https://www.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
