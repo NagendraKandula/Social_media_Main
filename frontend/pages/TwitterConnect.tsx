@@ -1,29 +1,37 @@
 import React, { useState } from "react";
-import styles from "../styles/TwitterConnect.module.css";
+import Head from "next/head";
 import { FaTwitter } from "react-icons/fa";
+import styles from "../styles/TwitterConnect.module.css";
 
-const TwitterConnect = () => {
+const TwitterConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
+
+  // Load environment URLs (Frontend + Backend)
+  const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   const handleConnectTwitter = () => {
     setLoading(true);
     try {
-      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-      // Redirect to backend OAuth route with a redirect back to Landing page
+      // After successful connection, redirect back to frontend landing page
       const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?twitter=connected`);
-      window.location.href = `${backendUrl}/auth/twitter?redirect=${redirectUri}`;
+
+      // Redirect to backend OAuth route
+      window.location.href = `${backendUrl}/twitter/authorize?redirect=${redirectUri}`;
     } catch (error) {
       console.error("Connection error:", error);
-      alert(
-        "Unable to connect to Twitter. Check your internet or try again later."
-      );
+      alert("Unable to connect to Twitter. Please try again later.");
       setLoading(false);
     }
   };
 
   return (
     <div className={styles.container}>
+      <Head>
+        <title>Connect Twitter</title>
+        <meta name="description" content="Connect your Twitter account" />
+      </Head>
+
       <div className={styles.card}>
         {/* Header */}
         <div className={styles.header}>
@@ -75,9 +83,9 @@ const TwitterConnect = () => {
             <FaTwitter />
             {loading ? "Connecting..." : "Connect to Twitter"}
           </button>
-      
         </div>
 
+        {/* Footer Note */}
         <div className={styles.footerNote}>
           <p>
             By connecting, you agree to our <a href="#">Terms</a> and{" "}
