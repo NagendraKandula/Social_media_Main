@@ -1,99 +1,181 @@
-import { useState, ChangeEvent, FormEvent } from 'react';
-import apiClient from '../lib/axios'; // You are already importing the correct client
+import { useState, ChangeEvent, FormEvent, useEffect } from 'react';
+import apiClient from '../lib/axios';
 import styles from '../styles/FacebookPost.module.css';
 import { GetServerSideProps } from 'next';
 import { withAuth } from '../utils/withAuth';
-interface VideoMetadata {
-  duration: number;
-  width: number;
-  height: number;
+import Image from 'next/image'; // Import Next.js Image component
+
+// UPDATED: Interface to include the picture URL
+interface FacebookPage {
+  id: string;
+  name: string;
+  pictureUrl: string | null;
 }
+
 const FacebookPostPage = () => {
   const [content, setContent] = useState('');
-  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
+  
+  // State for pages
+  const [pages, setPages] = useState<FacebookPage[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState('');
+  
+  // NEW: State to manage the custom dropdown
+  const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
+
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setMediaFile(file);
-
-      // If the file is a video, extract metadata
-      if (file.type.startsWith('video/')) {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => {
-          window .URL.revokeObjectURL(video.src);
-          const duration = video.duration;
-          const width = video.videoWidth;
-          const height = video.videoHeight;
-          setVideoMetadata({ duration, width, height });
-         console.log(`Video Metadata: Duration=${duration}s, Size=${width}x${height}`);
-        };
-        video.src = URL.createObjectURL(file);
+  useEffect(() => {
+    const fetchPages = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiClient.get('/facebook/pages');
+        if (response.data && response.data.length > 0) {
+          setPages(response.data);
+          setSelectedPageId(response.data[0].id); // Default to the first page
+        } else {
+          setError('No Facebook pages found. Please connect a page.');
+        }
+      } catch (err) {
+        setError('Could not fetch your Facebook pages.');
+      } finally {
+        setIsLoading(false);
       }
-      else {
-        setVideoMetadata(null);
-      }
-    }
-    else{
-      setMediaFile(null);
-      setVideoMetadata(null);
-    }
-  };
+    };
+    fetchPages();
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!mediaFile) {
-      setError('Please select an image or video to upload.');
+    if (!mediaUrl) {
+      setError('Please provide a media URL.');
+      return;
+    }
+    if (!selectedPageId) {
+      setError('Please select a page to post to.');
       return;
     }
 
     setIsLoading(true);
-    setMessage('');
-    setError('');
+    // ... (rest of the submit logic is the same)
 
-    const formData = new FormData();
-    formData.append('content', content);
-    formData.append('media', mediaFile);
-    if(mediaFile.type.startsWith('video/') && videoMetadata){
-      formData.append('Duration', videoMetadata.duration.toString());
-      formData.append('Width', videoMetadata.width.toString());
-      formData.append('Height', videoMetadata.height.toString());
-    }
+    const body = {
+      content,
+      mediaUrl,
+      mediaType,
+      pageId: selectedPageId,
+    };
 
     try {
-      // ✅ CHANGED: Use apiClient and remove the hardcoded URL
-      const response = await apiClient.post(
-        '/facebook/post',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          
-        },
-      );
+      const response = await apiClient.post('/facebook/post', body, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      // ... (rest of try/catch is the same)
       setMessage(response.data.message || 'Successfully posted to Facebook!');
       setContent('');
-      setMediaFile(null);
-      setVideoMetadata(null);
+      setMediaUrl('');
     } catch (err: any) {
       setError(err.response?.data?.message || 'An error occurred while posting.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  // NEW: Helper to get the currently selected page object
+  const selectedPage = pages.find((p) => p.id === selectedPageId);
 
   return (
     <div className={styles.container}>
       <div className={styles.formWrapper}>
         <h1 className={styles.title}>Create a Facebook Post</h1>
-        <p className={styles.subtitle}>Post a photo or video to your Facebook Page</p>
+        <p className={styles.subtitle}>
+          Post a photo or video to your Facebook Page using a public URL
+        </p>
         <form onSubmit={handleSubmit}>
+          
+          {/* NEW: Custom Page Selector Dropdown */}
+          <div className={styles.formGroup}>
+            <label htmlFor="page-select">Post to Page:</label>
+            <div className={styles.pageSelector}>
+              <button
+                type="button"
+                className={styles.pageSelectorButton}
+                onClick={() => setIsPageDropdownOpen(!isPageDropdownOpen)}
+                disabled={isLoading || pages.length === 0}
+              >
+                {selectedPage && (
+                  <>
+                    <Image
+                      src={selectedPage.pictureUrl || '/profile.png'}
+                      alt={selectedPage.name}
+                      width={24}
+                      height={24}
+                      className={styles.pageImage}
+                    />
+                    <span>{selectedPage.name}</span>
+                  </>
+                )}
+                <span className={styles.dropdownIcon}>▼</span>
+              </button>
+
+              {isPageDropdownOpen && (
+                <div className={styles.pageSelectorDropdown}>
+                  {pages.map((page) => (
+                    <div
+                      key={page.id}
+                      className={styles.pageSelectorItem}
+                      onClick={() => {
+                        setSelectedPageId(page.id);
+                        setIsPageDropdownOpen(false);
+                      }}
+                    >
+                      <Image
+                        src={page.pictureUrl || '/profile.png'}
+                        alt={page.name}
+                        width={32}
+                        height={32}
+                        className={styles.pageImage}
+                      />
+                      <span>{page.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ... (Media URL, Media Type, and Textarea inputs remain the same) ... */}
+
+          <div className={styles.formGroup}>
+            <label htmlFor="media-url">Media URL:</label>
+            <input
+              type="text"
+              id="media-url"
+              className={styles.input}
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              placeholder="https://example.com/my-image.jpg"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="media-type">Media Type:</label>
+            <select
+              id="media-type"
+              value={mediaType}
+              onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO')}
+              disabled={isLoading}
+              className={styles.select}
+            >
+              <option value="IMAGE">Image</option>
+              <option value="VIDEO">Video</option>
+            </select>
+          </div>
+
           <textarea
             className={styles.textarea}
             value={content}
@@ -102,16 +184,7 @@ const FacebookPostPage = () => {
             rows={5}
             disabled={isLoading}
           />
-          <label className={styles.fileLabel}>
-            {mediaFile ? `Selected: ${mediaFile.name}` : 'Select Image or Video'}
-            <input
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleFileChange}
-              className={styles.fileInput}
-              disabled={isLoading}
-            />
-          </label>
+
           <button type="submit" className={styles.button} disabled={isLoading}>
             {isLoading ? 'Posting...' : 'Post to Facebook'}
           </button>
