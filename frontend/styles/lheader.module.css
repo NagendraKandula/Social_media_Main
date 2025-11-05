@@ -3,10 +3,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 40px;
-  background: white;
+  background: #8ACCD5;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   height: 100px;
   z-index: 100;
@@ -23,23 +25,28 @@
 .channels {
   display: flex;
   gap: 20px;
-  margin-right: 140px;
+  margin-right: 90px;
+  margin-top: 10px;
 }
 
 .channelIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 30%;
+  width: 60px;
+  height: 50px;
+  border-radius: 20%;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 28px;
   transition: all 0.2s ease;
-  border: 0.3px solid #d1d5db;
-  background: none;
-  margin-top: 20px;
-  color: #374151;
+  border: 0.3px solid black;
+  background: rgba(255, 255, 255, 0.686);
+  color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.channelIcon > * {
+  transform: translateY(3px); 
 }
 
 .channelIcon:hover {
@@ -50,10 +57,8 @@
 .channelIcon[data-platform="twitter"]   { color: #1da1f2; }
 .channelIcon[data-platform="youtube"]   { color: #ff0000; }
 .channelIcon[data-platform="linkedin"]  { color: #0077b5; }
-.channelIcon[data-platform="pinterest"] { color: #bd081c; }
 .channelIcon[data-platform="facebook"]  { color: #1877f2; }
 .channelIcon[data-platform="threads"]   { color: #000000; }
-
 .channelIcon[data-platform="threads"]:hover,
 .channelIcon[data-platform="youtube"]:hover {
   background: rgba(59, 130, 246, 0.15);
@@ -63,14 +68,14 @@
   display: flex;
   gap: 20px;
   align-items: center;
-  margin-top: 20px;
-  margin-right: 50px;
+  margin-top: 10px;
+  margin-right: 120px;
   position: relative; /* Needed for dropdown positioning */
 }
 
 .newPostButton {
   padding: 10px 20px;
-  background-color: #3b82f6;
+  background-color: #2563eb;
   color: white;
   font-weight: 500;
   border: none;
@@ -78,10 +83,11 @@
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 15px;
+  
 }
 
 .newPostButton:hover {
-  background-color: #2563eb;
+  background-color: #769ae9;
 }
 
 .help {
@@ -89,8 +95,8 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 1.4rem;
-  color: #6b7280;
+  font-size: 2rem;
+  color: #000104;
   transition: all 0.2s ease;
   width: 40px;
   height: 40px;
@@ -100,7 +106,7 @@
 }
 
 .help:hover {
-  color: #3b82f6;
+  color: #414142;
   background: rgba(59, 130, 246, 0.08);
 }
 
@@ -109,22 +115,30 @@
 }
 
 .profilePic {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
-  background-color: #d1d5db;
+  background-color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   cursor: pointer;
-  border: none;
+  border: 1px solid rgb(72, 71, 71);
   font-size: 16px;
+}
+
+.profilePic:hover {
+  background-color: #f6f6f6;
 }
 
 .profileInitial {
   color: #111;
+  align-items: center;
+  justify-items: center;
+  font-size: 25px;
 }
+
 
 /* Dropdown menu */
 .profileDropdown {

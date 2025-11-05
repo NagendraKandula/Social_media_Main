@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import LHeader from "./LHeader";
 import Sidebar from "./Sidebar";
+import LMain from "./LMain";
 import styles from "../styles/Landing.module.css";
 
 // Import pages
@@ -24,7 +25,7 @@ import FacebookPost from "./facebook-post";
 
 const Landing = () => {
   const router = useRouter();
-  const [activeSegment, setActiveSegment] = useState("Create");
+  const [activeSegment, setActiveSegment] = useState("LMain");
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
   const [youtubeConnected, setYoutubeConnected] = useState(false);
   const [twitterConnected, setTwitterConnected] = useState(false);
@@ -52,8 +53,6 @@ const Landing = () => {
         case "twitter":
           return twitterConnected ? <TwitterPost /> : <TwitterConnect />;
         case "instagram":
-          // Assuming you have a way to check if Instagram is connected
-          // For now, let's assume it's always the connect page
           return <InstagramConnect />;
         case "facebook":
           return <FacebookConnect />;
@@ -63,6 +62,8 @@ const Landing = () => {
           return <PinterestConnect />;
         case "threads":
           return <ThreadsConnect />;
+        case "LMain":
+          return <LMain />;
         default:
           return <div>Select a platform</div>;
       }

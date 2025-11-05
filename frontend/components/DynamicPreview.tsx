@@ -6,7 +6,6 @@ import FacebookPreview from "./FacebookPreview";
 import TwitterPreview from "./TwitterPreview";
 import InstagramPreview from "./InstagramPreview";
 import LinkedInPreview from "./LinkedInPreview";
-import PinterestPreview from "./PinterestPreview";
 import ThreadsPreview from "./ThreadsPreview";
 import YouTubePreview from "./YouTubePreview";
 
@@ -59,8 +58,6 @@ export default function DynamicPreview({
         return <InstagramPreview content={content} mediaItems={mediaPreviews} />;
       case "linkedin":
         return <LinkedInPreview content={content} mediaItems={mediaPreviews} />;
-      case "pinterest":
-        return <PinterestPreview content={content} mediaItems={mediaPreviews} />;
       case "threads":
         return <ThreadsPreview content={content} mediaItems={mediaPreviews} />;
       case "youtube":

@@ -1,130 +1,126 @@
-/* frontend/styles/AIAssistant.module.css */
-
 .aiAssistant {
-  width: 320px;
-  background-color: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
-  border: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  height: fit-content;
-  margin-right: 24px;
+  height: 100%;
+  gap: 16px;
+  font-family: 'Inter', sans-serif;
 }
 
+/* === HEADER === */
 .header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 16px;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .headerIcon {
-  color: #8b5cf6;
+  color: #8b5cf6; /* purple-500 */
 }
 
 .title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #1a1a1a;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
   margin: 0;
 }
 
+/* === INPUT GROUP === */
 .inputGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .inputGroup label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #555;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
 }
 
 .promptWrapper {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.uploadButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #6b7280;
+  transition: all 0.2s ease;
+}
+
+.uploadButton:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
 }
 
 .promptInput {
-  width: 100%;
-  padding: 12px 12px 12px 40px; /* Adjusted padding for left-side icon */
-  border: 1px solid #e0e0e0;
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
   border-radius: 8px;
-  font-size: 0.95rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 14px;
+  color: #1f2937;
+  outline: none;
+  background: white;
 }
 
 .promptInput:focus {
-  outline: none;
   border-color: #8b5cf6;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
 }
 
-.uploadButton {
-  position: absolute;
-  left: 10px; /* Positioned on the left */
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
+.promptInput::placeholder {
   color: #9ca3af;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s;
 }
 
-.uploadButton:hover {
-  color: #8b5cf6;
-}
-
-/* New styles for the image preview */
+/* === IMAGE PREVIEW === */
 .imagePreviewContainer {
   position: relative;
-  margin-top: 12px;
   width: 100%;
-  max-width: 270px; /* Fit within the card */
-  align-self: center;
+  max-width: 200px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .imagePreview {
   width: 100%;
-  height: auto;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  display: block;
+  max-height: 120px;
+  object-fit: cover;
 }
 
 .removeImageButton {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background-color: rgba(0, 0, 0, 0.6);
-  color: white;
-  border: none;
-  border-radius: 50%;
+  top: -8px;
+  right: -8px;
   width: 24px;
   height: 24px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
   cursor: pointer;
+  font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-  transition: background-color 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.removeImageButton:hover {
-  background-color: rgba(0, 0, 0, 0.8);
-}
-
+/* === BUTTON GRID (2x2) === */
 .buttonGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -133,25 +129,25 @@
 
 .generateButton {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  background-color: #f9fafb;
-  color: #333;
+  gap: 6px;
+  padding: 14px 8px;
   border: 1px solid #e5e7eb;
-  padding: 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 0.875rem;
+  border-radius: 10px;
+  background: white;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
 }
 
 .generateButton:hover:not(:disabled) {
-  background-color: #f3f4f6;
+  background: #f9fafb;
   border-color: #d1d5db;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 .generateButton:disabled {
@@ -159,24 +155,43 @@
   cursor: not-allowed;
 }
 
+.loaderIcon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* === OUTPUT CONTAINER === */
 .outputContainer {
-  background-color: #f9fafb;
-  border-radius: 8px;
-  padding: 16px;
-  border: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.loader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
 }
 
 .outputHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
 }
 
 .outputHeader h4 {
-  font-size: 1rem;
+  font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: #1f2937;
   margin: 0;
 }
 
@@ -184,46 +199,29 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: none;
   border: none;
-  padding: 6px 10px;
-  border-radius: 6px;
+  color: #8b5cf6;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  font-weight: 600;
-  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
 }
 
 .copyButton:hover {
-  background: #e0e7ff;
+  background: #f5f3ff;
 }
 
 .generatedText {
-  font-size: 0.9rem;
-  line-height: 1.6;
-  color: #444;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
   white-space: pre-wrap;
-}
-
-.loader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: #555;
-  font-weight: 500;
-  padding: 20px 0;
-}
-
-.loaderIcon {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  word-break: break-word;
 }

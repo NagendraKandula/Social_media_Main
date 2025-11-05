@@ -1,0 +1,113 @@
+/* styles/PropertiesPanel.module.css */
+
+.sidebarRight {
+  width: 280px;
+  background: white;
+  border-left: 1px solid #eee;
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.panelTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: #111;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #333;
+}
+
+.field span {
+  font-size: 14px;
+  color: #555;
+}
+
+/* Input groups */
+.inputGroup,
+.sliderGroup,
+.colorGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inputGroup input,
+.sliderGroup input[type="number"],
+.colorGroup input[type="text"] {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+}
+
+.inputGroup input:focus,
+.sliderGroup input[type="number"]:focus,
+.colorGroup input[type="text"]:focus {
+  border-color: #000;
+}
+
+.sliderGroup input[type="range"] {
+  flex: 1;
+  height: 24px;
+  -webkit-appearance: none;
+  appearance: none; /* 👈 Add this line */
+  background: #ddd;
+  border-radius: 4px;
+  outline: none;
+}
+
+.sliderGroup input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none; /* 👈 Add this too (though less critical for thumb) */
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #000;
+  cursor: pointer;
+}
+
+/* Color picker */
+.colorGroup input[type="color"] {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+/* Color palette */
+.palette {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.colorSwatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: 1px solid #eee;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.colorSwatch:hover {
+  transform: scale(1.1);
+}

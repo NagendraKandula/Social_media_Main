@@ -1,88 +1,195 @@
-/* styles/Publish.module.css */
+/* ======================
+   Base Layout & Structure
+   ====================== */
 
 .container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem; /* Responsive padding: top/bottom + left/right */
-  /* Removed calc(2rem + 72px) — use consistent spacing instead */
+  padding: 24px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  transition: background-color 0.3s, color 0.3s;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Header */
 .headerSection {
-  margin-bottom: 2rem;
   text-align: center;
-  max-width: 700px; /* Prevents overly wide headings on large screens */
-  margin-left: auto;
-  margin-right: auto;
+  margin-bottom: 28px;
 }
 
 .title {
-  font-size: 2rem; /* 32px */
-  font-weight: 800;
-  line-height: 1.2;
-  color: #111827;
+  font-size: 1.8rem;
+  font-weight: 700;
   margin: 0;
 }
 
-.subtitle {
-  font-size: 1.25rem; /* 20px — slightly reduced for better hierarchy */
-  font-weight: 600;
-  color: #374151;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-}
-
-/* Main layout: Editor + Preview side by side */
+/* Main 3-column layout */
 .editorPreviewContainer {
-  display: flex;
-  gap: 28px;
-  margin-top: 1.5rem;
-}
-
-.leftPanel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 24px;
-  min-width: 0; /* Critical for flex children to shrink properly */
+  align-items: start;
 }
 
-.previewWrapper {
-  width: 380px; /* Match DynamicPreview’s max-width */
-  flex-shrink: 0;
+/* Panels */
+.aiAssistantPanel,
+.editorPanel,
+.previewPanel {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  transition: box-shadow 0.2s;
 }
 
-/* Responsive: Stack on tablets and mobile */
+.aiAssistantPanel:hover,
+.editorPanel:hover,
+.previewPanel:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+/* Channel selector area */
+.channelPanel {
+  margin-bottom: 20px;
+}
+
+/* Content editor section */
+.contentEditorSection {
+  flex: 1;
+}
+
+/* ======================
+   THEMES (CSS Variables)
+   ====================== */
+
+/* 1. Light Theme (default) */
+.container {
+  --bg: #ffffff;
+  --text: #1f2937;
+  --text-secondary: #4b5563;
+  --card-bg: #ffffff;
+  --border-color: #e5e7eb;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --button-primary-bg: #007bff;
+  --button-primary-hover: #0069d9;
+  --button-secondary-bg: #f3f4f6;
+  --button-secondary-hover: #e5e7eb;
+  --selection-bg: #007bff;
+  --selection-text: #ffffff;
+  background-color: var(--bg);
+  color: var(--text);
+}
+
+/* 2. Dark Theme */
+.themeDark {
+  --bg: #111827;
+  --text: #f9fafb;
+  --text-secondary: #d1d5db;
+  --card-bg: #1f2937;
+  --border-color: #374151;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --button-primary-bg: #3b82f6;
+  --button-primary-hover: #2563eb;
+  --button-secondary-bg: #374151;
+  --button-secondary-hover: #4b5563;
+  --selection-bg: #3b82f6;
+  --selection-text: #ffffff;
+}
+
+/* 3. Blue (Corporate) */
+.themeBlue {
+  --bg: #f0f9ff;
+  --text: #0c4a6e;
+  --text-secondary: #3b82f6;
+  --card-bg: #ffffff;
+  --border-color: #bae6fd;
+  --card-shadow: 0 2px 10px rgba(59, 130, 246, 0.1);
+  --card-shadow-hover: 0 4px 20px rgba(59, 130, 246, 0.15);
+  --button-primary-bg: #0ea5e9;
+  --button-primary-hover: #0284c7;
+  --button-secondary-bg: #dbeafe;
+  --button-secondary-hover: #bfdbfe;
+  --selection-bg: #0ea5e9;
+  --selection-text: #ffffff;
+}
+
+/* 4. Green (Eco / Calm) */
+.themeGreen {
+  --bg: #f0fdf4;
+  --text: #065f46;
+  --text-secondary: #16a34a;
+  --card-bg: #ffffff;
+  --border-color: #bbf7d0;
+  --card-shadow: 0 2px 10px rgba(22, 163, 74, 0.1);
+  --card-shadow-hover: 0 4px 20px rgba(22, 163, 74, 0.15);
+  --button-primary-bg: #10b981;
+  --button-primary-hover: #059669;
+  --button-secondary-bg: #d1fae5;
+  --button-secondary-hover: #a7f3d0;
+  --selection-bg: #10b981;
+  --selection-text: #ffffff;
+}
+
+/* 5. Purple (Creative) */
+.themePurple {
+  --bg: #f5f3ff;
+  --text: #581c87;
+  --text-secondary: #8b5cf6;
+  --card-bg: #ffffff;
+  --border-color: #ddd6fe;
+  --card-shadow: 0 2px 10px rgba(139, 92, 246, 0.15);
+  --card-shadow-hover: 0 4px 20px rgba(139, 92, 246, 0.25);
+  --button-primary-bg: #9333ea;
+  --button-primary-hover: #7e22ce;
+  --button-secondary-bg: #ede9fe;
+  --button-secondary-hover: #ddd6fe;
+  --selection-bg: #9333ea;
+  --selection-text: #ffffff;
+}
+
+/* ======================
+   Buttons (shared style)
+   ====================== */
+
+/* Add this to your ContentEditor or global if reused */
+/* Example usage inside child components via passed className or global style */
+.publishBtn {
+  background-color: var(--button-primary-bg);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.publishBtn:hover {
+  background-color: var(--button-primary-hover);
+}
+
+.secondaryBtn {
+  background-color: var(--button-secondary-bg);
+  color: var(--text);
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.secondaryBtn:hover {
+  background-color: var(--button-secondary-hover);
+}
+
+/* ======================
+   Responsive: Stack on mobile
+   ====================== */
+
 @media (max-width: 900px) {
   .editorPreviewContainer {
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-  }
-
-  .leftPanel {
-    width: 100%;
-    max-width: 660px; /* Match ContentEditor’s max-width */
-    align-items: center;
-  }
-
-  .previewWrapper {
-    width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
-  }
-}
-
-/* Smaller screens: adjust typography */
-@media (max-width: 640px) {
-  .container {
-    padding: 1.5rem 1rem;
-  }
-
-  .title {
-    font-size: 1.75rem; /* 28px */
-  }
-
-  .subtitle {
-    font-size: 1.125rem; /* 18px */
+    grid-template-columns: 1fr;
+    gap: 20px;
   }
 }

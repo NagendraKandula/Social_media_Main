@@ -1,0 +1,136 @@
+/* src/styles/Create.module.css */
+
+.container {
+  flex: 1; 
+  display: flex; 
+  min-height: 100vh; 
+  background-color: #f5f5f5;
+  overflow: hidden;
+}
+
+/* ===== Left Toolbar ===== */
+.toolbar {
+  width: 64px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 24px;
+  gap: 16px;
+  /* IMPORTANT: Toolbar must be relative/static to flow correctly inside the Shell/Create structure */
+  position: relative; 
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.iconWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #444;
+  border-radius: 10px;
+  transition: background-color 0.2s ease;
+}
+
+.iconButton:hover {
+  background: #f0f0f0;
+}
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  left: 72px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1f1f1f;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  z-index: 1000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
+}
+
+.tooltip::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px 5px 5px 0;
+  border-style: solid;
+  border-color: transparent #1f1f1f transparent transparent;
+}
+
+/* ===== Left Panel (Resize Panel) ===== */
+.leftPanel {
+  width: 320px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  overflow-y: auto;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  z-index: 9;
+  transition: transform 0.3s ease;
+  /* Ensure the panel takes up the full height of the container */
+  height: 100%; 
+}
+
+/* ===== Canvas Wrapper (Center Area) ===== */
+.canvasWrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px;
+  overflow: hidden;
+  /* Ensure the canvas wrapper takes up the remaining height/space */
+  height: 100%; 
+}
+
+.headerBar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.pageSelector {
+  padding: 8px 16px;
+  border-radius: 24px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  background: white;
+  outline: none;
+  cursor: pointer;
+}
+
+.pageSelector:focus {
+  border-color: #000;
+}
+
+/* Add to src/styles/Create.module.css */
+.placeholderPanel {
+  width: 320px;
+  padding: 24px;
+  background: white;
+  color: #666;
+  font-family: sans-serif;
+}
+
+.placeholderPanel h3 {
+  margin-top: 0;
+}

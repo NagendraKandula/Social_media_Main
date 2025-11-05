@@ -1,0 +1,60 @@
+/* src/styles/MainCanvas.module.css */
+
+.canvas {
+  position: relative;
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  height: 800px;
+  margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #666;
+}
+
+/* Optional placeholder text (centered) */
+.placeholderText {
+  font-size: 18px;
+  color: #aaa;
+  text-align: center;
+  padding: 0 20px;
+  line-height: 1.5;
+}
+
+/* Vertical text on the left side */
+.verticalText {
+  position: absolute;
+  top: 50%;
+  left: 24px;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 44px;
+  font-weight: 700;
+  color: #7e3f3f;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+
+/* Color swatches in top-left corner */
+.colorSwatches {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.15);
+}

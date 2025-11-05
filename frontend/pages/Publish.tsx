@@ -1,23 +1,20 @@
 // pages/Publish.tsx
 import React, { useState } from 'react';
 import styles from '../styles/Publish.module.css';
-import ChannelSelector, { Channel } from '../components/ChannelSelector'; // ✅ Import Channel type
+import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
 import DynamicPreview from '../components/DynamicPreview';
-import AIAssistant from '../components/AIAssistant'; // Import the AI Assistant component
+import AIAssistant from '../components/AIAssistant';
 
 export default function Publish() {
-  // ✅ State for content and files
+  const [theme, setTheme] = useState<'light' | 'dark' | 'blue' | 'green' | 'purple'>('light');
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-
-  // ✅ State for selected channels — MUST be a Set<Channel>
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
-  
-  // State to control the visibility of the AI Assistant
+
+  // ✅ Add this state to control AI toggle
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
 
-  // ✅ Action handlers
   const handlePublish = () => {
     if (selectedChannels.size === 0) {
       alert("Please select at least one channel.");
@@ -26,15 +23,13 @@ export default function Publish() {
     console.log("Publishing to:", Array.from(selectedChannels));
     console.log("Content:", content);
     console.log("Files:", files);
-    // TODO: Call API
   };
 
-  const handleSaveDraft = () => {
-    console.log("Saving draft...");
-  };
+  const handleSaveDraft = () => console.log("Saving draft...");
+  const handleSchedule = () => console.log("Scheduling post...");
 
-  const handleSchedule = () => {
-    console.log("Scheduling post...");
+  const handleAIGenerated = (content: string) => {
+    setContent(content);
   };
 
   return (
@@ -44,34 +39,40 @@ export default function Publish() {
       </div>
 
       <div className={styles.editorPreviewContainer}>
-        {/* Conditionally render the AI Assistant on the left */}
-        {aiAssistantEnabled && <AIAssistant />}
-
-        {/* Left panel: ChannelSelector + ContentEditor */}
-        <div className={styles.leftPanel}>
-          {/* ✅ Pass selectedChannels and onSelectionChange */}
-          <ChannelSelector
-            selectedChannels={selectedChannels}
-            onSelectionChange={setSelectedChannels}
-          />
-          <ContentEditor
-            content={content}
-            onContentChange={setContent}
-            files={files}
-            onFilesChange={setFiles}
-            onPublish={handlePublish}
-            onSaveDraft={handleSaveDraft}
-            onSchedule={handleSchedule}
-            // Pass state and setter for the AI Assistant toggle
-            aiAssistantEnabled={aiAssistantEnabled}
-            setAiAssistantEnabled={setAiAssistantEnabled}
-          />
+        {/* LEFT COLUMN: AI Assistant */}
+        <div className={styles.aiAssistantPanel}>
+          <AIAssistant onContentGenerated={handleAIGenerated} />
         </div>
 
-        <div className={styles.previewWrapper}>
-          {/* ✅ Pass REAL selected platforms (as strings) */}
+        {/* MIDDLE COLUMN: Channel Selector + Content Editor */}
+        <div className={styles.editorPanel}>
+          <div className={styles.channelPanel}>
+            <ChannelSelector
+              selectedChannels={selectedChannels}
+              onSelectionChange={setSelectedChannels}
+            />
+          </div>
+
+          <div className={styles.contentEditorSection}>
+            <ContentEditor
+              content={content}
+              onContentChange={setContent}
+              files={files}
+              onFilesChange={setFiles}
+              onPublish={handlePublish}
+              onSaveDraft={handleSaveDraft}
+              onSchedule={handleSchedule}
+              aiAssistantEnabled={aiAssistantEnabled}
+              setAiAssistantEnabled={setAiAssistantEnabled}
+/>
+
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Dynamic Preview */}
+        <div className={styles.previewPanel}>
           <DynamicPreview
-            selectedPlatforms={Array.from(selectedChannels)} // ✅ Dynamic!
+            selectedPlatforms={Array.from(selectedChannels)}
             content={content}
             mediaFiles={files}
             onPublish={handlePublish}

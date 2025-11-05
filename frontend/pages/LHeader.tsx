@@ -5,7 +5,6 @@ import {
   FaTwitter,
   FaFacebookF,
   FaLinkedinIn,
-  FaPinterestP,
   FaYoutube,
 } from "react-icons/fa";
 import { SiThreads } from "react-icons/si";
@@ -80,16 +79,6 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
         </button>
         <button
           className={styles.channelIcon}
-          data-platform="pinterest"
-          onClick={() => setActivePlatform("pinterest")}
-          aria-label="Pinterest"
-        >
-          <span aria-hidden="true">
-            <FaPinterestP />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
           data-platform="facebook"
           onClick={() => setActivePlatform("facebook")}
           aria-label="Facebook"
@@ -118,7 +107,7 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
           + New Post
         </button>
         <button className={styles.help} aria-label="Help">
-          ⭐️
+          ?
         </button>
 
         {/* Profile Dropdown */}

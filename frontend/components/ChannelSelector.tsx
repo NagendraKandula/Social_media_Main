@@ -1,11 +1,10 @@
-// ChannelSelector.tsx
+// components/ChannelSelector.tsx
 import React from 'react';
 import {
   FaTwitter,
   FaFacebook,
   FaInstagram,
   FaLinkedin,
-  FaPinterest,
   FaYoutube,
 } from 'react-icons/fa';
 import { SiThreads } from 'react-icons/si';
@@ -16,33 +15,18 @@ export type Channel =
   | 'facebook'
   | 'instagram'
   | 'linkedin'
-  | 'pinterest'
   | 'youtube'
   | 'threads';
 
-const channels: Channel[] = ['twitter', 'facebook', 'instagram', 'linkedin', 'pinterest', 'youtube', 'threads'];
+const channels: { id: Channel; icon: JSX.Element; label: string }[] = [
+  { id: 'facebook', icon: <FaFacebook size={20} />, label: 'Facebook' },
+  { id: 'instagram', icon: <FaInstagram size={20} />, label: 'Instagram' },
+  { id: 'twitter', icon: <FaTwitter size={20} />, label: 'Twitter' },
+  { id: 'linkedin', icon: <FaLinkedin size={20} />, label: 'LinkedIn' },
+  { id: 'youtube', icon: <FaYoutube size={20} />, label: 'YouTube' },
+  { id: 'threads', icon: <SiThreads size={20} />, label: 'Threads' },
+];
 
-const ChannelIcon: Record<Channel, JSX.Element> = {
-  twitter: <FaTwitter size={18} />,
-  facebook: <FaFacebook size={22} />,
-  instagram: <FaInstagram size={23} />,
-  linkedin: <FaLinkedin size={22} />,
-  pinterest: <FaPinterest size={22} />,
-  youtube: <FaYoutube size={22} />,
-  threads: <SiThreads size={19} />,
-};
-
-const ChannelStyle: Record<Channel, string> = {
-  twitter: styles.twitter,
-  facebook: styles.facebook,
-  instagram: styles.instagram,
-  linkedin: styles.linkedin,
-  pinterest: styles.pinterest,
-  youtube: styles.youtube,
-  threads: styles.threads,
-};
-
-// ✅ Add props to make it controlled
 interface ChannelSelectorProps {
   selectedChannels: Set<Channel>;
   onSelectionChange: (selected: Set<Channel>) => void;
@@ -52,8 +36,6 @@ export default function ChannelSelector({
   selectedChannels,
   onSelectionChange,
 }: ChannelSelectorProps) {
-  // ✅ Remove internal useState — now fully controlled
-
   const toggleChannel = (channel: Channel) => {
     const newSelected = new Set(selectedChannels);
     if (newSelected.has(channel)) {
@@ -64,37 +46,24 @@ export default function ChannelSelector({
     onSelectionChange(newSelected);
   };
 
-  const toggleSelectAll = () => {
-    if (selectedChannels.size === channels.length) {
-      onSelectionChange(new Set());
-    } else {
-      onSelectionChange(new Set(channels));
-    }
-  };
-
   return (
     <div className={styles.container}>
-      <div className={styles.horizontalWrapper}>
-        <h2 className={styles.title}>Select Channels</h2>
-
-        <div className={styles.iconWrapper}>
-          {channels.map((channel) => (
-            <button
-              key={channel}
-              className={`${styles.iconButton} ${ChannelStyle[channel]} ${
-                selectedChannels.has(channel) ? styles.selected : ''
-              }`}
-              onClick={() => toggleChannel(channel)}
-              aria-pressed={selectedChannels.has(channel)}
-            >
-              {ChannelIcon[channel]}
-            </button>
-          ))}
-        </div>
-
-        <button className={styles.selectAllButton} onClick={toggleSelectAll}>
-          {selectedChannels.size === channels.length ? 'Deselect All' : 'Select All'}
-        </button>
+      <span className={styles.label}>Select Channels</span>
+      <div className={styles.iconRow}>
+        {channels.map(({ id, icon, label }) => (
+          <button
+            key={id}
+            className={`${styles.iconButton} ${
+              selectedChannels.has(id) ? styles.selected : ''
+            }`}
+            onClick={() => toggleChannel(id)}
+            aria-pressed={selectedChannels.has(id)}
+            aria-label={`Toggle ${label} selection`}
+            title={label}
+          >
+            {icon}
+          </button>
+        ))}
       </div>
     </div>
   );

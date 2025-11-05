@@ -1,9 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { Sparkles, Hash, FileText, Type, MessageSquarePlus, Copy, Loader, PlusCircle } from 'lucide-react';
 import styles from '../styles/AIAssistant.module.css';
-import axios from '../lib/axios'; // Import the pre-configured axios instance
+import axios from '../lib/axios';
 
-const AIAssistant = () => {
+// ✅ Add prop typing
+interface AIAssistantProps {
+  onContentGenerated?: (content: string) => void;
+}
+
+const AIAssistant: React.FC<AIAssistantProps> = ({ onContentGenerated }) => {
   const [prompt, setPrompt] = useState('');
   const [generatedContent, setGeneratedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -12,7 +17,6 @@ const AIAssistant = () => {
   const [image, setImage] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // This function now calls your backend API
   const handleGenerate = async (type: string) => {
     if (!prompt && !image) {
       alert('Please enter a prompt or upload an image to generate content.');
@@ -24,31 +28,29 @@ const AIAssistant = () => {
     setGeneratedContent('');
     setCopySuccess('');
 
-    // FormData is used to send files and text together
     const formData = new FormData();
     formData.append('prompt', prompt);
     formData.append('type', type);
-    if (image) {
-      formData.append('image', image); // The field name 'image' must match the backend
-    }
+    if (image) formData.append('image', image);
 
     try {
-      // Make the API call to your NestJS backend
       const response = await axios.post('/ai-assistant/generate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      // Update the state with the response from the backend
       if (response.data && response.data.success) {
-        setGeneratedContent(response.data.data);
+        const newContent = response.data.data;
+        setGeneratedContent(newContent);
+
+        // ✅ Notify parent (Publish.tsx)
+        if (onContentGenerated) {
+          onContentGenerated(newContent);
+        }
       } else {
         throw new Error('API response was not successful.');
       }
     } catch (error) {
       console.error('Error generating AI content:', error);
-      // Display a user-friendly error message
       setGeneratedContent('Sorry, an error occurred while generating content. Please try again.');
     } finally {
       setIsLoading(false);
@@ -64,9 +66,7 @@ const AIAssistant = () => {
     }
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleUploadClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -117,17 +117,8 @@ const AIAssistant = () => {
 
         {image && (
           <div className={styles.imagePreviewContainer}>
-            <img
-              src={URL.createObjectURL(image)}
-              alt="Preview"
-              className={styles.imagePreview}
-            />
-            <button
-              onClick={() => setImage(null)}
-              className={styles.removeImageButton}
-            >
-              ✕
-            </button>
+            <img src={URL.createObjectURL(image)} alt="Preview" className={styles.imagePreview} />
+            <button onClick={() => setImage(null)} className={styles.removeImageButton}>✕</button>
           </div>
         )}
       </div>
