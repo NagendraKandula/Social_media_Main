@@ -82,7 +82,7 @@ export class TwitterController {
       res.clearCookie('twitter_oauth_state');
       res.clearCookie('twitter_code_verifier');
 
-      res.redirect('http://localhost:3000/Landing');
+      res.redirect('http://localhost:3000/TwitterPost');
     } catch (error) {
       res.clearCookie('twitter_oauth_state');
       res.clearCookie('twitter_code_verifier');
