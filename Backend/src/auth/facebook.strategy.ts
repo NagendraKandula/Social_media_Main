@@ -18,9 +18,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         'instagram_basic',
         'instagram_content_publish',
         'business_management',
-        'threads_basic', // <-- ADD THIS
-        'threads_content_publish',
-        'threads_profile_discovery'// <-- ADD THIS
+// <-- ADD THIS
  ]
       ,
       profileFields: ['id', 'name','emails','photos'],
