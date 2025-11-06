@@ -4,33 +4,23 @@ import { SiThreads } from "react-icons/si";
 
 const ThreadsConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
-
   const THREADS_APP_ID = process.env.NEXT_PUBLIC_THREADS_APP_ID!;
-  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URI!;
-  const SCOPES = ["threads_basic", "threads_content_publish"];
+  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URL!;
+  const SCOPES = ['threads_basic', 'threads_content_publish'];
 
-  const handleConnectThreads = () => {
-    try {
-      setLoading(true);
+  const handleConnect = () => {
+    const authUrl = new URL('https://www.threads.net/oauth/authorize');
+    authUrl.searchParams.set('client_id', THREADS_APP_ID);
+    authUrl.searchParams.set('redirect_uri', REDIRECT_URI);
+    authUrl.searchParams.set('scope', SCOPES.join(','));
+    authUrl.searchParams.set('response_type', 'code');
+    // optional: add your own CSRF protection state
+    authUrl.searchParams.set('state', crypto.randomUUID());
 
-      // Build Threads OAuth URL (official Meta Threads endpoint)
-      const authUrl = new URL("https://www.threads.net/oauth/authorize");
-      authUrl.searchParams.set("client_id", THREADS_APP_ID);
-      authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-      authUrl.searchParams.set("scope", SCOPES.join(","));
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("state", crypto.randomUUID());
-
-      // Redirect user to Threads OAuth consent page
-      window.location.href = authUrl.toString();
-    } catch (error) {
-      console.error("Connection error:", error);
-      alert("Unable to connect to Threads. Please try again later.");
-      setLoading(false);
-    }
+    window.location.href = authUrl.toString();
   };
 
-  return (
+    return (
     <div className={styles.container}>
       <div className={styles.card}>
         <div className={styles.header}>
@@ -72,7 +62,7 @@ const ThreadsConnect: React.FC = () => {
 
         <button
           className={styles.connectButton}
-          onClick={handleConnectThreads}
+          onClick={handleConnect}
           disabled={loading}
         >
           <SiThreads />
