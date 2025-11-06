@@ -1,57 +1,73 @@
 import {
   Controller,
   Post,
-  UseInterceptors,
-  UploadedFile,
   Body,
   Req,
   UseGuards,
   BadRequestException,
+  Get, // Import Get
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+// No longer need FileInterceptor or UploadedFile
 import { FacebookService } from './facebook.service';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
- interface CreatePostBody{
+
+// Updated interface for the request body
+interface CreatePostBody {
   content: string;
-  duration?: string;
-  width?: string;
-  height?: string;
+  pageId: string; // The dynamic page ID from the frontend
+  mediaUrl: string; // The public URL of the image or video
+  mediaType: 'IMAGE' | 'VIDEO'; // Specify what we're posting
 }
+
 @Controller('facebook')
 export class FacebookController {
   constructor(private readonly facebookService: FacebookService) {}
 
+  /**
+   * NEW: Endpoint to fetch the user's manageable pages
+   */
   @UseGuards(JwtAuthGuard)
-  @Post('post')
-  @UseInterceptors(FileInterceptor('media'))
-  async createPost(
-    @UploadedFile() file: Express.Multer.File,
-    @Body() body: CreatePostBody,
-    @Req() req: Request,
-  ) {
+  @Get('pages')
+  async getPages(@Req() req: Request) {
     const accessToken = req.cookies['facebook_access_token'];
-
-    // --- CORRECTED FUNCTION CALL ---
-    // 1. Use the correct function name: postToFacebook
-    // 2. Pass all three required arguments: accessToken, content, and the uploaded file.
-    if(!accessToken){
+    if (!accessToken) {
       throw new BadRequestException('Facebook access token is missing.');
     }
-    if(!file){
-      throw new BadRequestException('Media file is required.');
-    }
-    const { content } = body;
-    const duration = body.duration ? parseFloat(body.duration) : undefined;
-    const width = body.width ? parseInt(body.width, 10) : undefined;
-    const height = body.height ? parseInt(body.height, 10) : undefined;
+    return this.facebookService.getPages(accessToken);
+  }
 
-    return this.facebookService.postToFacebook(accessToken,
-       content,
-        file,
-        duration,
-        width,
-        height,
-        );
+  /**
+   * UPDATED: 'post' endpoint now uses a JSON body
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('post')
+  // No @UseInterceptors or @UploadedFile needed
+  async createPost(@Body() body: CreatePostBody, @Req() req: Request) {
+    const accessToken = req.cookies['facebook_access_token'];
+
+    if (!accessToken) {
+      throw new BadRequestException('Facebook access token is missing.');
+    }
+
+    const { content, pageId, mediaUrl, mediaType } = body;
+
+    if (!mediaUrl) {
+      throw new BadRequestException('Media URL is required.');
+    }
+    if (!pageId) {
+      throw new BadRequestException('Page ID is required.');
+    }
+    if (!mediaType) {
+      throw new BadRequestException('Media type (IMAGE or VIDEO) is required.');
+    }
+
+    return this.facebookService.postToFacebook(
+      accessToken,
+      pageId,
+      content,
+      mediaUrl,
+      mediaType,
+    );
   }
 }
