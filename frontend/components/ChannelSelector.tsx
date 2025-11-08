@@ -1,4 +1,3 @@
-// components/ChannelSelector.tsx
 import React from 'react';
 import {
   FaTwitter,
@@ -43,7 +42,13 @@ export default function ChannelSelector({
     } else {
       newSelected.add(channel);
     }
-    onSelectionChange(newSelected);
+    // ✅ Sort channels to maintain consistent preview order
+    const sortedSelection = new Set(
+      channels
+        .map((c) => c.id)
+        .filter((id) => newSelected.has(id))
+    );
+    onSelectionChange(sortedSelection);
   };
 
   return (

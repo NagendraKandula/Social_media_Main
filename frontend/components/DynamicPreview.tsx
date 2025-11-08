@@ -1,5 +1,4 @@
-// components/DynamicPreview.tsx
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import styles from "../styles/DynamicPreview.module.css";
 import DOMPurify from "dompurify";
 import FacebookPreview from "./FacebookPreview";
@@ -8,7 +7,7 @@ import InstagramPreview from "./InstagramPreview";
 import LinkedInPreview from "./LinkedInPreview";
 import ThreadsPreview from "./ThreadsPreview";
 import YouTubePreview from "./YouTubePreview";
-
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MediaItem {
   id: string;
@@ -30,6 +29,8 @@ export default function DynamicPreview({
   content,
   mediaFiles,
 }: DynamicPreviewProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const mediaPreviews: MediaItem[] = useMemo(() => {
     return mediaFiles.map((file, index) => ({
       id: `file-${index}`,
@@ -46,10 +47,20 @@ export default function DynamicPreview({
 
   const hasContent = content.trim() !== "" || mediaPreviews.length > 0;
 
-  const primaryPlatform = selectedPlatforms[0];
+  const handleNext = () => {
+    setCurrentIndex((prev) =>
+      prev === selectedPlatforms.length - 1 ? prev : prev + 1
+    );
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prev) => (prev === 0 ? 0 : prev - 1));
+  };
+
+  const currentPlatform = selectedPlatforms[currentIndex];
 
   const renderPreview = () => {
-    switch (primaryPlatform) {
+    switch (currentPlatform) {
       case "facebook":
         return <FacebookPreview content={content} mediaItems={mediaPreviews} />;
       case "twitter":
@@ -111,14 +122,46 @@ export default function DynamicPreview({
 
       <div className={styles.phoneWrapper}>
         <div className={styles.phone}>
+          {/* Sliding Screens */}
           <div className={styles.screen}>
             {hasContent ? (
-              <div className={styles.postContent}>{renderPreview()}</div>
+              <div
+                className={styles.slidingWrapper}
+                style={{
+                  transform: `translateX(-${currentIndex * 100}%)`,
+                }}
+              >
+                {selectedPlatforms.map((platform, index) => (
+                  <div key={platform} className={styles.slide}>
+                    {index === currentIndex && renderPreview()}
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className={styles.welcomeMessage}>Hi, welcome!</div>
             )}
           </div>
+
+          {/* Navigation Arrows Inside the Phone */}
+          <button
+            className={`${styles.navButtonInside} ${styles.leftInside}`}
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <button
+            className={`${styles.navButtonInside} ${styles.rightInside}`}
+            onClick={handleNext}
+            disabled={currentIndex === selectedPlatforms.length - 1}
+          >
+            <ChevronRight size={18} />
+          </button>
         </div>
+      </div>
+
+      <div className={styles.platformIndicator}>
+        {currentPlatform && <p>Previewing: {currentPlatform.toUpperCase()}</p>}
       </div>
     </div>
   );

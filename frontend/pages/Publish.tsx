@@ -28,9 +28,10 @@ export default function Publish() {
   const handleSaveDraft = () => console.log("Saving draft...");
   const handleSchedule = () => console.log("Scheduling post...");
 
-  const handleAIGenerated = (content: string) => {
-    setContent(content);
-  };
+  const handleAIGenerated = (generated: string) => {
+  setContent((prev) => `${prev ? prev + "<br><br>" : ""}${generated}`);
+};
+
 
   return (
     <div className={styles.container}>

@@ -3,7 +3,7 @@
    ====================== */
 
 .container {
-  padding: 24px;
+  width: 100%;
   min-height: 100vh;
   box-sizing: border-box;
   transition: background-color 0.3s, color 0.3s;
