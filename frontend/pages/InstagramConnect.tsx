@@ -1,8 +1,27 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import styles from "../styles/InstagramConnect.module.css";
 import { FaInstagram } from "react-icons/fa";
 
 const InstagramConnect = () => {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (router.query.error) {
+      let errorMessage = "Failed to connect to Instagram. Please try again.";
+      setError(errorMessage);
+    }
+  }, [router.query]);
+
+  const getInstagramAuthUrl = () => {
+    const appId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
+    const redirectUri = process.env.NEXT_PUBLIC_INSTAGRAM_BUSINESS_REDIRECT_URL;
+    const scope = "instagram_business_basic,instagram_business_content_publish";
+
+    return `https://www.instagram.com/oauth/authorize?client_id=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -10,9 +29,12 @@ const InstagramConnect = () => {
           <FaInstagram className={styles.instagramIcon} />
           <h1>Connect Your Instagram</h1>
           <p className={styles.subtitle}>
-            Unlock scheduling, analytics, and AI-powered tools to grow your presence.
+            Unlock scheduling, analytics, and AI-powered tools to grow your
+            presence.
           </p>
         </div>
+
+        {error && <p className={styles.error}>{error}</p>}
 
         <div className={styles.benefits}>
           <div className={styles.benefitItem}>
@@ -43,14 +65,15 @@ const InstagramConnect = () => {
           <p>🚫 We never post without your explicit approval</p>
         </div>
 
-        <button className={styles.connectButton}>
+        <a href={getInstagramAuthUrl()} className={styles.connectButton}>
           <FaInstagram />
           Connect to Instagram
-        </button>
+        </a>
 
         <div className={styles.footerNote}>
           <p>
-            By connecting, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+            By connecting, you agree to our <a href="#">Terms</a> and{" "}
+            <a href="#">Privacy Policy</a>.
           </p>
         </div>
       </div>

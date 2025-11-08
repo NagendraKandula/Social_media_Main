@@ -8,11 +8,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { GoogleStrategy } from './google.strategy'; // <-- Import GoogleStrategy
 import { YoutubeStrategy } from './youtube.strategy';
-import { YoutubeModule } from './youtube/youtube.module'; 
 import { FacebookStrategy } from './facebook.strategy';// <-- Import YoutubeStrategy
 import { LinkedinStrategy } from './linkedin.strategy';
 import { HttpModule } from '@nestjs/axios';
 import { JwtRefreshTokenStrategy } from './jwt-refresh.strategy';
+// <-- Import ThreadsStrategy                                                 
 
 @Module({
   imports: [
@@ -28,7 +28,7 @@ import { JwtRefreshTokenStrategy } from './jwt-refresh.strategy';
     }),
   ],
   controllers: [AuthController, LinkedinStrategy],
-  providers: [AuthService, JwtStrategy, GoogleStrategy,YoutubeStrategy,FacebookStrategy,JwtRefreshTokenStrategy], // <-- Add GoogleStrategy
+  providers: [AuthService, JwtStrategy, GoogleStrategy,YoutubeStrategy,FacebookStrategy,JwtRefreshTokenStrategy,], // <-- Add GoogleStrategy
   exports: [AuthService, JwtModule], 
 })
 export class AuthModule {}

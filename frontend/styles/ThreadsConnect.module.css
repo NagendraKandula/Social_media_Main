@@ -52,7 +52,7 @@
 
 .header h1 {
   font-size: 2rem;
-  font-weight: 800; /* Extra bold for Threads’ typographic style */
+  font-weight: 800;
   color: #000;
   margin: 0 0 12px;
   letter-spacing: -0.5px;
@@ -140,7 +140,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 20px auto; /* ← CENTERED BUTTON */
+  margin: 20px auto;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 }

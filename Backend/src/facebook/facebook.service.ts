@@ -1,13 +1,20 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import axios from 'axios';
-import * as FormData from 'form-data';
+// No FormData or AxiosRequestConfig needed for this flow
 
-// --- Define Interfaces for API response types ---
-// This tells TypeScript what the structure of the data will be.
 interface FacebookPage {
   id: string;
   name: string;
   access_token: string;
+  picture?: {
+    data?: {
+      url?: string;
+    };
+  };
 }
 
 interface FacebookPostResponse {
@@ -18,98 +25,153 @@ interface FacebookPostResponse {
 @Injectable()
 export class FacebookService {
   private readonly FACEBOOK_GRAPH_API_URL = 'https://graph.facebook.com/v19.0';
+  // We don't need the 'graph-video' URL for this method
 
-  async postToFacebook(
-    accessToken: string,
-    content: string,
-    file: Express.Multer.File,
-  ) {
-    if (!accessToken) {
-      throw new BadRequestException('Facebook access token not found.');
-    }
-    if (!file) {
-      throw new BadRequestException('A media file (photo or video) is required.');
-    }
-
+  /**
+   * NEW: Helper function to get all pages for the frontend dropdown
+   */
+  async getPages(accessToken: string) {
     try {
-      // Step 1: Get the user's pages
-      console.log('Access Token:', accessToken);
       const pagesResponse = await axios.get(
         `${this.FACEBOOK_GRAPH_API_URL}/me/accounts`,
         {
-          params: { access_token: accessToken },
+          params: { 
+            fields: 'id,name,picture',
+            access_token: accessToken },
         },
-      
       );
-       console.log('Pages:', pagesResponse.data);
-        console.log('Pages Response:', pagesResponse.data);
-        
-
-      // FIX: Use type assertion 'as' to tell TypeScript the exact type.
-      const pages = (pagesResponse.data as { data: FacebookPage[] }).data;
-      if (!pages || pages.length === 0) {
-        throw new BadRequestException('No manageable Facebook pages found for this user.');
-      }
-      
-      const page = pages[0];
-      const pageAccessToken = page.access_token;
-      const pageId = page.id;
-
-      // Step 2: Post the media to the selected page
-      if (file.mimetype.startsWith('image/')) {
-        return this.postPhoto(pageId, pageAccessToken, content, file);
-      } else if (file.mimetype.startsWith('video/')) {
-        return this.postVideo(pageId, pageAccessToken, content, file);
-      } else {
-        throw new BadRequestException('Unsupported file type. Please upload an image or video.');
-      }
+      // Return a clean list of pages
+      return (pagesResponse.data.data as FacebookPage[]).map((page) => ({
+        id: page.id,
+        name: page.name,
+        pictureUrl: page.picture?.data?.url || null,
+      }));
     } catch (error) {
-      console.error('Error posting to Facebook:', error.response?.data || error.message);
-      throw new BadRequestException(error.response?.data?.error?.message || 'Failed to post to Facebook.');
+      console.error('Error fetching Facebook pages:', error.response?.data);
+      throw new InternalServerErrorException('Failed to fetch Facebook pages.');
     }
   }
 
+  /**
+   * UPDATED: Main function, now takes pageId, mediaUrl, and mediaType
+   */
+  async postToFacebook(
+    userAccessToken: string,
+    pageId: string,
+    content: string,
+    mediaUrl: string,
+    mediaType: 'IMAGE' | 'VIDEO',
+  ) {
+    if (!userAccessToken) {
+      throw new BadRequestException('Facebook access token not found.');
+    }
+
+    try {
+      // Step 1: Get all pages to find the access token for the selected page
+      const pagesResponse = await axios.get(
+        `${this.FACEBOOK_GRAPH_API_URL}/me/accounts`,
+        {
+          params: { 
+            access_token: userAccessToken
+           },
+        },
+      );
+
+      const pages = (pagesResponse.data as { data: FacebookPage[] }).data;
+      if (!pages || pages.length === 0) {
+        throw new BadRequestException('No manageable Facebook pages found.');
+      }
+
+      // Step 2: Find the specific page the user selected
+      const selectedPage = pages.find((p) => p.id === pageId);
+      if (!selectedPage) {
+        throw new BadRequestException(
+          'Page not found or user does not have permission for this page.',
+        );
+      }
+
+      const pageAccessToken = selectedPage.access_token;
+
+      // Step 3: Determine post type and call the appropriate function
+      if (mediaType === 'IMAGE') {
+        return this.postPhoto(pageId, pageAccessToken, content, mediaUrl);
+      } else if (mediaType === 'VIDEO') {
+        return this.postRegularVideo(pageId, pageAccessToken, content, mediaUrl);
+      } else {
+        throw new BadRequestException('Unsupported media type.');
+      }
+    } catch (error) {
+      const errorData = error.response?.data;
+      console.error(
+        'Error posting to Facebook:',
+        errorData?.error || error.message,
+      );
+      throw new BadRequestException(
+        error.response?.data?.error?.message || 'Failed to post to Facebook.',
+      );
+    }
+  }
+
+  /**
+   * UPDATED: postPhoto now uses the 'url' parameter
+   */
   private async postPhoto(
     pageId: string,
     pageAccessToken: string,
     content: string,
-    file: Express.Multer.File,
+    mediaUrl: string,
   ) {
-    const form = new FormData();
-    form.append('caption', content);
-    form.append('source', file.buffer, file.originalname);
-    form.append('access_token', pageAccessToken);
-
     const response = await axios.post(
       `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photos`,
-      form,
-      { headers: form.getHeaders() },
+      null, // No form data needed
+      {
+        params: {
+          caption: content,
+          url: mediaUrl,
+          access_token: pageAccessToken,
+        },
+      },
     );
 
-    // FIX: Assert the type of response.data
     const postData = response.data as FacebookPostResponse;
-    return { success: true, postId: postData.post_id, message: "Photo posted successfully." };
+    return {
+      success: true,
+      postId: postData.post_id,
+      message: 'Photo posted successfully.',
+    };
   }
 
-  private async postVideo(
+  /**
+   * UPDATED: postRegularVideo now uses 'file_url' and is much simpler
+   * This replaces the entire resumable upload (start, transfer, finish) flow
+   */
+  private async postRegularVideo(
     pageId: string,
     pageAccessToken: string,
     content: string,
-    file: Express.Multer.File,
+    mediaUrl: string,
   ) {
-    const form = new FormData();
-    form.append('description', content);
-    form.append('source', file.buffer, file.originalname);
-    form.append('access_token', pageAccessToken);
-    
     const response = await axios.post(
-      `https://graph-video.facebook.com/${this.FACEBOOK_GRAPH_API_URL.split('/')[3]}/${pageId}/videos`,
-      form,
-      { headers: form.getHeaders() },
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/videos`,
+      null, // No form data needed
+      {
+        params: {
+          description: content,
+          file_url: mediaUrl,
+          access_token: pageAccessToken,
+        },
+      },
     );
 
-    // FIX: Assert the type of response.data
     const postData = response.data as FacebookPostResponse;
-    return { success: true, postId: postData.id, message: "Video posted successfully." };
+    return {
+      success: true,
+      postId: postData.id,
+      message:
+        'Video post submitted successfully. It may take a few moments to process.',
+    };
   }
+
+  // We can remove the old postReel and resumable postRegularVideo methods
+  // as they are no longer used in this flow.
 }
