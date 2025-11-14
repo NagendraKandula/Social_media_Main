@@ -26,7 +26,7 @@ interface FacebookPostResponse {
 export class FacebookService {
   private readonly FACEBOOK_GRAPH_API_URL = 'https://graph.facebook.com/v19.0';
   // We don't need the 'graph-video' URL for this method
-
+  private readonly FACEBOOK_GRAPH_VIDEO_API_URL ='https://graph-video.facebook.com/v19.0';
   /**
    * NEW: Helper function to get all pages for the frontend dropdown
    */
@@ -60,7 +60,7 @@ export class FacebookService {
     pageId: string,
     content: string,
     mediaUrl: string,
-    mediaType: 'IMAGE' | 'VIDEO',
+    mediaType: 'IMAGE' | 'VIDEO' | 'STORY',
   ) {
     if (!userAccessToken) {
       throw new BadRequestException('Facebook access token not found.');
@@ -97,7 +97,16 @@ export class FacebookService {
         return this.postPhoto(pageId, pageAccessToken, content, mediaUrl);
       } else if (mediaType === 'VIDEO') {
         return this.postRegularVideo(pageId, pageAccessToken, content, mediaUrl);
-      } else {
+      } else if (mediaType === 'STORY') {
+        const isVideo = ['.mp4', '.mov', '.avi'].some(ext => mediaUrl.toLowerCase().endsWith(ext));
+        if (isVideo) {
+          return this.postVideoStory(pageId, pageAccessToken, mediaUrl);
+        }
+        else{
+          return this.postPhotoStory(pageId, pageAccessToken, mediaUrl);
+        }
+      }
+      else {
         throw new BadRequestException('Unsupported media type.');
       }
     } catch (error) {
@@ -174,4 +183,123 @@ export class FacebookService {
 
   // We can remove the old postReel and resumable postRegularVideo methods
   // as they are no longer used in this flow.
+
+private async postPhotoStory(
+  pageId: string,
+  pageAccessToken: string,
+  mediaUrl: string,
+){
+  try{
+    const photoUploadResponse = await axios.post(
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photos`,
+      null,
+      {
+        params: {
+          url: mediaUrl,
+          published: false,
+          access_token: pageAccessToken,
+        },
+      },
+    );
+    const photoId = photoUploadResponse.data.id;
+    if(!photoId){
+      throw new InternalServerErrorException('Failed to get photo ID.');
+    }
+    const storyResponse = await axios.post(
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photo_stories`,
+      {
+        photo_id: photoId,
+      },
+      {
+        params: {
+          access_token: pageAccessToken,
+        },
+      },
+    );
+    return {
+      success: true,
+      postId : storyResponse.data.id,
+      message: 'Photo story posted successfully.',
+    };
+  }
+  catch(error){
+    console.error('Error posting photo story:', error.response?.data);
+    throw new InternalServerErrorException(error.response?.data?.error?.message || 'Failed to post photo story.');
+  }
+    }
+private async postVideoStory(
+  pageId: string,
+  pageAccessToken: string,
+  mediaUrl: string,
+) {
+  try {
+    //
+    // 🔹 STEP 1: START (This is correct)
+    //
+    console.log('📤 Step 1: Starting video story session...');
+    const startResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${pageId}/video_stories`,
+      null,
+      {
+        params: {
+          upload_phase: 'start',
+          access_token: pageAccessToken,
+        },
+      },
+    );
+    
+    const { video_id, upload_url } = startResponse.data;
+
+    if (!video_id || !upload_url) {
+      throw new InternalServerErrorException('Failed to start video story upload.');
+    }
+    console.log('✅ Step 1 Complete: Video ID:', video_id);
+    console.log('🌐 Upload URL:', upload_url);
+
+    console.log('📤 Step 2: Uploading video from URL to:', upload_url);
+    const uploadResponse = await axios.post(
+      upload_url, // Use the special upload URL from Step 1
+      null,       // No body
+      {
+        params: {
+          access_token: pageAccessToken, // Token as PARAM
+        },
+        headers: {
+          'file_url': mediaUrl, // File URL as HEADER
+        },
+      },
+    );
+    console.log('✅ Step 2 Complete: Upload response:', uploadResponse.data);
+    console.log('📤 Step 3: Finishing video story...');
+    const finishResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${pageId}/video_stories`,
+      null,
+      {
+        params: {
+          upload_phase: 'finish',
+          video_id,
+          access_token: pageAccessToken,
+        },
+      },
+    );
+
+    console.log('✅ Step 3 Complete: Story posted!');
+    console.log('🆔 Story Post ID:', finishResponse.data.post_id);
+
+    return {
+      success: true,
+      postId: finishResponse.data.post_id,
+      message: 'Video story posted successfully.',
+    };
+  } catch (error) {
+    console.error('❌ Error posting video story:', error.response?.data || error.message);
+    const errorMsg =
+      error.response?.data?.debug_info?.message ||
+      error.response?.data?.error?.message ||
+      error.message;
+    throw new InternalServerErrorException(
+      `Failed to post video story: ${errorMsg}`,
+    );
+  }
+}
 }
