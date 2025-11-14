@@ -6,21 +6,20 @@ import {
   Query,
   Req,
   Res,
+  UseInterceptors,
+  UploadedFile,
   InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { TwitterService } from './twitter.service';
-import { Request, Response } from 'express';
-
-class PostTweetDto {
-  text: string;
-  mediaUrls?: string[];
-}
+import { Request, Response } from 'express'; // ✅ Make sure Request is imported
 
 @Controller('twitter')
 export class TwitterController {
   constructor(private readonly twitterService: TwitterService) {}
 
+  // ✅ YOUR WORKING CODE - NO CHANGES
   @Get('authorize')
   authorize(@Res() res: Response) {
     try {
@@ -43,6 +42,7 @@ export class TwitterController {
     }
   }
 
+  // ✅ YOUR WORKING CODE - NO CHANGES
   @Get('callback')
   async callback(
     @Query('code') code: string,
@@ -90,11 +90,32 @@ export class TwitterController {
     }
   }
 
-  // ✅ POST /twitter/post-media — supports text + images/videos
+  /**
+   * ✅ UPDATED: This now reads the user's token from the cookie
+   */
   @Post('post-media')
-  async postMedia(@Body() body: PostTweetDto) {
-    const { text, mediaUrls } = body;
-    if (!text) throw new BadRequestException('Tweet text is required');
-    return this.twitterService.postTweetOAuth1(text, mediaUrls);
+  @UseInterceptors(FileInterceptor('file'))
+  async postMedia(
+    @Body() body: { text: string },
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: Request, // ✅ Add Request object
+  ) {
+    if (!body.text) throw new BadRequestException('Tweet text is required');
+
+    // ✅ Get the token the user received when they logged in
+    const userAccessToken = req.cookies['twitter_access_token'];
+
+    if (!userAccessToken) {
+      throw new BadRequestException(
+        'User not authenticated. Please reconnect your Twitter account.',
+      );
+    }
+
+    // ✅ Pass the user's token to the service
+    return this.twitterService.postTweetWithUserToken(
+      body.text,
+      file,
+      userAccessToken,
+    );
   }
 }
