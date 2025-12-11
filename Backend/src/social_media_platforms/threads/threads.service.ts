@@ -39,6 +39,43 @@ export class ThreadsService {
     }
   }
 
+  // ✅ Helper to wait for media container to be ready
+  // FIXED: Removed 'status_code' field which was causing the 500 Error
+  private async waitForContainer(containerId: string, accessToken: string, maxRetries = 20) {
+    const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await firstValueFrom(
+          this.http.get(`${this.GRAPH_API_URL}/${containerId}`, {
+            params: {
+              fields: 'status,error_message', // ✅ FIXED: Request 'status' instead of 'status_code'
+              access_token: accessToken,
+            },
+          }),
+        );
+
+        const { status, error_message } = response.data;
+        console.log(`⏳ Checking container status (${i + 1}/${maxRetries}): ${status}`);
+
+        if (status === 'FINISHED') {
+          return true; // Ready to publish
+        }
+
+        if (status === 'ERROR' || status === 'EXPIRED') {
+          throw new Error(`Media processing failed: ${error_message || status}`);
+        }
+      } catch (err: any) {
+        console.warn(`⚠️ Warning checking container status: ${err.message}`);
+        // If it's a 500 or network error, we retry. If 400, it might be fatal, but we retry closely.
+      }
+
+      // Wait 3 seconds before next check
+      await delay(3000);
+    }
+    throw new Error('Timeout waiting for media container to process');
+  }
+
   // ✅ Post text / image / video to Threads
   async postToThreads(accessToken: string, content: string, mediaUrl?: string) {
     try {
@@ -54,25 +91,28 @@ export class ThreadsService {
       // ✅ 2️⃣ Prepare the create container body
       let createBody: Record<string, any> = {
         access_token: accessToken,
+        text: content,
       };
 
+      let isMediaPost = false;
+
       if (!mediaUrl) {
-        // ✅ Text-only
-        createBody['text'] = content;
+        // ✅ Text-only (FIXED: Added media_type TEXT)
+        createBody['media_type'] = 'TEXT';
       } else if (
         mediaUrl.toLowerCase().endsWith('.jpg') ||
         mediaUrl.toLowerCase().endsWith('.jpeg') ||
         mediaUrl.toLowerCase().endsWith('.png')
       ) {
         // ✅ Image + caption
-        createBody['media_type'] = 'image';
+        createBody['media_type'] = 'IMAGE'; 
         createBody['image_url'] = mediaUrl;
-        createBody['text'] = content;
+        isMediaPost = true;
       } else if (mediaUrl.toLowerCase().endsWith('.mp4')) {
         // ✅ Video + caption
-        createBody['media_type'] = 'video';
+        createBody['media_type'] = 'VIDEO';
         createBody['video_url'] = mediaUrl;
-        createBody['text'] = content;
+        isMediaPost = true;
       } else {
         throw new InternalServerErrorException(
           'Unsupported media type (only .jpg, .png, .mp4)',
@@ -87,7 +127,13 @@ export class ThreadsService {
       const containerId = containerRes.data.id;
       console.log('🧩 Container created:', containerId);
 
-      // ✅ 4️⃣ Publish the container
+      // ✅ 4️⃣ Wait for processing (Critical for both Image & Video to avoid "Media Not Found")
+      if (isMediaPost) {
+        console.log('🕒 Waiting for media processing...');
+        await this.waitForContainer(containerId, accessToken);
+      }
+
+      // ✅ 5️⃣ Publish the container
       const publishRes = await firstValueFrom(
         this.http.post(`${this.GRAPH_API_URL}/${userId}/threads_publish`, null, {
           params: {
@@ -101,9 +147,13 @@ export class ThreadsService {
       return { postId: publishRes.data.id };
     } catch (err: any) {
       console.error('❌ Error posting to Threads:', err.response?.data || err.message);
-      throw new InternalServerErrorException(
-        err.response?.data?.error?.message || 'Failed to post to Threads',
-      );
+      
+      const apiError = err.response?.data?.error;
+      const errorMessage = apiError 
+        ? `${apiError.message} (Code: ${apiError.code})` 
+        : err.message;
+
+      throw new InternalServerErrorException(errorMessage);
     }
   }
 }
