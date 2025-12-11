@@ -15,7 +15,7 @@ interface FacebookPage {
 const FacebookPostPage = () => {
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
-  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
+  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO' | 'STORY'>('IMAGE');
   
   // State for pages
   const [pages, setPages] = useState<FacebookPage[]>([]);
@@ -167,15 +167,15 @@ const FacebookPostPage = () => {
             <select
               id="media-type"
               value={mediaType}
-              onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO')}
+              onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO' | 'STORY')}
               disabled={isLoading}
               className={styles.select}
             >
               <option value="IMAGE">Image</option>
               <option value="VIDEO">Video</option>
+              <option value="STORY">Story</option>
             </select>
           </div>
-
           <textarea
             className={styles.textarea}
             value={content}

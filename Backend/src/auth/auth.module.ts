@@ -5,13 +5,13 @@ import { AuthController } from './auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './jwt.strategy';
-import { GoogleStrategy } from './google.strategy'; // <-- Import GoogleStrategy
-import { YoutubeStrategy } from './youtube.strategy';
-import { FacebookStrategy } from './facebook.strategy';// <-- Import YoutubeStrategy
-import { LinkedinStrategy } from './linkedin.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy'; // <-- Import GoogleStrategy
+import { YoutubeStrategy } from './strategies/youtube.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';// <-- Import YoutubeStrategy
+import { LinkedinStrategy } from './strategies/linkedin.strategy';
 import { HttpModule } from '@nestjs/axios';
-import { JwtRefreshTokenStrategy } from './jwt-refresh.strategy';
+import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 // <-- Import ThreadsStrategy                                                 
 
 @Module({

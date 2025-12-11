@@ -15,10 +15,10 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         'pages_manage_posts', 
         'pages_read_engagement', 
         'pages_show_list',
+        'pages_read_user_content',
         'instagram_basic',
         'instagram_content_publish',
-        'business_management',
-// <-- ADD THIS
+        'business_management',// <-- ADD THIS
  ]
       ,
       profileFields: ['id', 'name','emails','photos'],
@@ -42,7 +42,6 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       refreshToken,
     };
     console.log('User object from Facebook:', user);
-
     done(null, user);
   }
 }
