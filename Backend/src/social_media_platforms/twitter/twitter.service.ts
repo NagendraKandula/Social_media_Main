@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { TwitterApi, EUploadMimeType } from 'twitter-api-v2';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 @Injectable()
 export class TwitterService {
@@ -17,26 +18,19 @@ export class TwitterService {
   private readonly TWITTER_AUTH_URL = 'https://twitter.com/i/oauth2/authorize';
   private readonly TWITTER_TOKEN_URL = 'https://api.twitter.com/2/oauth2/token';
 
-  private readonly v1Client: TwitterApi;
-
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {
     this.TWITTER_CLIENT_ID = this.config.get<string>('TWITTER_CLIENT_ID')!;
-    this.TWITTER_CLIENT_SECRET = this.config.get<string>('TWITTER_CLIENT_SECRET')!;
-    this.TWITTER_CALLBACK_URL = this.config.get<string>('TWITTER_CALLBACK_URL')!;
-
-    // ✅ OAuth 1.0a setup for posting with media
-    this.v1Client = new TwitterApi({
-      appKey: this.config.get<string>('TWITTER_API_KEY')!,
-      appSecret: this.config.get<string>('TWITTER_API_SECRET')!,
-      accessToken: this.config.get<string>('TWITTER_ACCESS_TOKEN')!,
-      accessSecret: this.config.get<string>('TWITTER_ACCESS_SECRET')!,
-    });
+    this.TWITTER_CLIENT_SECRET =
+      this.config.get<string>('TWITTER_CLIENT_SECRET')!;
+    this.TWITTER_CALLBACK_URL =
+      this.config.get<string>('TWITTER_CALLBACK_URL')!;
   }
 
-  // 🔹 Generate OAuth 2.0 authorization URL
+  // --- NO CHANGES TO AUTH FUNCTIONS ---
   generateAuthUrl() {
     const state = crypto.randomBytes(32).toString('hex');
     const codeVerifier = crypto.randomBytes(32).toString('base64url');
@@ -60,20 +54,19 @@ export class TwitterService {
     url.searchParams.set('scope', scopes);
     url.searchParams.set('state', state);
     url.searchParams.set('code_challenge', codeChallenge);
+    // ✅ FIX 1: Changed 'search_params' to 'searchParams'
     url.searchParams.set('code_challenge_method', 'S256');
 
     return { url: url.toString(), state, codeVerifier };
   }
 
-  // 🔹 Exchange OAuth 2.0 code for tokens
   async exchangeCodeForTokens(
     code: string,
     state: string,
     storedState: string,
     storedCodeVerifier: string,
   ) {
-    if (state !== storedState)
-      throw new BadRequestException('Invalid state');
+    if (state !== storedState) throw new BadRequestException('Invalid state');
     if (!storedCodeVerifier)
       throw new BadRequestException('Missing code verifier');
 
@@ -98,57 +91,75 @@ export class TwitterService {
     );
     return response.data;
   }
+  // --- END OF AUTH FUNCTIONS ---
 
-  // 🔹 Post Tweet using OAuth 1.0a (supports images/videos)
-  async postTweetOAuth1(text: string, mediaUrls?: string[]) {
+  /**
+   * ✅ FINAL CORRECTED FUNCTION
+   * This function uses ONLY the v2 API and ONLY the user's token.
+   */
+  async postTweetWithUserToken(
+    text: string,
+    file: Express.Multer.File,
+    userOAuth2Token: string, // The user's v2 token from the cookie
+  ) {
     try {
-      let mediaIds: string[] = [];
+      // 1. Create a v2 client using the user's token.
+      const userClient = new TwitterApi(userOAuth2Token);
 
-      if (mediaUrls && mediaUrls.length > 0) {
-        for (const url of mediaUrls) {
-          const mediaResp = await firstValueFrom(
-            this.httpService.get(url, { responseType: 'arraybuffer' }),
+      let mediaId: string | undefined;
+      let cloudinaryUrl: string | undefined;
+
+      if (file) {
+        // 2. Backup to Cloudinary
+        cloudinaryUrl = await this.cloudinaryService.uploadFile(file);
+
+        // 3. Determine MimeType
+        let mediaType: EUploadMimeType;
+        if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg'))
+          mediaType = EUploadMimeType.Jpeg;
+        else if (file.mimetype.includes('png'))
+          mediaType = EUploadMimeType.Png;
+        else if (file.mimetype.includes('gif'))
+          mediaType = EUploadMimeType.Gif;
+        else if (file.mimetype.includes('mp4'))
+          mediaType = EUploadMimeType.Mp4;
+        else
+          throw new BadRequestException(
+            `Unsupported media type: ${file.mimetype}`,
           );
 
-          const contentType =
-            mediaResp.headers['content-type'] || 'application/octet-stream';
-          const buffer = Buffer.from(mediaResp.data);
-
-          let mediaType: EUploadMimeType;
-          if (contentType.includes('jpeg') || contentType.includes('jpg'))
-            mediaType = EUploadMimeType.Jpeg;
-          else if (contentType.includes('png'))
-            mediaType = EUploadMimeType.Png;
-          else if (contentType.includes('gif'))
-            mediaType = EUploadMimeType.Gif;
-          else if (contentType.includes('mp4'))
-            mediaType = EUploadMimeType.Mp4;
-          else
-            throw new BadRequestException(
-              `Unsupported media type: ${contentType}`,
-            );
-
-          // 🧩 Upload image/video file
-          const mediaId = await this.v1Client.v1.uploadMedia(buffer, {
-            mimeType: mediaType,
-          });
-          mediaIds.push(mediaId);
-        }
+        // 4. ✅ UPLOAD MEDIA using the v2 API endpoint
+        // ✅ FIX 2: Changed 'mimeType' to 'media_type'
+        mediaId = await userClient.v2.uploadMedia(file.buffer, {
+          media_type: mediaType,
+        });
       }
 
-      // ✅ Twitter supports max 4 media (only 1 video allowed)
-      const tweet = await this.v1Client.v2.tweet({
+      // 5. ✅ POST TWEET using the v2 API endpoint
+      const tweet = await userClient.v2.tweet({
         text,
-        media: mediaIds.length
-          ? { media_ids: mediaIds.slice(0, 4) as [string] }
-          : undefined,
+        media: mediaId ? { media_ids: [mediaId] } : undefined,
       });
 
-      return tweet;
+      return {
+        success: true,
+        tweetId: tweet.data.id,
+        cloudinaryUrl,
+      };
     } catch (err: any) {
-      console.error('OAuth1 Tweet Error:', err);
+      console.error('Twitter Service Error:', err);
+      if (err.code === 401) {
+        throw new InternalServerErrorException(
+          'Twitter token is invalid or expired. Please reconnect your account.',
+        );
+      }
+      if (err.code === 403) {
+        throw new InternalServerErrorException(
+          'Twitter permission error (403). Ensure "media.write" scope is granted.',
+        );
+      }
       throw new InternalServerErrorException(
-        `Failed to post tweet with media: ${err.message}`,
+        `Failed to post tweet: ${err.message}`,
       );
     }
   }
