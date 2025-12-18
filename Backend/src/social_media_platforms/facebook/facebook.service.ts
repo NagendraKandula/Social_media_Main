@@ -4,6 +4,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import axios from 'axios';
+import { PrismaService } from 'src/prisma/prisma.service';
 // No FormData or AxiosRequestConfig needed for this flow
 
 interface FacebookPage {
@@ -29,14 +30,33 @@ export class FacebookService {
   private readonly FACEBOOK_GRAPH_VIDEO_API_URL ='https://graph-video.facebook.com/v19.0';
   /**
    * NEW: Helper function to get all pages for the frontend dropdown
+   * 
    */
-  async getPages(accessToken: string) {
+  constructor(private readonly prisma: PrismaService) {}
+ private async getFacebookToken(userId: number): Promise<string> {
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId: userId,
+        provider: 'facebook',
+      },
+    });
+
+    if (!account || !account.accessToken) {
+      throw new BadRequestException(
+        'Facebook account not connected or token missing. Please connect your Facebook account.',
+      );
+    }
+
+    return account.accessToken;
+  } 
+  async getPages(userId: number) {
+    const accessToken = await this.getFacebookToken(userId);
     try {
       const pagesResponse = await axios.get(
         `${this.FACEBOOK_GRAPH_API_URL}/me/accounts`,
         {
           params: { 
-            fields: 'id,name,picture',
+            fields: 'id,name,picture,access_token',
             access_token: accessToken },
         },
       );
@@ -56,12 +76,13 @@ export class FacebookService {
    * UPDATED: Main function, now takes pageId, mediaUrl, and mediaType
    */
   async postToFacebook(
-    userAccessToken: string,
+    userId: number,
     pageId: string,
     content: string,
     mediaUrl: string,
     mediaType: 'IMAGE' | 'VIDEO' | 'STORY',
   ) {
+    const userAccessToken = await this.getFacebookToken(userId);
     if (!userAccessToken) {
       throw new BadRequestException('Facebook access token not found.');
     }
