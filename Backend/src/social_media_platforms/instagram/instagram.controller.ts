@@ -9,10 +9,11 @@ import {
 import { InstagramService } from './instagram.service';
 import { Request } from 'express';
 
-// Define a simple DTO for the request body
+// Updated DTO
 class InstagramPostDto {
-  content: string;
+  content?: string; // Caption (Optional for Stories)
   mediaUrl: string;
+  mediaType: 'IMAGE' | 'REEL' | 'STORIES'; // New Field
 }
 
 @Controller('instagram')
@@ -24,27 +25,29 @@ export class InstagramController {
     @Req() req: Request,
     @Body() postDto: InstagramPostDto,
   ) {
+    // 1. Get Facebook Token from Cookie
     const accessToken = req.cookies['facebook_access_token'];
-    if (!accessToken) {
-      throw new BadRequestException('Facebook access token not found');
+    
+    // Fallback: Check header if cookie missing (useful for testing)
+    const token = accessToken || req.headers.authorization?.split(' ')[1];
+
+    if (!token) {
+      throw new BadRequestException('Facebook access token not found. Please log in with Facebook.');
     }
 
-    const { content, mediaUrl } = postDto;
+    const { content, mediaUrl, mediaType } = postDto;
+
     if (!mediaUrl) {
       throw new BadRequestException('Media URL is required');
     }
 
-    // You might want to infer mediaType from the URL (e.g., .mp4, .mov)
-    // For this example, we'll assume .jpg/.png are 'IMAGE' and .mp4/.mov are 'VIDEO'
-    // A more robust solution would check MIME types or API requirements
-    let mediaType: 'IMAGE' | 'VIDEO' = 'IMAGE';
-    if (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov')) {
-      mediaType = 'VIDEO';
+    if (!['IMAGE', 'REEL', 'STORIES'].includes(mediaType)) {
+      throw new BadRequestException('Invalid mediaType. Must be IMAGE, REEL, or STORY');
     }
-
+     const safeContent = content || '';
     return this.instagramService.postToInstagram(
-      accessToken,
-      content,
+      token,
+      safeContent,
       mediaUrl,
       mediaType,
     );

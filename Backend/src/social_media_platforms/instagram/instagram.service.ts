@@ -1,7 +1,7 @@
 import {
   Injectable,
   BadRequestException,
-  InternalServerErrorException,
+  InternalServerErrorException,Logger
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -11,6 +11,7 @@ import { AxiosError } from 'axios';
 @Injectable()
 export class InstagramService {
   private readonly FB_GRAPH_API_URL = 'https://graph.facebook.com/v19.0';
+  private readonly logger = new Logger(InstagramService.name);
 
   constructor(
     private readonly httpService: HttpService,
@@ -103,20 +104,36 @@ export class InstagramService {
     pageAccessToken: string,
     caption: string,
     mediaUrl: string,
-    mediaType: 'IMAGE' | 'VIDEO',
+    mediaType: 'IMAGE' | 'REEL' | 'STORIES',
   ): Promise<string> {
     try {
       const url = `${this.FB_GRAPH_API_URL}/${igAccountId}/media`;
       const params: any = {
         access_token: pageAccessToken,
-        caption: caption,
       };
 
       if (mediaType === 'IMAGE') {
         params.image_url = mediaUrl;
-      } else {
+        if(caption){
+          params.caption = caption;
+        
+          }
+      } else if (mediaType === 'REEL') {
         params.video_url = mediaUrl;
-        params.media_type = 'VIDEO';
+        params.media_type = 'REELS';
+        if(caption){
+          params.caption = caption;
+        }
+        params.share_to_feed = true; // Reels also appear on profile grid
+      }
+      else if (mediaType === 'STORIES') {
+        params.media_type = 'STORIES';
+        const isVideo = mediaUrl.match(/\.(mp4|mov|avi|mkv|webm)$/i);
+        if (isVideo) {
+          params.video_url = mediaUrl;
+        } else {
+          params.image_url = mediaUrl;
+        }
       }
 
       const response = await firstValueFrom(
@@ -133,49 +150,56 @@ export class InstagramService {
    * Step 4: Poll the container status until it's FINISHED
    */
   private async pollContainerStatus(
-    containerId: string,
-    pageAccessToken: string,
-  ): Promise<void> {
-    const maxRetries = 10;
-    const delayMs = 5000; // 5 seconds
-    let retries = 0;
+  containerId: string,
+  pageAccessToken: string,
+): Promise<void> {
+  const maxAttempts = 5;       // Meta recommends max 5 minutes
+  const delayMs = 60_000;      // 1 minute
 
-    const checkStatus = async () => {
-      try {
-        const url = `${this.FB_GRAPH_API_URL}/${containerId}`;
-        const response = await firstValueFrom(
-          this.httpService.get(url, {
-            params: {
-              fields: 'status_code',
-              access_token: pageAccessToken,
-            },
-          }),
-        );
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const url = `${this.FB_GRAPH_API_URL}/${containerId}`;
 
-        const status = response.data.status_code;
-        console.log(`Container ${containerId} status: ${status}`);
+    const response = await firstValueFrom(
+      this.httpService.get(url, {
+        params: {
+          fields: 'status_code',
+          access_token: pageAccessToken,
+        },
+      }),
+    );
 
-        if (status === 'FINISHED') {
-          return; // Success
-        } else if (status === 'ERROR') {
-          throw new InternalServerErrorException(
-            'Media processing failed on Instagram.',
-          );
-        } else if (status === 'IN_PROGRESS' || status === 'PENDING') {
-          retries++;
-          if (retries > maxRetries) {
-            throw new InternalServerErrorException('Media processing timed out.');
-          }
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          await checkStatus();
-        }
-      } catch (error) {
-        this.handleApiError(error, 'poll container status');
-      }
-    };
+    const status = response.data.status_code;
+    this.logger.log(
+      `Container ${containerId} status: ${status} (Attempt ${attempt})`,
+    );
 
-    await checkStatus();
+    // ✅ SUCCESS STATES
+    if (status === 'FINISHED' || status === 'PUBLISHED') {
+      return;
+    }
+
+    // ❌ FAILURE STATES
+    if (status === 'ERROR') {
+      throw new InternalServerErrorException(
+        'Instagram failed to process the media.',
+      );
+    }
+
+    if (status === 'EXPIRED') {
+      throw new InternalServerErrorException(
+        'Instagram media container expired.',
+      );
+    }
+
+    // ⏳ WAIT BEFORE NEXT POLL
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
   }
+
+  throw new InternalServerErrorException(
+    'Instagram media processing timed out.',
+  );
+}
+
 
   /**
    * Step 5: Publish the media container
@@ -209,7 +233,7 @@ export class InstagramService {
     userAccessToken: string,
     content: string,
     mediaUrl: string,
-    mediaType: 'IMAGE' | 'VIDEO',
+    mediaType: 'IMAGE' | 'REEL' | 'STORIES',
   ) {
     // Step 1: Get Page ID and Page Token
     const { pageId, pageAccessToken } = await this.getFacebookPageDetails(

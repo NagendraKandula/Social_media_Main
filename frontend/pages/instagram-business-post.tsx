@@ -1,139 +1,166 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useRouter } from 'next/router';
+import Head from 'next/head';
+import { FaInstagram, FaImage, FaVideo, FaHistory, FaPaperPlane } from 'react-icons/fa';
+import styles from '../styles/InstagramBusinessPost.module.css';
 
-const InstagramDirectPost: React.FC = () => {
-  const [userId, setUserId] = useState("");
-  const [accessToken, setAccessToken] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [caption, setCaption] = useState("");
+// Enum for Media Types
+type MediaType = 'IMAGE' | 'REELS' | 'STORIES';
+
+const InstagramBusinessPost = () => {
+  const router = useRouter();
+  
+  // State
+  const [mediaType, setMediaType] = useState<MediaType>('IMAGE');
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
+  const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  const handlePost = async () => {
-    if (!userId || !accessToken || !imageUrl) {
-      setMessage("⚠️ Please fill all required fields.");
-      return;
-    }
-
+  // Handle Post Submission
+  const handlePost = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
-    setMessage("");
+    setStatus(null);
 
     try {
-      // STEP 1: Create Media Container
-      const createMedia = await axios.post(
-        `https://graph.instagram.com/v24.0/${userId}/media`,
-        null,
+      // ✅ 1. Get Backend URL from Env
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+      // ✅ 2. Send Request (Backend handles tokens!)
+      // Note: We use withCredentials: true if you rely on Cookies, 
+      // OR send 'Authorization' header if you use localStorage JWT.
+      // I will assume standard Cookie-based auth as per your setup.
+      const response = await axios.post(
+        `${backendUrl}/instagram-business/publish`,
         {
-          params: {
-            image_url: imageUrl,
-            caption,
-            access_token: accessToken,
-          },
-        }
+          mediaType,
+          mediaUrl,
+          caption: mediaType === 'STORIES' ? undefined : caption, // Stories don't support captions
+        },
+        { withCredentials: true } // Important for HttpOnly Cookies
       );
 
-      const creationId = createMedia.data.id;
-      console.log("✅ Media Container ID:", creationId);
-
-      // STEP 2: Publish the Media Container
-      const publishMedia = await axios.post(
-        `https://graph.instagram.com/v24.0/${userId}/media_publish`,
-        null,
-        {
-          params: {
-            creation_id: creationId,
-            access_token: accessToken,
-          },
-        }
-      );
-
-      console.log("✅ Post Published:", publishMedia.data);
-      setMessage("🎉 Post published successfully!");
+      setStatus({ type: 'success', message: '🎉 Content published successfully to Instagram!' });
+      // Optional: Clear form
+      setCaption('');
     } catch (error: any) {
-      console.error("❌ Post Error:", error.response?.data || error.message);
-      setMessage(
-        `❌ Error: ${error.response?.data?.error?.message || "Failed to post."}`
-      );
+      console.error(error);
+      const errorMsg = error.response?.data?.message || 'Failed to publish content. Check the URL and try again.';
+      setStatus({ type: 'error', message: `❌ ${errorMsg}` });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      style={{
-        maxWidth: "450px",
-        margin: "50px auto",
-        padding: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "12px",
-        boxShadow: "0 4px 10px rgba(0,0,0,0.05)",
-        fontFamily: "sans-serif",
-      }}
-    >
-      <h2 style={{ textAlign: "center" }}>📸 Instagram Direct Post Test</h2>
+    <div className={styles.container}>
+      <Head>
+        <title>Post to Instagram Business</title>
+      </Head>
 
-      <label>Instagram User ID</label>
-      <input
-        type="text"
-        value={userId}
-        onChange={(e) => setUserId(e.target.value)}
-        placeholder="e.g. 25060787436941336"
-        style={{ width: "100%", marginBottom: "10px" }}
-      />
+      <div className={styles.card}>
+        <div className={styles.header}>
+          <div className={styles.iconWrapper}>
+            <FaInstagram className={styles.igIcon} />
+          </div>
+          <h1>Create New Post</h1>
+          <p>Publish Images, Reels, or Stories directly Instagram Business</p>
+        </div>
 
-      <label>Access Token</label>
-      <input
-        type="text"
-        value={accessToken}
-        onChange={(e) => setAccessToken(e.target.value)}
-        placeholder="Your long-lived access token"
-        style={{ width: "100%", marginBottom: "10px" }}
-      />
+        {/* --- Media Type Tabs --- */}
+        <div className={styles.tabs}>
+          <button 
+            className={`${styles.tab} ${mediaType === 'IMAGE' ? styles.active : ''}`}
+            onClick={() => setMediaType('IMAGE')}
+          >
+            <FaImage /> Feed Image
+          </button>
+          <button 
+            className={`${styles.tab} ${mediaType === 'REELS' ? styles.active : ''}`}
+            onClick={() => setMediaType('REELS')}
+          >
+            <FaVideo /> Reel
+          </button>
+          <button 
+            className={`${styles.tab} ${mediaType === 'STORIES' ? styles.active : ''}`}
+            onClick={() => setMediaType('STORIES')}
+          >
+            <FaHistory /> Story
+          </button>
+        </div>
 
-      <label>Image URL</label>
-      <input
-        type="text"
-        value={imageUrl}
-        onChange={(e) => setImageUrl(e.target.value)}
-        placeholder="https://example.com/photo.jpg"
-        style={{ width: "100%", marginBottom: "10px" }}
-      />
+        {/* --- Form --- */}
+        <form onSubmit={handlePost} className={styles.form}>
+          
+          {/* URL Input */}
+          <div className={styles.inputGroup}>
+            <label>Media URL (Public Link)</label>
+            <input 
+              type="url" 
+              placeholder="https://example.com/image.jpg"
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              required
+            />
+            <small>Must be a direct link (jpg, png, mp4) accessible by Instagram.</small>
+          </div>
 
-      <label>Caption</label>
-      <textarea
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        placeholder="Write your caption..."
-        style={{
-          width: "100%",
-          marginBottom: "10px",
-          height: "60px",
-          resize: "none",
-        }}
-      />
+          {/* Preview Section */}
+          {mediaUrl && (
+            <div className={styles.preview}>
+              <p>Preview:</p>
+              {(mediaType === 'IMAGE' || (mediaType === 'STORIES' && !mediaUrl.match(/\.(mp4|mov)$/i))) ? (
+                <img src={mediaUrl} alt="Preview" onError={(e) => (e.currentTarget.style.display = 'none')} />
+              ) : (
+                <video src={mediaUrl} controls />
+              )}
+            </div>
+          )}
 
-      <button
-        onClick={handlePost}
-        disabled={loading}
-        style={{
-          width: "100%",
-          padding: "10px",
-          backgroundColor: "#0095F6",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          cursor: "pointer",
-        }}
-      >
-        {loading ? "Posting..." : "Post to Instagram"}
-      </button>
+          {/* Caption Input (Hidden for Stories) */}
+          {mediaType !== 'STORIES' && (
+            <div className={styles.inputGroup}>
+              <label>Caption & Hashtags</label>
+              <textarea 
+                placeholder="Write a catchy caption... #instagram #business"
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                rows={4}
+              />
+            </div>
+          )}
 
-      {message && (
-        <p style={{ marginTop: "15px", textAlign: "center" }}>{message}</p>
-      )}
+          {mediaType === 'STORIES' && (
+            <div className={styles.infoBox}>
+              ℹ️ Note: Instagram API does not support captions for Stories. Text must be embedded in the media.
+            </div>
+          )}
+
+          {/* Status Messages */}
+          {status && (
+            <div className={`${styles.status} ${styles[status.type]}`}>
+              {status.message}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button 
+            type="submit" 
+            className={styles.submitBtn}
+            disabled={loading || !mediaUrl}
+          >
+            {loading ? (
+              <span className={styles.loader}>Posting... (This may take a moment)</span>
+            ) : (
+              <> <FaPaperPlane /> Post Now </>
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
 
-export default InstagramDirectPost;
+export default InstagramBusinessPost;
