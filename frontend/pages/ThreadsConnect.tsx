@@ -6,7 +6,7 @@ const ThreadsConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const THREADS_APP_ID = process.env.NEXT_PUBLIC_THREADS_APP_ID!;
-  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URI!;
+  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URL!;
   const SCOPES = ["threads_basic", "threads_content_publish"];
 
   const handleConnectThreads = () => {

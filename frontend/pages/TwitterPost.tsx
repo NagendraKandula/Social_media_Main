@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import apiClient from '../lib/axios'; // Your configured Axios instance
+import apiClient from '../lib/axios';
 import styles from '../styles/TwitterPost.module.css';
 import { withAuth } from '../utils/withAuth';
 import { GetServerSideProps } from 'next';
@@ -8,45 +8,41 @@ const MAX_TWEET_CHARS = 280;
 
 const TwitterPost: React.FC = () => {
   const [text, setText] = useState('');
-  const [mediaUrl, setMediaUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null); // ✅ Store file object
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+
+  // ✅ Handle File Selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+    }
+  };
 
   const handlePost = async () => {
     if (!text.trim()) return;
 
     setLoading(true);
-    setError(null);
-    setResult(null);
+    setMessage('');
 
-    // Create the payload to send to backend
-    const payload: { text: string; mediaUrls?: string[] } = {
-      text: text.trim(),
-    };
-    if (mediaUrl.trim()) {
-      payload.mediaUrls = [mediaUrl.trim()];
+    // ✅ Pack data into FormData
+    const formData = new FormData();
+    formData.append('text', text);
+    if (file) {
+      formData.append('file', file); // Must match backend @UseInterceptors(FileInterceptor('file'))
     }
 
     try {
-      // ✅ Updated endpoint for media support
-      const res = await apiClient.post(
-        '/twitter/post-media',
-        payload,
-        { withCredentials: true }
-      );
+      const res = await apiClient.post('/twitter/post-media', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }, // ✅ Critical Header
+      });
 
-      setResult(res.data);
+      setMessage(`✅ Tweeted successfully! (Saved to Cloudinary: ${res.data.cloudinaryUrl})`);
       setText('');
-      setMediaUrl('');
+      setFile(null);
     } catch (err: any) {
       console.error(err);
-      const errorMessage =
-        err.response?.data?.message ||
-        err.response?.data ||
-        err.message ||
-        'Failed to post tweet with media';
-      setError(errorMessage);
+      setMessage(err.response?.data?.message || 'Failed to post tweet');
     } finally {
       setLoading(false);
     }
@@ -65,14 +61,16 @@ const TwitterPost: React.FC = () => {
           placeholder="What's happening?"
         />
 
-        <input
-          type="text"
-          className={styles.input}
-          value={mediaUrl}
-          onChange={(e) => setMediaUrl(e.target.value)}
-          placeholder="Optional: Image/Video URL (e.g., https://.../file.png)"
-          disabled={loading}
-        />
+        {/* ✅ File Input for Images/Video */}
+        <div style={{ margin: '10px 0' }}>
+            <label>Upload Media: </label>
+            <input
+            type="file"
+            accept="image/*,video/mp4,video/quicktime"
+            onChange={handleFileChange}
+            disabled={loading}
+            />
+        </div>
 
         <div className={styles.row}>
           <span className={styles.counter}>
@@ -87,15 +85,9 @@ const TwitterPost: React.FC = () => {
           </button>
         </div>
 
-        {error && (
-          <div className={styles.error}>
-            Error: {JSON.stringify(error)}
-          </div>
-        )}
-
-        {result && (
+        {message && (
           <div className={styles.result}>
-            ✅ Posted! Tweet ID: {result.data?.id || JSON.stringify(result)}
+            {message}
           </div>
         )}
       </div>
@@ -103,7 +95,6 @@ const TwitterPost: React.FC = () => {
   );
 };
 
-// Protect route with authentication
 export const getServerSideProps: GetServerSideProps = withAuth(async () => ({
   props: {},
 }));
