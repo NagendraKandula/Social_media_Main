@@ -51,26 +51,49 @@ export class SocialAuthService {
       const frontendUrl = this.config.get<string>('FRONTEND_URL');
        return res.redirect(`${frontendUrl}/Landing`);
     }
-    async facebookLogin(req, res: Response) {
-        if (!req.user) {
+    async facebookLogin(req, res: Response, appUserId: number) {
+        if (!req.user || !req.user.id) {
           throw new BadRequestException('No user from facebook');
         }
     
-        const { accessToken, refreshToken } = req.user;
-    
-        res.cookie('facebook_access_token', accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development',
-          sameSite: 'none',
-        });
-    
-        if (refreshToken) {
-          res.cookie('facebook_refresh_token', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV !== 'development',
-            sameSite: 'none',
-          });
-        }
+        const { accessToken, refreshToken,id:facebookId } = req.user;
+      const providerIdStr = facebookId.toString();
+
+  // 1. Find Unique
+  const existingAccount = await this.prisma.socialAccount.findUnique({
+    where: {
+      provider_providerId: {
+        provider: 'facebook',
+        providerId: providerIdStr,
+      },
+    },
+  });
+
+  if (existingAccount) {
+    // 2. If exists, Update
+    await this.prisma.socialAccount.update({
+      where: { id: existingAccount.id },
+      data: {
+        accessToken,
+        refreshToken,
+        userId: appUserId,
+        updatedAt: new Date(),
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      },
+    });
+  } else {
+    // 3. If not, Create
+    await this.prisma.socialAccount.create({
+      data: {
+        provider: 'facebook',
+        providerId: providerIdStr,
+        accessToken,
+        refreshToken,
+        userId: appUserId,
+        expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
          return res.redirect(`${frontendUrl}/facebook-post`);
       }

@@ -29,12 +29,9 @@ export class FacebookController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('pages')
-  async getPages(@Req() req: Request) {
-    const accessToken = req.cookies['facebook_access_token'];
-    if (!accessToken) {
-      throw new BadRequestException('Facebook access token is missing.');
-    }
-    return this.facebookService.getPages(accessToken);
+  async getPages(@Req() req: any) {
+    const userId = req.user.userId;
+    return this.facebookService.getPages(userId);
   }
 
   /**
@@ -43,12 +40,8 @@ export class FacebookController {
   @UseGuards(JwtAuthGuard)
   @Post('post')
   // No @UseInterceptors or @UploadedFile needed
-  async createPost(@Body() body: CreatePostBody, @Req() req: Request) {
-    const accessToken = req.cookies['facebook_access_token'];
-
-    if (!accessToken) {
-      throw new BadRequestException('Facebook access token is missing.');
-    }
+  async createPost(@Body() body: CreatePostBody, @Req() req: any) {
+   const userId = req.user.userId;
 
     const { content, pageId, mediaUrl, mediaType } = body;
 
@@ -62,7 +55,7 @@ export class FacebookController {
       throw new BadRequestException('Media type (IMAGE or VIDEO or STORY) is required.');
     }
     return this.facebookService.postToFacebook(
-      accessToken,
+      userId,
       pageId,
       content,
       mediaUrl,

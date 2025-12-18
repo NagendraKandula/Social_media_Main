@@ -127,15 +127,30 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
   }
 
   @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  async facebookAuth(@Req() req) {
+  @UseGuards(JwtAuthGuard)
+  async facebookAuth(@Req() req,@Res() res: Response) {
+    const userId = req.user.userId;
+    const state = encodeURIComponent(JSON.stringify({ userId }));
+     const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?` +
+                   `client_id=${process.env.FACEBOOK_APP_ID}` +
+                   `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
+                   `&state=${state}` +
+                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management')}`;
+     return res.redirect(oauthUrl);
     // Initiates the Facebook OAuth2 login flow
   }
   @Get('facebook/callback')
   @UseGuards(AuthGuard('facebook'))
   facebookAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, refreshToken, facebookId, name, email } = req.user;
+    const state = JSON.parse(decodeURIComponent(req.query.state as string));
+    const appUserId = state.userId;
+    if (!appUserId) {
+      throw new BadRequestException('App user not found in state');
+    }
+
     // You can create a new service method for this or reuse the googleLogin logic
-    return this.socialauthservice.facebookLogin(req, res);
+    return this.socialauthservice.facebookLogin(req, res,appUserId);
   }
 
   @Get('instagram')

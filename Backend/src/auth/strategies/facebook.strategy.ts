@@ -32,8 +32,9 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     done: (err: any, user: any, info?: any) => void,
   ): Promise<any> {
     // Safely access potentially undefined properties
-    const {name,emails,photos} = profile;
+    const {id,name,emails,photos} = profile;
     const user = {
+      id,
       email: profile.emails?.[0]?.value ?? '', // Use optional chaining and fallback to empty string
       firstName: profile.name?.givenName ?? '', // Use optional chaining and fallback
       lastName: profile.name?.familyName ?? '', 
@@ -41,7 +42,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
       accessToken,
       refreshToken,
     };
-    console.log('User object from Facebook:', user);
+    //console.log('User object from Facebook:', user);
     done(null, user);
   }
 }
