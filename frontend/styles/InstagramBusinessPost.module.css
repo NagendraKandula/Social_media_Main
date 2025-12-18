@@ -1,0 +1,204 @@
+/* frontend/styles/InstagramBusinessPost.module.css */
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #fafafa;
+  padding: 20px;
+}
+
+.card {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #dbdbdb;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.iconWrapper {
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+}
+
+.igIcon {
+  color: white;
+  font-size: 32px;
+}
+
+.header h1 {
+  font-size: 24px;
+  color: #262626;
+  margin: 0;
+}
+
+.header p {
+  color: #8e8e8e;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  background: #f0f0f0;
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 25px;
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px;
+  font-weight: 600;
+  color: #8e8e8e;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.tab.active {
+  background: white;
+  color: #d6249f; /* Instagram Pink */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputGroup label {
+  font-weight: 600;
+  color: #262626;
+  font-size: 14px;
+}
+
+.inputGroup input,
+.inputGroup textarea {
+  padding: 12px;
+  border: 1px solid #dbdbdb;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.inputGroup input:focus,
+.inputGroup textarea:focus {
+  border-color: #a8a8a8;
+}
+
+.inputGroup small {
+  color: #8e8e8e;
+  font-size: 12px;
+}
+
+/* Preview */
+.preview {
+  background: #fafafa;
+  border: 1px dashed #dbdbdb;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.preview p {
+  margin: 0 0 10px;
+  color: #8e8e8e;
+  font-size: 12px;
+}
+
+.preview img,
+.preview video {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 4px;
+}
+
+.infoBox {
+  background: #e1f5fe;
+  color: #0277bd;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  border: 1px solid #b3e5fc;
+}
+
+/* Status */
+.status {
+  padding: 12px;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.status.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
+}
+
+/* Submit Button */
+.submitBtn {
+  background: #0095f6; /* Instagram Blue */
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.submitBtn:hover {
+  background: #0081d6;
+}
+
+.submitBtn:disabled {
+  background: #b2dffc;
+  cursor: not-allowed;
+}
+
+.loader {
+  font-style: italic;
+}

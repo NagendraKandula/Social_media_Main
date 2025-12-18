@@ -1,20 +1,24 @@
 // src/auth/auth.controller.ts
 import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { RegisterDto } from './dto/register.dto';
-import { LoginDto } from './dto/login.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { JwtRefreshGuard } from './jwt-refresh.guard';
+import { AuthService } from '../services/auth.service';
+import { RegisterDto } from '../dto/register.dto';
+import { LoginDto } from '../dto/login.dto';
+import { ForgotPasswordDto } from '../dto/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { JwtAuthGuard } from '../guard/jwt-auth.guard';
+import { JwtRefreshGuard } from '../guard/jwt-refresh.guard';
 import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config'; 
+import { SocialAuthService } from '../services/social-auth.service';
+import {TokenService} from '../services/token.service';
 //import {  YoutubeAuthGuard} from './youtube-auth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService,
     private configService: ConfigService,
+    private socialauthservice :SocialAuthService,
+    private tokenService: TokenService
   ) {}
 
   @Post('register')
@@ -57,7 +61,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
-    return this.authService.googleLogin(req, res);
+    return this.socialauthservice.googleLogin(req, res);
   }
   2
   @UseGuards(JwtRefreshGuard) 
@@ -69,7 +73,7 @@ export class AuthController {
     .get('Authorization')
     .replace('Bearer', '')
     .trim();
-    const {accessToken } = await this.authService.refreshTokens(userId, refreshToken);
+    const {accessToken } = await this.tokenService.refreshTokens(userId, refreshToken);
     res.cookie('access_token', accessToken, {
       httpOnly: true, 
       secure: this.configService.get('NODE_ENV') !== 'development', 
@@ -119,8 +123,9 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
   }
 
   // Call service to link YouTube account
-  return this.authService.youtubeLogin(req, res, appUserId);
+  return this.socialauthservice.youtubeLogin(req, res, appUserId);
   }
+
   @Get('facebook')
   @UseGuards(AuthGuard('facebook'))
   async facebookAuth(@Req() req) {
@@ -130,6 +135,33 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
   @UseGuards(AuthGuard('facebook'))
   facebookAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
     // You can create a new service method for this or reuse the googleLogin logic
-    return this.authService.facebookLogin(req, res);
+    return this.socialauthservice.facebookLogin(req, res);
   }
+
+  @Get('instagram')
+  @UseGuards(JwtAuthGuard)
+  async redirectToInstagram(@Req() req,@Res() res: Response) {
+    const userId = req.user.userId;
+    const state = encodeURIComponent(JSON.stringify({ userId }));
+     const oauthUrl = `https://www.instagram.com/oauth/authorize?` +
+                   `client_id=${process.env.INSTAGRAM_APP_ID}` +
+                   `&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URL!)}` +
+                   `&response_type=code` +
+                   `&scope=${encodeURIComponent('instagram_business_basic instagram_business_manage_messages instagram_business_manage_comments instagram_business_content_publish')}` +
+                   `&state=${state}`;
+     return res.redirect(oauthUrl);
+  }
+  @Get('instagram/callback')
+  @UseGuards(AuthGuard('instagram'))
+  async instagramAuthRedirect(@Req() req, @Res() res: Response) {
+    const { accessToken, refreshToken, instagramId, username } = req.user;
+
+  // Extract app user from state
+  const state = JSON.parse(decodeURIComponent(req.query.state as string));
+  const appUserId = state.userId;
+  if (!appUserId) {
+    throw new BadRequestException('App user not found in state');
+  }
+  return this.socialauthservice.instagramLogin(req, res, appUserId);
+}
 }

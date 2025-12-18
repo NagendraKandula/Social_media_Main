@@ -1,84 +1,18 @@
-.container {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 20px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background-color: #f9f9f9;
-}
-
-.container h2 {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.formGroup {
-  display: flex;
-  flex-direction: column;
-}
-
-.formGroup label {
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.formGroup textarea,
-.formGroup input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
-  box-sizing: border-box; /* Important for padding to work well */
-}
-
-.formGroup small {
-  font-size: 0.8rem;
-  color: #666;
-  margin-top: 5px;
-}
-
-.submitButton {
-  padding: 12px 15px;
-  background-color: #c13584; /* Instagram-like color */
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.submitButton:hover {
-  background-color: #a22b6f;
-}
-
-.submitButton:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.successMessage {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-  border-radius: 4px;
-}
-
-.errorMessage {
-  margin-top: 15px;
-  padding: 10px;
-  background-color: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-  border-radius: 4px;
-}
+/* Copy of the styles provided in the previous turn */
+.container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fafafa; padding: 20px; }
+.card { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #dbdbdb; }
+.header { text-align: center; margin-bottom: 20px; }
+.iconWrapper { width: 50px; height: 50px; background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; }
+.igIcon { color: white; font-size: 28px; }
+.tabs { display: flex; background: #f0f0f0; border-radius: 8px; padding: 4px; margin-bottom: 20px; }
+.tab { flex: 1; border: none; background: transparent; padding: 10px; font-weight: 600; color: #8e8e8e; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; }
+.tab.active { background: white; color: #d6249f; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.form { display: flex; flex-direction: column; gap: 15px; }
+.inputGroup { display: flex; flex-direction: column; gap: 6px; }
+.inputGroup input, .inputGroup textarea { padding: 10px; border: 1px solid #dbdbdb; border-radius: 6px; }
+.preview img, .preview video { max-width: 100%; border-radius: 6px; max-height: 250px; }
+.submitBtn { background: #0095f6; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.submitBtn:disabled { background: #b2dffc; cursor: not-allowed; }
+.status.success { background: #e8f5e9; color: #2e7d32; padding: 10px; border-radius: 6px; text-align: center; }
+.status.error { background: #ffebee; color: #c62828; padding: 10px; border-radius: 6px; text-align: center; }
+.infoBox { background: #e1f5fe; color: #0277bd; padding: 10px; border-radius: 6px; font-size: 13px; }

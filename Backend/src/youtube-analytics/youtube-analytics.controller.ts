@@ -1,5 +1,5 @@
 import { Controller, Get, UseGuards, Req, Query,BadRequestException } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { YoutubeAnalyticsService } from './youtube-analytics.service';
 
 

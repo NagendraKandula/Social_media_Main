@@ -10,7 +10,7 @@ import {
 // No longer need FileInterceptor or UploadedFile
 import { FacebookService } from './facebook.service';
 import { Request } from 'express';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
 // Updated interface for the request body
 interface CreatePostBody {
