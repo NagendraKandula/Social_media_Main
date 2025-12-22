@@ -39,7 +39,7 @@ export class AiAssistantService {
       : '';
     switch (type) {
       case 'Generate Hashtags':
-    return `Generate 10-15 relevant and trending hashtags for the topic: "${userPrompt}". Return only the hashtags as a single string, each starting with #, without any extra text or labels.`;
+    return `Generate 10-15 relevant and  trending hashtags for the topic: "${userPrompt}". Return only the hashtags as a single string, each starting with #, without any extra text or labels.`;
 
   case 'Generate Description':
     return `Write one short, engaging, and readable social media description (2-3 sentences) for the topic: "${userPrompt}". Focus on the key points, and do NOT include hashtags or any extra text.`;
