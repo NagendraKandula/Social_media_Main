@@ -122,6 +122,9 @@
   transition: all 0.2s;
   border: 1px solid transparent;
 }
+.instagramIcon { 
+  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); 
+}
 
 .connectBtn { background: #1e293b; color: white; }
 .connectBtn:hover { background: #0f172a; }

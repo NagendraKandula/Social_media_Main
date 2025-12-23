@@ -16,6 +16,7 @@ import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 import { TokenService } from './services/token.service';
 import { SocialAuthService } from './services/social-auth.service';
 import { LogoutService } from './services/logout-services';
+import { SocialAuthController } from './controllers/social-auth.controller';
 // <-- Import ThreadsStrategy                                                 
 
 @Module({
@@ -31,7 +32,7 @@ import { LogoutService } from './services/logout-services';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, LinkedinStrategy],
+  controllers: [AuthController, LinkedinStrategy,SocialAuthController],
   providers: [AuthService, JwtStrategy,
      GoogleStrategy,YoutubeStrategy,
      FacebookStrategy,JwtRefreshTokenStrategy,
