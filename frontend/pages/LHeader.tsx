@@ -133,6 +133,13 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
 
           {dropdownOpen && (
             <div className={styles.profileDropdown}>
+              <button 
+                onClick={() => router.push("/ActivePlatforms")} 
+                className={styles.dropdownItem}
+              >
+                Active Platforms
+              </button>
+              
               <button onClick={handleLogout} className={styles.logoutButton}>
                 Logout
               </button>

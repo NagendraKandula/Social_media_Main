@@ -1,5 +1,5 @@
 // src/auth/auth.controller.ts
-import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException ,Delete ,Param } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
@@ -12,13 +12,17 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config'; 
 import { SocialAuthService } from '../services/social-auth.service';
 import {TokenService} from '../services/token.service';
+import { LogoutService } from '../services/logout-services';
+import { PrismaService } from 'src/prisma/prisma.service';
 //import {  YoutubeAuthGuard} from './youtube-auth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService,
     private configService: ConfigService,
     private socialauthservice :SocialAuthService,
-    private tokenService: TokenService
+    private tokenService: TokenService,
+    private logoutService: LogoutService,
+    private prisma: PrismaService
   ) {}
 
   @Post('register')
@@ -130,11 +134,24 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
   @UseGuards(JwtAuthGuard)
   async facebookAuth(@Req() req,@Res() res: Response) {
     const userId = req.user.userId;
+    const existing = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId: userId,
+        provider: 'facebook',
+      },
+    });
+    if (existing) {
+    // Redirect them back to the dashboard or management page instead of FB
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+    return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
+  }
     const state = encodeURIComponent(JSON.stringify({ userId }));
      const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?` +
                    `client_id=${process.env.FACEBOOK_APP_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
                    `&state=${state}` +
+                   `&auth_type=reauthenticate` + // Asks for permissions again
+                   `&prompt=select_account` +
                    `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management')}`;
      return res.redirect(oauthUrl);
     // Initiates the Facebook OAuth2 login flow
@@ -178,5 +195,22 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
     throw new BadRequestException('App user not found in state');
   }
   return this.socialauthservice.instagramLogin(req, res, appUserId);
+}
+@UseGuards(JwtAuthGuard)
+@Get('social/active-accounts')
+async getActiveAccounts(@Req() req) {
+  const userId = req.user.id; // From JwtAuthGuard
+  
+  // Use the new service to get the profile
+  const facebook = await this.logoutService.getFacebookProfile(userId);
+  
+  return { facebook };
+}
+@UseGuards(JwtAuthGuard)
+@Delete('social/:provider')
+async disconnect(@Req() req, @Param('provider') provider: string) {
+  const userId = req.user.id;
+  await this.logoutService.disconnectProvider(userId, provider);
+  return { message: `${provider} disconnected successfully` };
 }
 }
