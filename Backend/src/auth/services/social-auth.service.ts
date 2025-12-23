@@ -154,17 +154,6 @@ export class SocialAuthService {
           });
         }
         // Set tokens in HTTP-only cookies
-        res.cookie('youtube_access_token', accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
-          sameSite: 'none',
-        });
-    
-        res.cookie('youtube_refresh_token', refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development',
-          sameSite: 'none',
-        });
         // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
         return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
@@ -227,7 +216,7 @@ export class SocialAuthService {
     }
 
     // 3. Redirect to Frontend
-    console.log('✅ Instagram account connected:', longLivedToken);
+    //console.log('✅ Instagram account connected:', longLivedToken);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
   }

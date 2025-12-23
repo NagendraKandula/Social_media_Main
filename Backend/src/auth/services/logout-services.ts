@@ -25,7 +25,7 @@ export class LogoutService {
         return {
             providerId: response.data.id,
             name: response.data.name,
-            profilePicture: response.data.picture?.data?.url || null,
+            profilePic: response.data.picture?.data?.url || null,
             connected: true,
         };
     }
@@ -48,6 +48,43 @@ export class LogoutService {
       },
     });
   }
+  async getInstagramProfile(userId: number) {
+    const account = await this.prisma.socialAccount.findFirst({
+        where: {
+            userId: userId,
+            provider: 'instagram',
+        },
+    });
+    if (!account || !account.accessToken) {
+        return null;
+    }
+    try {
+      const response = await axios.get('https://graph.instagram.com/me', {
+        params: {
+          fields: 'id,username,account_type,profile_picture_url',
+          access_token: account.accessToken,
+        },
+      });
+      return {
+        providerId: response.data.id,
+        name: response.data.username,
+        accountType: response.data.account_type,
+        profilePic: response.data?.profile_picture_url ||  null ,// Instagram Graph API does not provide profile picture in this endpoint
+        connected: true,
+      };
+    } catch (error) {
+      console.error('Error fetching Instagram profile:', error.response?.data || error.message);
+      return {
+        providerId: account.providerId,
+        name: 'Instagram User',
+        connected: false,
+        needsReconnect: true,
+      };
+
+    }
+  }
+
+
 }
 
         
