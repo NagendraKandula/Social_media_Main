@@ -83,9 +83,50 @@ export class LogoutService {
 
     }
   }
+  async getYoutubeProfile(userId: number) {
+    const account = await this.prisma.socialAccount.findFirst({
+        where: {
+            userId: userId,
+            provider: 'youtube',
+        },
+    });
+    if (!account || !account.accessToken) {
+        return null;
+    }
+    try{
+      const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+        params: {
+          part: 'snippet',
+          mine: true,
+          access_token: account.accessToken,
+        },
+      });
+      const channels = response.data.items?.[0];
+      if(!channels){
+        throw new Error('No YouTube channel found for this user.');
+      }
+      return {
+        providerId: channels.id,
+        name: channels.snippet.title,
+        profilePic: channels.snippet.thumbnails?.default?.url || null,
+        connected: true,
+      };
+    }
+      catch(error){
+        console.error('Error fetching YouTube profile:', error.response?.data || error.message);
+        return{
+        providerId: account.providerId,
+        name: 'YouTube Channel',
+        connected: false,
+        needsReconnect: true,
+        }
+      }
+    }
 
 
-}
+  }
+
+
 
         
     
