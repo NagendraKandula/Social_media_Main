@@ -97,21 +97,6 @@ export class SocialAuthService {
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
          return res.redirect(`${frontendUrl}/facebook-post`);
       }
-      async threadslogin(req, res: Response) {
-        if (!req.user) {
-          throw new BadRequestException('No user from threads');
-        }
-        const { accessToken, refreshToken } = req.user;
-    
-        res.cookie('threads_access_token', accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development',
-          sameSite: 'none',
-        });
-         const frontendUrl = this.config.get<string>('FRONTEND_URL');
-         return res.redirect(`${frontendUrl}/threads-post`);
-        
-      }
         async youtubeLogin(req, res: Response,appUserId: number) {
           //step1:get youtbe info from req.user strategy
         const { accessToken, refreshToken,youtubeId,displayName } = req.user;
@@ -227,7 +212,7 @@ export class SocialAuthService {
     }
 
     // 3. Redirect to Frontend
-    console.log('✅ Instagram account connected:', longLivedToken);
+    //console.log('✅ Instagram account connected:', longLivedToken);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
   }

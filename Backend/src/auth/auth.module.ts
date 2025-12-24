@@ -15,6 +15,8 @@ import { HttpModule } from '@nestjs/axios';
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
 import { TokenService } from './services/token.service';
 import { SocialAuthService } from './services/social-auth.service';
+import { LogoutService } from './services/logout-services';
+import { SocialAuthController } from './controllers/social-auth.controller';
 // <-- Import ThreadsStrategy                                                 
 
 @Module({
@@ -30,11 +32,11 @@ import { SocialAuthService } from './services/social-auth.service';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, LinkedinStrategy],
+  controllers: [AuthController, LinkedinStrategy,SocialAuthController],
   providers: [AuthService, JwtStrategy,
      GoogleStrategy,YoutubeStrategy,
      FacebookStrategy,JwtRefreshTokenStrategy,
-    TokenService,SocialAuthService,InstagramStrategy,], // <-- Add GoogleStrategy
-  exports: [AuthService, JwtModule, TokenService, SocialAuthService], 
+    TokenService,SocialAuthService,InstagramStrategy,LogoutService], // <-- Add GoogleStrategy
+  exports: [AuthService, JwtModule, TokenService, SocialAuthService,LogoutService], 
 })
 export class AuthModule {}

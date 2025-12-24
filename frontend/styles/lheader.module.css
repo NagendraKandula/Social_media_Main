@@ -157,3 +157,20 @@
   background: rgba(59, 130, 246, 0.1);
   color: #3b82f6;
 }
+.connected {
+  color: #1877F2 !important; /* Facebook Blue */
+  position: relative;
+}
+
+/* Green dot indicator */
+.connected::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  background-color: #10b981;
+  border-radius: 50%;
+  border: 1.5px solid white;
+}

@@ -1,5 +1,5 @@
 // src/auth/auth.controller.ts
-import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards, Get, Request, Res, Req, Scope, HttpCode, HttpStatus,BadRequestException ,Delete ,Param } from '@nestjs/common';
 import { AuthService } from '../services/auth.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
@@ -8,17 +8,18 @@ import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { JwtRefreshGuard } from '../guard/jwt-refresh.guard';
 import { Response } from 'express';
-import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config'; 
-import { SocialAuthService } from '../services/social-auth.service';
 import {TokenService} from '../services/token.service';
+import { LogoutService } from '../services/logout-services';
+import { PrismaService } from 'src/prisma/prisma.service';
 //import {  YoutubeAuthGuard} from './youtube-auth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService,
     private configService: ConfigService,
-    private socialauthservice :SocialAuthService,
-    private tokenService: TokenService
+    private tokenService: TokenService,
+    private logoutService: LogoutService,
+    private prisma: PrismaService
   ) {}
 
   @Post('register')
@@ -52,18 +53,6 @@ export class AuthController {
     return req.user;
   }
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req) {
-    // Initiates the Google OAuth2 login flow
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  googleAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
-    return this.socialauthservice.googleLogin(req, res);
-  }
-  2
   @UseGuards(JwtRefreshGuard) 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -90,93 +79,30 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
   return this.authService.logout(userId, res);
 }
   
-  @Get('youtube')
-  @UseGuards(JwtAuthGuard)
-  async redirectToYoutube(@Req() req,@Res() res: Response) {
-    const userId = req.user.userId;
-    const state = encodeURIComponent(JSON.stringify({ userId }));
-     const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-                   `client_id=${process.env.YOUTUBE_CLIENT_ID}` +
-                   `&redirect_uri=${encodeURIComponent(process.env.YOUTUBE_CALLBACK_URL!)}` +
-                   `&response_type=code` +
-                   `&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload')}` +
-                   `&access_type=offline` +
-                   `&prompt=consent` +
-                   `&state=${state}`;
-     return res.redirect(oauthUrl);
+ 
 
-    // This route is never hit directly because the guard redirects to YouTube
-  }
-
-  @Get('youtube/callback')
-  @UseGuards(AuthGuard('youtube'))
-  async youtubeAuthRedirect(@Req() req, @Res() res: Response) {
-    
-    const { accessToken, refreshToken, youtubeId, displayName } = req.user;
-
-  // Extract app user from state
-  const state = JSON.parse(decodeURIComponent(req.query.state as string));
-  const appUserId = state.userId;
-
-  if (!appUserId) {
-    throw new BadRequestException('App user not found in state');
-  }
-
-  // Call service to link YouTube account
-  return this.socialauthservice.youtubeLogin(req, res, appUserId);
-  }
-
-  @Get('facebook')
-  @UseGuards(JwtAuthGuard)
-  async facebookAuth(@Req() req,@Res() res: Response) {
-    const userId = req.user.userId;
-    const state = encodeURIComponent(JSON.stringify({ userId }));
-     const oauthUrl = `https://www.facebook.com/v19.0/dialog/oauth?` +
-                   `client_id=${process.env.FACEBOOK_APP_ID}` +
-                   `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
-                   `&state=${state}` +
-                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management')}`;
-     return res.redirect(oauthUrl);
-    // Initiates the Facebook OAuth2 login flow
-  }
-  @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
-  facebookAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, facebookId, name, email } = req.user;
-    const state = JSON.parse(decodeURIComponent(req.query.state as string));
-    const appUserId = state.userId;
-    if (!appUserId) {
-      throw new BadRequestException('App user not found in state');
-    }
-
-    // You can create a new service method for this or reuse the googleLogin logic
-    return this.socialauthservice.facebookLogin(req, res,appUserId);
-  }
-
-  @Get('instagram')
-  @UseGuards(JwtAuthGuard)
-  async redirectToInstagram(@Req() req,@Res() res: Response) {
-    const userId = req.user.userId;
-    const state = encodeURIComponent(JSON.stringify({ userId }));
-     const oauthUrl = `https://www.instagram.com/oauth/authorize?` +
-                   `client_id=${process.env.INSTAGRAM_APP_ID}` +
-                   `&redirect_uri=${encodeURIComponent(process.env.INSTAGRAM_REDIRECT_URL!)}` +
-                   `&response_type=code` +
-                   `&scope=${encodeURIComponent('instagram_business_basic instagram_business_manage_messages instagram_business_manage_comments instagram_business_content_publish')}` +
-                   `&state=${state}`;
-     return res.redirect(oauthUrl);
-  }
-  @Get('instagram/callback')
-  @UseGuards(AuthGuard('instagram'))
-  async instagramAuthRedirect(@Req() req, @Res() res: Response) {
-    const { accessToken, refreshToken, instagramId, username } = req.user;
-
-  // Extract app user from state
-  const state = JSON.parse(decodeURIComponent(req.query.state as string));
-  const appUserId = state.userId;
-  if (!appUserId) {
-    throw new BadRequestException('App user not found in state');
-  }
-  return this.socialauthservice.instagramLogin(req, res, appUserId);
+ 
+@UseGuards(JwtAuthGuard)
+@Get('social/active-accounts')
+async getActiveAccounts(@Req() req) {
+  const userId = req.user.id; // From JwtAuthGuard
+  
+  // Use the new service to get the profile
+  const [facebook,instagram,youtube] = await Promise.all([
+    this.logoutService.getFacebookProfile(userId),
+    this.logoutService.getInstagramProfile(userId),
+    this.logoutService.getYoutubeProfile(userId),
+  ]);
+  
+  return { facebook,
+    instagram ,youtube};
+  
+}
+@UseGuards(JwtAuthGuard)
+@Delete('social/:provider')
+async disconnect(@Req() req, @Param('provider') provider: string) {
+  const userId = req.user.id;
+  await this.logoutService.disconnectProvider(userId, provider);
+  return { message: `${provider} disconnected successfully` };
 }
 }
