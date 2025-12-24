@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LHeader from './LHeader';
 import apiClient from '../lib/axios';
 import styles from '../styles/ActivePlatforms.module.css';
-import { FaFacebookF, FaInstagram, FaPlus, FaUnlink, FaSyncAlt } from 'react-icons/fa';
+import { FaFacebookF, FaInstagram, FaPlus, FaUnlink, FaSyncAlt,FaYoutube } from 'react-icons/fa';
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<any>(null);
@@ -42,7 +42,9 @@ const ActivePlatforms = () => {
 
   const platforms = [
     { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
-    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon },
+    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon},
+      {id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon
+     },
   ];
 
   return (

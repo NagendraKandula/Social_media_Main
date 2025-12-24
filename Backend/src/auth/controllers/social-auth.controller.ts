@@ -28,9 +28,18 @@ export class SocialAuthController {
 
      @Get('youtube')
   @UseGuards(JwtAuthGuard)
-  async redirectToYoutube(@Req() req,@Res() res: Response) {
+  async redirectToYoutube(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {
     const userId = req.user.userId;
+    const existing = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'youtube' },
+    });
+    if (existing && reconnect !== 'true') {
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+    return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
+  } 
+    
     const state = encodeURIComponent(JSON.stringify({ userId }));
+    const forcePrompt = reconnect === 'true' ? '&prompt=select_account+consent' : '&prompt=select_account';
      const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                    `client_id=${process.env.YOUTUBE_CLIENT_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.YOUTUBE_CALLBACK_URL!)}` +
@@ -38,7 +47,7 @@ export class SocialAuthController {
                    `&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload')}` +
                    `&access_type=offline` +
                    `&prompt=consent` +
-                   `&state=${state}`;
+                   `&state=${state}${forcePrompt}`;
      return res.redirect(oauthUrl);
 
     // This route is never hit directly because the guard redirects to YouTube
@@ -61,6 +70,11 @@ export class SocialAuthController {
   // Call service to link YouTube account
   return this.socialauthservice.youtubeLogin(req, res, appUserId);
   }
+
+
+
+
+
    @Get('facebook')
   @UseGuards(JwtAuthGuard)
   async facebookAuth(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {
@@ -86,6 +100,12 @@ export class SocialAuthController {
      return res.redirect(oauthUrl);
     // Initiates the Facebook OAuth2 login flow
   }
+
+
+
+
+
+
   @Get('facebook/callback')
   @UseGuards(AuthGuard('facebook'))
   facebookAuthRedirect(@Req() req, @Res({ passthrough: true }) res: Response) {
@@ -99,6 +119,10 @@ export class SocialAuthController {
     // You can create a new service method for this or reuse the googleLogin logic
     return this.socialauthservice.facebookLogin(req, res,appUserId);
   }
+
+
+
+
 
   @Get('instagram')
   @UseGuards(JwtAuthGuard)
@@ -121,6 +145,11 @@ export class SocialAuthController {
                  `&state=${state}${forcePrompt}` ;
      return res.redirect(oauthUrl);
   }
+
+
+
+
+
   @Get('instagram/callback')
   @UseGuards(AuthGuard('instagram'))
   async instagramAuthRedirect(@Req() req, @Res() res: Response) {

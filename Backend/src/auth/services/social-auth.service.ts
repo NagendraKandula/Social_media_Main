@@ -97,21 +97,6 @@ export class SocialAuthService {
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
          return res.redirect(`${frontendUrl}/facebook-post`);
       }
-      async threadslogin(req, res: Response) {
-        if (!req.user) {
-          throw new BadRequestException('No user from threads');
-        }
-        const { accessToken, refreshToken } = req.user;
-    
-        res.cookie('threads_access_token', accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development',
-          sameSite: 'none',
-        });
-         const frontendUrl = this.config.get<string>('FRONTEND_URL');
-         return res.redirect(`${frontendUrl}/threads-post`);
-        
-      }
         async youtubeLogin(req, res: Response,appUserId: number) {
           //step1:get youtbe info from req.user strategy
         const { accessToken, refreshToken,youtubeId,displayName } = req.user;
@@ -154,6 +139,17 @@ export class SocialAuthService {
           });
         }
         // Set tokens in HTTP-only cookies
+        res.cookie('youtube_access_token', accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
+          sameSite: 'none',
+        });
+    
+        res.cookie('youtube_refresh_token', refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV !== 'development',
+          sameSite: 'none',
+        });
         // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
         return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
