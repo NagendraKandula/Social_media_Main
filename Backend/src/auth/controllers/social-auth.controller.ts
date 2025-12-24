@@ -39,15 +39,15 @@ export class SocialAuthController {
   } 
     
     const state = encodeURIComponent(JSON.stringify({ userId }));
-    const forcePrompt = reconnect === 'true' ? '&prompt=select_account+consent' : '&prompt=select_account';
+    const promptValue = reconnect === 'true' ? 'select_account consent' : 'select_account';
      const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                    `client_id=${process.env.YOUTUBE_CLIENT_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.YOUTUBE_CALLBACK_URL!)}` +
                    `&response_type=code` +
                    `&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube.upload')}` +
                    `&access_type=offline` +
-                   `&prompt=consent` +
-                   `&state=${state}${forcePrompt}`;
+                  `&prompt=${encodeURIComponent(promptValue)}` + // Only one prompt parameter allowed
+                 `&state=${state}`;
      return res.redirect(oauthUrl);
 
     // This route is never hit directly because the guard redirects to YouTube
