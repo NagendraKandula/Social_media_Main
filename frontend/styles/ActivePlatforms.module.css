@@ -136,3 +136,9 @@
 .disconnectBtn:hover { background: #fef2f2; }
 
 .emptyText { color: #94a3b8; font-size: 0.875rem; }
+.threadsIcon {
+  background-color: #000000; /* Threads branding is usually black */
+}
+.twitterIcon {
+  background-color: #000000; /* X brand color */
+}

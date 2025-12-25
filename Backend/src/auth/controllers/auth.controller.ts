@@ -88,14 +88,16 @@ async getActiveAccounts(@Req() req) {
   const userId = req.user.id; // From JwtAuthGuard
   
   // Use the new service to get the profile
-  const [facebook,instagram,youtube] = await Promise.all([
+  const [facebook,instagram,youtube,threads,twitter] = await Promise.all([
     this.logoutService.getFacebookProfile(userId),
     this.logoutService.getInstagramProfile(userId),
     this.logoutService.getYoutubeProfile(userId),
+    this.logoutService.getThreadsProfile(userId),
+    this.logoutService.getTwitterProfile(userId),
   ]);
   
   return { facebook,
-    instagram ,youtube};
+    instagram ,youtube,threads,twitter};
   
 }
 @UseGuards(JwtAuthGuard)

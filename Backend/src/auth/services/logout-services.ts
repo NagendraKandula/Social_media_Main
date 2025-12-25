@@ -122,6 +122,95 @@ export class LogoutService {
         }
       }
     }
+async getThreadsProfile(userId: number) {
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId: userId,
+        provider: 'threads',
+      },
+    });
+
+    if (!account || !account.accessToken) {
+      return null;
+    }
+
+    try {
+      // Fetch Threads profile (id, username, and profile picture)
+      const response = await axios.get('https://graph.threads.net/v1.0/me', {
+        params: {
+          fields: 'id,username,threads_profile_picture_url',
+          access_token: account.accessToken,
+        },
+      });
+
+      return {
+        providerId: response.data.id,
+        name: response.data.username,
+        // Threads API returns 'threads_profile_picture_url'
+        profilePic: response.data.threads_profile_picture_url || null, 
+        connected: true,
+      };
+    } catch (error) {
+      console.error('Error fetching Threads profile:', error.response?.data || error.message);
+      return {
+        providerId: account.providerId,
+        name: 'Threads User',
+        connected: false,
+        needsReconnect: true,
+      };
+    }
+  }
+  async getTwitterProfile(userId: number) {
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId: userId,
+        provider: 'twitter',
+      },
+    });
+
+    if (!account || !account.accessToken) {
+      return null;
+    }
+
+    try {
+      // Fetch Twitter User Data (Me endpoint)
+      const response = await axios.get('https://api.twitter.com/2/users/me', {
+        headers: { Authorization: `Bearer ${account.accessToken}` },
+        params: { 'user.fields': 'profile_image_url,name,username' }
+      });
+
+      const data = response.data.data;
+
+      // Optional: Update the providerId in DB to the real Twitter ID now that we have it
+      if (account.providerId.includes('twitter_account')) {
+          await this.prisma.socialAccount.update({
+              where: { id: account.id },
+              data: { providerId: data.id }
+          });
+      }
+
+      return {
+        providerId: data.id,
+        name: data.name || data.username, // Display Name
+        username: data.username, // Handle (@username)
+        profilePic: data.profile_image_url || null,
+        connected: true,
+      };
+    } catch (error) {
+      console.error('Error fetching Twitter profile:', error.response?.data || error.message);
+      
+      // If 401, token might be expired
+      const needsReconnect = error.response?.status === 401;
+
+      return {
+        providerId: account.providerId,
+        name: 'X (Twitter) User',
+        connected: !needsReconnect,
+        needsReconnect: true,
+      };
+    }
+  }
+
 
 
   }

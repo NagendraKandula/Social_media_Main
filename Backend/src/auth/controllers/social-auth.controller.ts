@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../guard/jwt-auth.guard';
 import { SocialAuthService } from '../services/social-auth.service';
 import { LogoutService } from '../services/logout-services';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { TwitterService } from '../../social_media_platforms/twitter/twitter.service';
 @Controller('auth')
 export class SocialAuthController {
   constructor(
@@ -13,6 +14,7 @@ export class SocialAuthController {
     private socialauthservice :SocialAuthService,
     private logoutService: LogoutService,
     private prisma: PrismaService,
+    private twitterService: TwitterService,
   ) {}
   @Get('google')
     @UseGuards(AuthGuard('google'))
@@ -122,8 +124,66 @@ export class SocialAuthController {
 
 
 
+@Get('threads')
+  @UseGuards(JwtAuthGuard)
+  async threadsAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
+    const userId = req.user.userId;
 
+    // 1. Check if already connected
+    const existing = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'threads' },
+    });
 
+    if (existing && reconnect !== 'true') {
+      const frontendUrl = this.configService.get('FRONTEND_URL');
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
+    }
+
+    // 2. Encode User ID in state (so we know who is logging in during the callback)
+    const state = encodeURIComponent(JSON.stringify({ userId }));
+
+    // 3. Construct Threads OAuth URL
+    const clientId = process.env.THREADS_APP_ID;
+    // ensure this matches the URI you set in your Meta Developer Console
+    const redirectUri = process.env.THREADS_REDIRECT_URI || 'https://unsecretive-unlearned-alexzander.ngrok-free.dev/threads/callback'; 
+    const scope = 'threads_basic,threads_content_publish';
+
+    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+
+    return res.redirect(oauthUrl);
+  } 
+  
+  
+@Get('twitter')
+  @UseGuards(JwtAuthGuard)
+  async twitterAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
+    const userId = req.user.userId; // user.id or user.userId depending on your strategy
+
+    // 1. Check if already connected
+    const existing = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'twitter' },
+    });
+
+    if (existing && reconnect !== 'true') {
+      const frontendUrl = this.configService.get('FRONTEND_URL');
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
+    }
+
+    // 2. Generate Auth URL with UserId
+    const { url, state, codeVerifier } = this.twitterService.generateAuthUrl(userId);
+
+    // 3. Store code_verifier in cookie (Needed for PKCE)
+    res.cookie('twitter_code_verifier', codeVerifier, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== 'development',
+      maxAge: 300000, // 5 minutes
+      path: '/',
+    });
+
+    return res.redirect(url);
+  }
+
+  
   @Get('instagram')
   @UseGuards(JwtAuthGuard)
   async redirectToInstagram(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {

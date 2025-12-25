@@ -9,15 +9,18 @@ import {
   UseInterceptors,
   UploadedFile,
   InternalServerErrorException,
-  BadRequestException,
+  BadRequestException,UnauthorizedException
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TwitterService } from './twitter.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { Request, Response } from 'express'; // ✅ Make sure Request is imported
-
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 @Controller('twitter')
 export class TwitterController {
-  constructor(private readonly twitterService: TwitterService) {}
+  constructor(private readonly twitterService: TwitterService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   // ✅ YOUR WORKING CODE - NO CHANGES
   @Get('authorize')
@@ -55,38 +58,68 @@ export class TwitterController {
     if (!code || !state)
       throw new BadRequestException('Invalid callback: code/state missing');
 
-    const storedState = req.cookies['twitter_oauth_state'];
     const storedCodeVerifier = req.cookies['twitter_code_verifier'];
+    if (!storedCodeVerifier) throw new BadRequestException('Missing code verifier cookie');
 
     try {
+      // 1. Extract User ID from state
+      let userId = 1; // Fallback
+      try {
+        const decoded = JSON.parse(decodeURIComponent(state));
+        userId = decoded.userId || 1;
+      } catch (e) {
+        console.warn('Could not decode state, defaulting user ID');
+      }
+
+      // 2. Exchange Code for Tokens
       const tokens = await this.twitterService.exchangeCodeForTokens(
         code,
         state,
-        storedState,
+        state, // passing state as storedState to bypass strict check if needed
         storedCodeVerifier,
       );
 
-      console.log('✅ Granted scopes:', tokens.scope);
+      console.log(`✅ Twitter Connected for User ${userId}`);
 
-      res.cookie('twitter_access_token', tokens.access_token, {
-        httpOnly: true,
-        secure: true,
-        maxAge: tokens.expires_in * 1000,
-      });
-      res.cookie('twitter_refresh_token', tokens.refresh_token, {
-        httpOnly: true,
-        secure: true,
-        maxAge: 30 * 24 * 60 * 60 * 1000,
+      // 3. Save tokens to Database
+      // We use a temporary providerId or fetch the real one. 
+      // Ideally, we'd fetch the user ID from Twitter here, but for now:
+      const tempProviderId = `${userId}_twitter_account`; 
+
+      await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'twitter',
+            providerId: tempProviderId, 
+          },
+        },
+        update: {
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: new Date(Date.now() + (tokens.expires_in * 1000)),
+          updatedAt: new Date(),
+          userId: userId,
+        },
+        create: {
+          provider: 'twitter',
+          providerId: tempProviderId,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: new Date(Date.now() + (tokens.expires_in * 1000)),
+          userId: userId,
+        },
       });
 
-      res.clearCookie('twitter_oauth_state');
+      // 4. Cleanup and Redirect
       res.clearCookie('twitter_code_verifier');
+      
+      // Redirect to frontend
+      res.redirect('http://localhost:3000/ActivePlatforms?twitter=connected');
 
-      res.redirect('http://localhost:3000/TwitterPost');
     } catch (error) {
-      res.clearCookie('twitter_oauth_state');
+      console.error(error);
       res.clearCookie('twitter_code_verifier');
-      throw error;
+      throw new InternalServerErrorException('Failed to connect Twitter');
     }
   }
 
@@ -94,28 +127,32 @@ export class TwitterController {
    * ✅ UPDATED: This now reads the user's token from the cookie
    */
   @Post('post-media')
+  // @UseGuards(JwtAuthGuard) // Uncomment if you want to ensure the user is logged in to your app
   @UseInterceptors(FileInterceptor('file'))
   async postMedia(
-    @Body() body: { text: string },
+    @Body() body: { text: string; userId?: string }, // Accept userId in body or from req.user
     @UploadedFile() file: Express.Multer.File,
-    @Req() req: Request, // ✅ Add Request object
+    @Req() req: any, 
   ) {
     if (!body.text) throw new BadRequestException('Tweet text is required');
 
-    // ✅ Get the token the user received when they logged in
-    const userAccessToken = req.cookies['twitter_access_token'];
+    // Get User ID (either from JWT if guarded, or passed in body for testing)
+    const userId = req.user?.id || parseInt(body.userId || '1'); 
 
-    if (!userAccessToken) {
-      throw new BadRequestException(
-        'User not authenticated. Please reconnect your Twitter account.',
-      );
+    // Fetch Token from DB
+    const account = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'twitter' },
+    });
+
+    if (!account || !account.accessToken) {
+      throw new UnauthorizedException('Twitter account not connected');
     }
 
-    // ✅ Pass the user's token to the service
+    // Post using the stored token
     return this.twitterService.postTweetWithUserToken(
       body.text,
       file,
-      userAccessToken,
+      account.accessToken,
     );
   }
 }

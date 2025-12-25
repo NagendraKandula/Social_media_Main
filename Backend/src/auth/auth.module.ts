@@ -18,10 +18,11 @@ import { SocialAuthService } from './services/social-auth.service';
 import { LogoutService } from './services/logout-services';
 import { SocialAuthController } from './controllers/social-auth.controller';
 // <-- Import ThreadsStrategy                                                 
-
+import { TwitterModule } from '../social_media_platforms/twitter/twitter.module';
 @Module({
   imports: [
     PrismaModule,
+    TwitterModule,
     HttpModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

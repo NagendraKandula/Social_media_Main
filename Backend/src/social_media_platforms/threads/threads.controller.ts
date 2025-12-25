@@ -34,20 +34,32 @@ export class ThreadsController {
   @Get('callback')
   async callback(
     @Query('code') code: string,
+    @Query('state') state: string, // <--- ADD THIS PARAMETER
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ) {
     if (!code) throw new BadRequestException('Authorization code missing');
 
     try {
+      // 1. Extract User ID from state
+      let userId = 1; // Fallback
+      if (state) {
+        try {
+          const decoded = JSON.parse(decodeURIComponent(state));
+          userId = decoded.userId;
+        } catch (e) {
+          console.error('Failed to decode state:', e);
+        }
+      }
+
+      // 2. Exchange Code for Tokens
       const tokens = await this.threadsService.exchangeCodeForTokens(code);
       const { access_token, user_id } = tokens;
 
       if (!access_token || !user_id)
         throw new InternalServerErrorException('Invalid Threads token response');
 
-      const userId = req.user?.id || 1; // Replace with real user ID later
-
+      // 3. Save to Database using the CORRECT userId
       await this.prisma.socialAccount.upsert({
         where: {
           provider_providerId: {
@@ -57,24 +69,28 @@ export class ThreadsController {
         },
         update: {
           accessToken: access_token,
+          userId: userId, // Update if account ownership changed or just refreshing
           updatedAt: new Date(),
         },
         create: {
           provider: 'threads',
           providerId: user_id.toString(),
           accessToken: access_token,
-          userId,
+          userId: userId, // <--- Using the ID from state
         },
       });
 
-      console.log('✅ Threads access token saved for user:', userId);
-      res.redirect('http://localhost:3000/Landing?threads=connected');
+      console.log(`✅ Threads connected for User ID: ${userId}`);
+      
+      // Redirect to frontend
+      // Ensure this URL matches your frontend port (usually 3000)
+      res.redirect('http://localhost:3000/ActivePlatforms?threads=connected');
+      
     } catch (error) {
       console.error('Threads callback error:', error);
       throw new InternalServerErrorException('Failed to authenticate with Threads');
     }
   }
-
   // ✅ STEP 2: Post to Threads
   @Post('post')
   async postToThreads(

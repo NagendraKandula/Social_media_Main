@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LHeader from './LHeader';
 import apiClient from '../lib/axios';
 import styles from '../styles/ActivePlatforms.module.css';
-import { FaFacebookF, FaInstagram, FaPlus, FaUnlink, FaSyncAlt,FaYoutube } from 'react-icons/fa';
+import { FaFacebookF, FaInstagram, FaPlus, FaUnlink, FaSyncAlt,FaYoutube,FaAt ,FaTwitter} from 'react-icons/fa';
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<any>(null);
@@ -44,7 +44,14 @@ const ActivePlatforms = () => {
     { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
     { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon},
       {id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon
-     },
+     }, {id: 'threads', name: 'Threads', icon: <FaAt />, color: styles.threadsIcon
+    },
+    { 
+      id: 'twitter', 
+      name: 'X (Twitter)', 
+      icon: <FaTwitter />, 
+      color: styles.twitterIcon // You'll need to add this class to CSS
+    }
   ];
 
   return (
