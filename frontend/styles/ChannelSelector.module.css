@@ -1,0 +1,149 @@
+/* styles/ChannelSelector.module.css */
+
+.container {
+  width: 100%;
+  padding: 0 20px;
+  margin-top: 10px;
+  display: flex;
+  justify-content: center; /* Center the whole selector */
+  margin-left: -20px; /* Maintain left margin for alignment with other components */
+}
+
+/* Main horizontal flex container */
+.horizontalWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: nowrap;
+  padding: 16px 24px;
+  border-radius: 12px;
+  max-width: 660px;
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  box-sizing: border-box;
+  background-color: #fff; /* Ensure solid background */
+}
+
+/* Title */
+.title {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #111827;
+  white-space: nowrap;
+  margin: 0;
+  flex-shrink: 0; /* Prevent title from shrinking */
+}
+
+/* Icon wrapper */
+.iconWrapper {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  overflow-x: auto; /* Allow horizontal scroll if needed */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  padding: 2px 0; /* Vertical padding for scroll area */
+}
+
+/* Hide scrollbar for cleaner look (optional) */
+.iconWrapper::-webkit-scrollbar {
+  display: none;
+}
+.iconWrapper {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+/* Icon button */
+.iconButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  color: white;
+  font-size: 18px;
+  background-clip: padding-box;
+  flex-shrink: 0; /* Prevent shrinking in flex */
+}
+
+.iconButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Selected state: stronger visual cue */
+.iconButton.selected {
+  border-color: #4ade4c;
+  box-shadow: 0 0 0 2px #4ade4c40; /* Subtle outer glow */
+}
+
+/* Platform colors */
+.twitter { background-color: #000000; }
+.facebook { background-color: #1877f2; }
+.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.linkedin { background-color: #0a66c2; }
+.pinterest { background-color: #bd081c; }
+.youtube { background-color: #ff0000; }
+.threads { background-color: #000000; }
+
+/* Preserve background when selected (redundant but safe) */
+.selected.twitter { background-color: #000000; }
+.selected.facebook { background-color: #1877f2; }
+.selected.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+.selected.linkedin { background-color: #0a66c2; }
+.selected.pinterest { background-color: #bd081c; }
+.selected.youtube { background-color: #ff0000; }
+.selected.threads { background-color: #000000; }
+
+/* Select All Button */
+.selectAllButton {
+  padding: 6px 12px;
+  background-color: #1f2937; /* Slightly lighter than black for better contrast */
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  height: fit-content;
+  flex-shrink: 0;
+  transition: background-color 0.2s;
+}
+
+.selectAllButton:hover {
+  background-color: #374151;
+}
+
+/* Responsive: Stack on small screens */
+@media (max-width: 768px) {
+  .horizontalWrapper {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .iconWrapper {
+    justify-content: flex-start;
+    padding: 4px 0;
+  }
+
+  .title {
+    text-align: center;
+  }
+
+  /* Ensure Select All stays centered or full-width */
+  .selectAllButton {
+    align-self: center;
+    width: 100%;
+    max-width: 200px;
+  }
+}

@@ -23,7 +23,8 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
   const handleLogout = async () => {
     try {
       // Use apiClient to send the logout request to the correct backend URL
-      await apiClient.post("/auth/logout");
+     await apiClient.post("/auth/logout", {}, { withCredentials: true });
+
       
       // On success, redirect to the login page
       router.push("/login");
@@ -132,6 +133,13 @@ const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
 
           {dropdownOpen && (
             <div className={styles.profileDropdown}>
+              <button 
+                onClick={() => router.push("/ActivePlatforms")} 
+                className={styles.dropdownItem}
+              >
+                Active Platforms
+              </button>
+              
               <button onClick={handleLogout} className={styles.logoutButton}>
                 Logout
               </button>

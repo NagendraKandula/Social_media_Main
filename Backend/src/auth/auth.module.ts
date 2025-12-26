@@ -1,18 +1,23 @@
 // src/auth/auth.module.ts
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
+import { AuthService } from './services/auth.service';
+import { AuthController } from './controllers/auth.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './jwt.strategy';
-import { GoogleStrategy } from './google.strategy'; // <-- Import GoogleStrategy
-import { YoutubeStrategy } from './youtube.strategy';
-import { YoutubeModule } from './youtube/youtube.module'; 
-import { FacebookStrategy } from './facebook.strategy';// <-- Import YoutubeStrategy
-import { LinkedinStrategy } from './linkedin.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy'; // <-- Import GoogleStrategy
+import { YoutubeStrategy } from './strategies/youtube.strategy';
+import { FacebookStrategy } from './strategies/facebook.strategy';// <-- Import YoutubeStrategy
+import { LinkedinStrategy } from './strategies/linkedin.strategy';
+import { InstagramStrategy } from './strategies/instagram.strategy';
 import { HttpModule } from '@nestjs/axios';
-
+import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
+import { TokenService } from './services/token.service';
+import { SocialAuthService } from './services/social-auth.service';
+import { LogoutService } from './services/logout-services';
+import { SocialAuthController } from './controllers/social-auth.controller';
+// <-- Import ThreadsStrategy                                                 
 
 @Module({
   imports: [
@@ -27,8 +32,11 @@ import { HttpModule } from '@nestjs/axios';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, LinkedinStrategy],
-  providers: [AuthService, JwtStrategy, GoogleStrategy,YoutubeStrategy,FacebookStrategy], // <-- Add GoogleStrategy
-  exports: [AuthService, JwtModule], 
+  controllers: [AuthController, LinkedinStrategy,SocialAuthController],
+  providers: [AuthService, JwtStrategy,
+     GoogleStrategy,YoutubeStrategy,
+     FacebookStrategy,JwtRefreshTokenStrategy,
+    TokenService,SocialAuthService,InstagramStrategy,LogoutService], // <-- Add GoogleStrategy
+  exports: [AuthService, JwtModule, TokenService, SocialAuthService,LogoutService], 
 })
 export class AuthModule {}

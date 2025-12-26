@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import styles from "../styles/YouTubeConnect.module.css";
+import styles from "../styles/TwitterConnect.module.css";
 import { FaYoutube } from "react-icons/fa";
 
 const YouTubeConnect = () => {

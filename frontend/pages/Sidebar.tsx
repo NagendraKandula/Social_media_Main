@@ -1,4 +1,6 @@
+// frontend/pages/Sidebar.tsx
 import React, { useState } from "react";
+import { useRouter } from "next/router";
 import {
   FaPenNib,
   FaPaste,
@@ -13,25 +15,31 @@ interface SidebarProps {
   activeSegment: string;
   setActiveSegment: (segment: string) => void;
   activePlatform: string | null;
+  setActivePlatform: (platform: string | null) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activeSegment, setActiveSegment, activePlatform }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activeSegment,
+  setActiveSegment,
+  activePlatform,
+  setActivePlatform,
+}) => {
   const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
 
   const segments = [
-    { name: "Create", icon: <FaPenNib /> },
-    { name: "Templates", icon: <FaPaste /> },
-    { name: "Publish", icon: <FaUpload /> },
-    { name: "Planning", icon: <FaRegCalendarAlt /> },
-    { name: "Analytics", icon: <FaChartBar /> },
-    { name: "Summary", icon: <FaRegLightbulb /> },
+    { name: "Create", icon: <FaPenNib />, route: "/Create" },
+    { name: "Templates", icon: <FaPaste />, route: "/Templates" },
+    { name: "Publish", icon: <FaUpload />, route: "/Publish" },
+    { name: "Planning", icon: <FaRegCalendarAlt />, route: "/Planning" },
+    { name: "Analytics", icon: <FaChartBar />, route: "/Analytics" },
+    { name: "Summary", icon: <FaRegLightbulb />, route: "/Summary" },
   ];
 
-  const handleClick = (name: string) => {
-    setActiveSegment(name);
+  const handleClick = (name: string, route: string) => {
+    setActiveSegment(name); // set active segment
+    router.push(route); // navigate to the route
   };
-
-  // ✅ REMOVED: if (activePlatform) return null; — Sidebar now always visible
 
   return (
     <>
@@ -41,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSegment, setActiveSegment, acti
             <button
               key={s.name}
               className={`${styles.segment} ${activeSegment === s.name ? styles.active : ""}`}
-              onClick={() => handleClick(s.name)}
+              onClick={() => handleClick(s.name, s.route)}
               aria-label={s.name}
             >
               <span className={styles.segmentIcon}>{s.icon}</span>
@@ -51,14 +59,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSegment, setActiveSegment, acti
         </nav>
       </aside>
 
-      {/* Floating Toggle Button — outside sidebar */}
+      {/* Floating Toggle Button */}
       <button
         className={styles.sidebarToggle}
         onClick={() => setCollapsed(!collapsed)}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        style={{ left: collapsed ? '60px' : '250px' }}
+        style={{ left: collapsed ? "60px" : "250px" }}
       >
-        {collapsed ? '⟩' : '⟨'}
+        {collapsed ? "⟩" : "⟨"}
       </button>
     </>
   );
