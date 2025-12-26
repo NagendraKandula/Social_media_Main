@@ -14,7 +14,7 @@ export class TokenService {
      private config: ConfigService,
   ) {}
   async getTokens(userId: number, email: string) {
-      const payload = { sub: userId, email };
+      const payload = { id: userId,sub: userId, email };
       const accessToken = this.jwtService.sign(payload,{
         secret: this.config.get<string>('JWT_SECRET'),
         expiresIn: '15m',
@@ -36,7 +36,7 @@ export class TokenService {
     }
       
     public async signToken(userId: number, email: string): Promise<string> {
-      const payload = { sub: userId, email };
+      const payload = { id: userId, sub: userId, email };
       return this.jwtService.signAsync(payload, { expiresIn: '60m' });
     }
   
@@ -57,7 +57,7 @@ export class TokenService {
         if(token.expiresAt < new Date()){
           throw new BadRequestException('Refresh token expired');
         }
-        const payload = { sub: user.id, email: user.email };
+        const payload = { id: user.id,sub: user.id, email: user.email };
         const newAccessToken = this.jwtService.sign(payload,{
           secret: this.config.get<string>('JWT_SECRET'),
           expiresIn: '15m',

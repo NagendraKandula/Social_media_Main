@@ -30,7 +30,7 @@ export class FacebookController {
   @UseGuards(JwtAuthGuard)
   @Get('pages')
   async getPages(@Req() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     return this.facebookService.getPages(userId);
   }
 
@@ -41,7 +41,7 @@ export class FacebookController {
   @Post('post')
   // No @UseInterceptors or @UploadedFile needed
   async createPost(@Body() body: CreatePostBody, @Req() req: any) {
-   const userId = req.user.userId;
+   const userId = req.user.id;
 
     const { content, pageId, mediaUrl, mediaType } = body;
 

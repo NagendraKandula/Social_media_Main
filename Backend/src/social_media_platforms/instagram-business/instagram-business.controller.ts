@@ -20,7 +20,7 @@ export class InstagramBusinessController {
   @Post('publish')
   @UseGuards(JwtAuthGuard)
   async publishContent(@Req() req, @Body() body: any) {
-    const userId = req.user.userId; // Current logged-in User ID
+    const userId = req.user.id; // Current logged-in User ID
     const { mediaType, mediaUrl, caption } = body;
 
     // 1️⃣ Validation
