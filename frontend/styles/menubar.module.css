@@ -1,0 +1,34 @@
+.menubar {
+  width: 100%;              /* full width */
+  height: 50px;             /* adjust or make auto based on content */
+  display: flex;
+  justify-content: center;  /* center nav items horizontally */
+  align-items: center;
+  background: #F5EFFF;
+}
+
+.channels {
+  display: flex;
+  justify-content: center;   /* center the buttons horizontally */
+  align-items: center;
+  gap: 30px;                 /* gap of 40px between each button */
+}
+
+.channels button {
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #333;              /* or whatever color you prefer */
+}
+
+.newPostButton {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
