@@ -28,7 +28,7 @@ export class YoutubeController {
     },
    )
    {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     return this.youtubeService.uploadVideoToYoutube(
       userId,

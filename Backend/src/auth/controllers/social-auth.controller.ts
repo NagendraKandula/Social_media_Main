@@ -29,7 +29,7 @@ export class SocialAuthController {
      @Get('youtube')
   @UseGuards(JwtAuthGuard)
   async redirectToYoutube(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const existing = await this.prisma.socialAccount.findFirst({
       where: { userId, provider: 'youtube' },
     });
@@ -78,7 +78,7 @@ export class SocialAuthController {
    @Get('facebook')
   @UseGuards(JwtAuthGuard)
   async facebookAuth(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const existing = await this.prisma.socialAccount.findFirst({
       where: {
         userId: userId,
@@ -127,7 +127,7 @@ export class SocialAuthController {
   @Get('instagram')
   @UseGuards(JwtAuthGuard)
   async redirectToInstagram(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const existing = await this.prisma.socialAccount.findFirst({
     where: { userId, provider: 'instagram' },
   });
