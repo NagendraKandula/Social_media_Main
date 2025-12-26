@@ -1,24 +1,29 @@
+// Backend/src/Analytics/instagram-analytics/instagram-analytics.service.ts
 import { Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { AxiosResponse } from 'axios';
 
 @Injectable()
 export class InstagramAnalyticsService {
   constructor(private readonly httpService: HttpService) {}
 
-  async getInstagramInsights(accessToken: string, userId: string) {
-    if (!accessToken || !userId) {
-      throw new Error('Missing accessToken or userId');
+  async getMediaInsights(accessToken: string, mediaId: string) {
+    if (!accessToken || !mediaId) {
+      throw new Error('Missing accessToken or mediaId');
     }
 
-    const url = `https://graph.facebook.com/v18.0/${userId}/insights?access_token=${accessToken}`;
+    // Using your requested endpoint and metrics
+    const url = `https://graph.instagram.com/${mediaId}/insights`;
+    const params = {
+      metric: 'shares,likes,saved,reach,comments',
+      access_token: accessToken,
+    };
 
     try {
-      const response: AxiosResponse<any> =
-        await this.httpService.axiosRef.get(url);
+      const response = await this.httpService.axiosRef.get(url, { params });
       return response.data;
     } catch (error) {
-      throw new Error('Failed to fetch Instagram analytics');
+      console.error('API Error:', error.response?.data || error.message);
+      throw new Error('Failed to fetch Instagram media insights');
     }
   }
 }

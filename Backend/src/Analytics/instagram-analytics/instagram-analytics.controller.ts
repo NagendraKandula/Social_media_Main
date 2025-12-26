@@ -1,3 +1,4 @@
+// Backend/src/Analytics/instagram-analytics/instagram-analytics.controller.ts
 import { Controller, Get, Query } from '@nestjs/common';
 import { InstagramAnalyticsService } from './instagram-analytics.service';
 
@@ -5,11 +6,11 @@ import { InstagramAnalyticsService } from './instagram-analytics.service';
 export class InstagramAnalyticsController {
   constructor(private readonly igService: InstagramAnalyticsService) {}
 
-  @Get()
-  async getInstagramAnalytics(
+  @Get('media-insights')
+  async getMediaAnalytics(
     @Query('accessToken') accessToken: string,
-    @Query('userId') userId: string,
+    @Query('mediaId') mediaId: string,
   ) {
-    return this.igService.getInstagramInsights(accessToken, userId);
+    return this.igService.getMediaInsights(accessToken, mediaId);
   }
 }

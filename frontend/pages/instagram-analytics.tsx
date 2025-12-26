@@ -1,78 +1,71 @@
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Tooltip,
-  Legend
-} from "chart.js";
-import { Bar } from "react-chartjs-2";
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+// frontend/pages/instagram-analytics.tsx
+import { useState } from "react";
+import api from "../lib/axios"; // Adjust path based on your lib/axios.ts location
 
 export default function InstagramAnalytics() {
-  // Dummy data (later replace with backend API)
-  const accountStats = [
-    { title: "Total Followers", value: "3,281" },
-    { title: "Total Posts", value: "245" },
-    { title: "Engagement Rate", value: "6.2%" },
-    { title: "Reach", value: "18,900" },
-    { title: "Impressions", value: "45,600" }
-  ];
+  const [mediaId, setMediaId] = useState("");
+  const [insights, setInsights] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
-  const postStats = [
-    { title: "Likes", value: "19,855" },
-    { title: "Comments", value: "661" },
-    { title: "Saves", value: "412" },
-    { title: "Shares", value: "298" },
-    { title: "Engagement / Post", value: "7.1%" }
-  ];
-
-  const chartData = {
-    labels: ["0-500", "500-1k", "1k-5k", "5k-10k", "10k+"],
-    datasets: [
-      {
-        label: "Followers Distribution (%)",
-        data: [10.4, 18.3, 32.1, 24.2, 26.2],
-        backgroundColor: "#6366F1"
-      }
-    ]
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      // Replace with actual user token logic
+      const token = "IGAAVTWXrRzc5BZAGFGdm1vUEprX2dKeU5OLTVkazdxeVFDc0F6dnlLUmE0Y0dwYjFoR2h0ajdhQ3pNMGhFSTBmdkZAwRjJYMm1LeW5QTHZAqLW5DYkZANdmM1UWxDc3U4dkp4ZAWtBQnFNYkxKQ3VlZAHpTR253"; 
+      const res = await api.get(`/analytics/instagram/media-insights`, {
+        params: { accessToken: token, mediaId: mediaId }
+      });
+      
+      // Map API array to a key-value object for easier display
+      const dataMap = res.data.data.reduce((acc: any, item: any) => {
+        acc[item.name] = item.values[0].value;
+        return acc;
+      }, {});
+      
+      setInsights(dataMap);
+    } catch (err) {
+      alert("Error fetching insights. Check console.");
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const statCards = [
+    { title: "Reach", value: insights?.reach || "0" },
+    { title: "Likes", value: insights?.likes || "0" },
+    { title: "Comments", value: insights?.comments || "0" },
+    { title: "Saves", value: insights?.saved || "0" },
+    { title: "Shares", value: insights?.shares || "0" },
+  ];
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-semibold mb-6">Instagram Overview</h1>
+      <h1 className="text-2xl font-semibold mb-6">Instagram Media Analytics</h1>
 
-      {/* ACCOUNT LEVEL */}
-      <h2 className="text-lg font-medium mb-3">Account Level Analytics</h2>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-10">
-        {accountStats.map((item) => (
-          <div
-            key={item.title}
-            className="bg-white rounded-xl shadow p-5 text-center"
-          >
-            <p className="text-gray-500 text-sm">{item.title}</p>
-            <h3 className="text-2xl font-bold mt-2">{item.value}</h3>
-          </div>
-        ))}
-      </div>
+      {/* Input Section */}
+      <form onSubmit={handleSubmit} className="mb-10 flex gap-4 bg-white p-6 rounded-xl shadow">
+        <input
+          type="text"
+          placeholder="Enter Media ID"
+          className="border p-2 rounded flex-grow"
+          value={mediaId}
+          onChange={(e) => setMediaId(e.target.value)}
+          required
+        />
+        <button 
+          type="submit"
+          className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
+          disabled={loading}
+        >
+          {loading ? "Loading..." : "Submit"}
+        </button>
+      </form>
 
-      {/* CHART */}
-      <div className="bg-white p-6 rounded-xl shadow mb-10">
-        <h3 className="text-md font-semibold mb-4">
-          Distribution by Number of Followers
-        </h3>
-        <Bar data={chartData} />
-      </div>
-
-      {/* POST LEVEL */}
-      <h2 className="text-lg font-medium mb-3">Post Level Analytics</h2>
+      {/* Results Section */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {postStats.map((item) => (
-          <div
-            key={item.title}
-            className="bg-white rounded-xl shadow p-5 text-center"
-          >
+        {statCards.map((item) => (
+          <div key={item.title} className="bg-white rounded-xl shadow p-5 text-center">
             <p className="text-gray-500 text-sm">{item.title}</p>
             <h3 className="text-2xl font-bold mt-2">{item.value}</h3>
           </div>
