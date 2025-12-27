@@ -7,7 +7,7 @@ import { InstagramAnalyticsService } from './instagram-analytics.service';
 
 @Module({
   imports: [
-    // Register HttpModule to enable the use of HttpService in your Service class
+    // Register  HttpModule to enable the use of HttpService in your Service class
     HttpModule.register({
       timeout: 5000,
       maxRedirects: 5,
