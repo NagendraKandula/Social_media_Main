@@ -63,7 +63,12 @@ const ActivePlatforms = () => {
               <div className={styles.cardBody}>
                 {accounts?.[p.id] ? (
                   <div className={styles.connectedProfile}>
-                    <img src={accounts[p.id].profilePic || "/profile.png"} className={styles.avatar} />
+                    <img
+  src={accounts[p.id].profilePic || "/profile.png"}
+  alt={`${accounts[p.id].name}'s profile picture`}
+  title={accounts[p.id].name}
+  className={styles.profilePic}
+/>
                     <div className={styles.profileInfo}>
                       <p className={styles.userName}>{accounts[p.id].name}</p>
                       <p className={styles.statusBadge}>Connected</p>
