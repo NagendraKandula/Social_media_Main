@@ -13,7 +13,7 @@ import { InstagramModule } from './social_media_platforms/instagram/instagram.mo
 import { TwitterModule } from './social_media_platforms/twitter/twitter.module';
 import { ThreadsModule } from './social_media_platforms/threads/threads.module';
 import { InstagramBusinessModule } from './social_media_platforms/instagram-business/instagram-business.module';
-
+import { InstagramAnalyticsModule} from './Analytics/instagram-analytics/instagram-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,7 +25,7 @@ import { InstagramBusinessModule } from './social_media_platforms/instagram-busi
     FacebookModule,
     YoutubeAnalyticsModule,
      AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,
+    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,InstagramAnalyticsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],
