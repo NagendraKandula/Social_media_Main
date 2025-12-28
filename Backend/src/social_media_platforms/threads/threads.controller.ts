@@ -9,10 +9,14 @@ import {
   BadRequestException,
   InternalServerErrorException,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ThreadsService } from './threads.service';
 import { Request, Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CloudinaryService } from '../../cloudinary/cloudinary.service';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: number; email?: string; name?: string };
@@ -28,21 +32,20 @@ export class ThreadsController {
   constructor(
     private readonly threadsService: ThreadsService,
     private readonly prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  // ✅ STEP 1: Handle OAuth callback
   @Get('callback')
   async callback(
     @Query('code') code: string,
-    @Query('state') state: string, // <--- ADD THIS PARAMETER
+    @Query('state') state: string,
     @Res() res: Response,
     @Req() req: AuthenticatedRequest,
   ) {
     if (!code) throw new BadRequestException('Authorization code missing');
 
     try {
-      // 1. Extract User ID from state
-      let userId = 1; // Fallback
+      let userId = 1; 
       if (state) {
         try {
           const decoded = JSON.parse(decodeURIComponent(state));
@@ -52,14 +55,20 @@ export class ThreadsController {
         }
       }
 
-      // 2. Exchange Code for Tokens
+      // ✅ Exchange Code for Long-Lived Tokens
       const tokens = await this.threadsService.exchangeCodeForTokens(code);
-      const { access_token, user_id } = tokens;
+      const { access_token, user_id, expires_in } = tokens;
 
       if (!access_token || !user_id)
         throw new InternalServerErrorException('Invalid Threads token response');
 
-      // 3. Save to Database using the CORRECT userId
+      // ✅ Calculate expiration date
+      const expiresAt = expires_in 
+        ? new Date(Date.now() + expires_in * 1000) 
+        : null;
+
+      console.log(`💾 Saving Threads Token. User: ${userId}, Expires: ${expiresAt}`);
+
       await this.prisma.socialAccount.upsert({
         where: {
           provider_providerId: {
@@ -69,21 +78,19 @@ export class ThreadsController {
         },
         update: {
           accessToken: access_token,
-          userId: userId, // Update if account ownership changed or just refreshing
+          expiresAt: expiresAt, // ✅ Correctly update expiration
+          userId: userId,
           updatedAt: new Date(),
         },
         create: {
           provider: 'threads',
           providerId: user_id.toString(),
           accessToken: access_token,
-          userId: userId, // <--- Using the ID from state
+          expiresAt: expiresAt, // ✅ Correctly set expiration
+          userId: userId,
         },
       });
-
-      console.log(`✅ Threads connected for User ID: ${userId}`);
       
-      // Redirect to frontend
-      // Ensure this URL matches your frontend port (usually 3000)
       res.redirect('http://localhost:3000/ActivePlatforms?threads=connected');
       
     } catch (error) {
@@ -91,14 +98,25 @@ export class ThreadsController {
       throw new InternalServerErrorException('Failed to authenticate with Threads');
     }
   }
-  // ✅ STEP 2: Post to Threads
+
   @Post('post')
+  @UseInterceptors(FileInterceptor('file'))
   async postToThreads(
     @Body() body: PostThreadsDto,
+    @UploadedFile() file: Express.Multer.File,
     @Req() req: AuthenticatedRequest,
   ) {
-    const { content, mediaUrl } = body;
+    const { content } = body;
+    let { mediaUrl } = body;
     const userId = req.user?.id || 1;
+
+    if (file) {
+      try {
+        mediaUrl = await this.cloudinaryService.uploadFile(file);
+      } catch (error) {
+        throw new InternalServerErrorException('Failed to upload media file');
+      }
+    }
 
     if (!content && !mediaUrl)
       throw new BadRequestException('Content or media URL required');
