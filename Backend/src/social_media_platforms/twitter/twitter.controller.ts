@@ -14,12 +14,14 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TwitterService } from './twitter.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express'; // ✅ Make sure Request is imported
 import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 @Controller('twitter')
 export class TwitterController {
   constructor(private readonly twitterService: TwitterService,
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {}
 
   // ✅ YOUR WORKING CODE - NO CHANGES
@@ -110,11 +112,13 @@ export class TwitterController {
         },
       });
 
-      // 4. Cleanup and Redirect
+      // 3. Cleanup and Redirect DYNAMICALLY
       res.clearCookie('twitter_code_verifier');
       
-      // Redirect to frontend
-      res.redirect('http://localhost:3000/ActivePlatforms?twitter=connected');
+      // FIX: Get the frontend URL from environment variables
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      
+      res.redirect(`${frontendUrl}/ActivePlatforms?twitter=connected`);
 
     } catch (error) {
       console.error(error);

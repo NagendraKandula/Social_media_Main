@@ -13,12 +13,12 @@ const TwitterConnect: React.FC = () => {
   const handleConnectTwitter = () => {
     setLoading(true);
     try {
-      // After successful connection, redirect back to frontend landing page
       const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?twitter=connected`);
 
-      // Redirect to backend OAuth route
-      window.location.href = `${backendUrl}/twitter/authorize?redirect=${redirectUri}`;
-    } catch (error) {
+      // CHANGE THIS URL: Use /auth/twitter instead of /twitter/authorize
+      window.location.href = `${backendUrl}/auth/twitter?redirect=${redirectUri}`;
+      
+    }catch (error) {
       console.error("Connection error:", error);
       alert("Unable to connect to Twitter. Please try again later.");
       setLoading(false);
