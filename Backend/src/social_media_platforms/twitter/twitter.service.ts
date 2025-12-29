@@ -30,12 +30,9 @@ export class TwitterService {
       this.config.get<string>('TWITTER_CALLBACK_URL')!;
   }
 
-  // --- NO CHANGES TO AUTH FUNCTIONS ---
- // ✅ UPDATED: Accepts userId to track who is connecting
   generateAuthUrl(userId?: number) {
     let state: string;
     if (userId) {
-      // Encode userId into the state so we can retrieve it in the callback
       state = encodeURIComponent(JSON.stringify({ userId, nonce: crypto.randomBytes(16).toString('hex') }));
     } else {
       state = crypto.randomBytes(32).toString('hex');
@@ -47,6 +44,7 @@ export class TwitterService {
       .update(codeVerifier)
       .digest('base64url');
 
+    // ✅ USING YOUR WORKING SCOPES (No 'openid' to avoid the access error)
     const scopes = [
       'tweet.read',
       'tweet.write',
@@ -73,10 +71,6 @@ export class TwitterService {
     storedState: string,
     storedCodeVerifier: string,
   ) {
-    // Note: If you have issues with strict state matching due to encoding, 
-    // you can relax this check if you validated the JWT/UserId in the controller.
-    // if (state !== storedState) throw new BadRequestException('Invalid state');
-    
     if (!storedCodeVerifier)
       throw new BadRequestException('Missing code verifier');
 
@@ -106,29 +100,40 @@ export class TwitterService {
       throw new InternalServerErrorException('Failed to exchange Twitter code for tokens');
     }
   }
-  // --- END OF AUTH FUNCTIONS ---
 
   /**
-   * ✅ FINAL CORRECTED FUNCTION
-   * This function uses ONLY the v2 API and ONLY the user's token.
+   * ✅ NEW METHOD: Fetch Real User ID
+   * This is critical to prevent duplicate rows.
    */
+  async getTwitterUser(accessToken: string) {
+    try {
+      const client = new TwitterApi(accessToken);
+      const currentUser = await client.v2.me();
+      return currentUser.data; 
+    } catch (error: any) {
+      console.error('Failed to fetch Twitter user:', error);
+      // Handle Rate Limit specifically
+      if (error.code === 429) {
+        throw new InternalServerErrorException('Twitter Rate Limit Exceeded. Please try again later.');
+      }
+      throw new InternalServerErrorException('Failed to fetch Twitter user profile');
+    }
+  }
+
   async postTweetWithUserToken(
     text: string,
     file: Express.Multer.File,
-    userOAuth2Token: string, // The user's v2 token from the cookie
+    userOAuth2Token: string,
   ) {
     try {
-      // 1. Create a v2 client using the user's token.
       const userClient = new TwitterApi(userOAuth2Token);
 
       let mediaId: string | undefined;
       let cloudinaryUrl: string | undefined;
 
       if (file) {
-        // 2. Backup to Cloudinary
         cloudinaryUrl = await this.cloudinaryService.uploadFile(file);
 
-        // 3. Determine MimeType
         let mediaType: EUploadMimeType;
         if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg'))
           mediaType = EUploadMimeType.Jpeg;
@@ -143,14 +148,11 @@ export class TwitterService {
             `Unsupported media type: ${file.mimetype}`,
           );
 
-        // 4. ✅ UPLOAD MEDIA using the v2 API endpoint
-        // ✅ FIX 2: Changed 'mimeType' to 'media_type'
         mediaId = await userClient.v2.uploadMedia(file.buffer, {
           media_type: mediaType,
         });
       }
 
-      // 5. ✅ POST TWEET using the v2 API endpoint
       const tweet = await userClient.v2.tweet({
         text,
         media: mediaId ? { media_ids: [mediaId] } : undefined,

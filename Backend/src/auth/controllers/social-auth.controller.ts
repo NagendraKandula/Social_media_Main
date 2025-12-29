@@ -127,7 +127,7 @@ export class SocialAuthController {
 @Get('threads')
   @UseGuards(JwtAuthGuard)
   async threadsAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
-    const userId = req.user.userId;
+    const userId = req.user.id;
 
     // 1. Check if already connected
     const existing = await this.prisma.socialAccount.findFirst({
@@ -157,7 +157,7 @@ export class SocialAuthController {
 @Get('twitter')
   @UseGuards(JwtAuthGuard)
   async twitterAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
-    const userId = req.user.userId; // user.id or user.userId depending on your strategy
+    const userId = req.user.id; // user.id or user.userId depending on your strategy
 
     // 1. Check if already connected
     const existing = await this.prisma.socialAccount.findFirst({
