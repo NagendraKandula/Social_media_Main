@@ -86,7 +86,7 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
 @Get('social/active-accounts')
 async getActiveAccounts(@Req() req) {
   const userId = req.user.id; // From JwtAuthGuard
-  
+  //console.log(`Fetching active platforms for UserId: ${userId}`);
   // Use the new service to get the profile
   const [facebook,instagram,youtube,threads,twitter] = await Promise.all([
     this.logoutService.getFacebookProfile(userId),

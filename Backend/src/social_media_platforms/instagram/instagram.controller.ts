@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { InstagramService } from './instagram.service';
 import { Request } from 'express';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
 // Updated DTO
 class InstagramPostDto {
@@ -19,22 +20,15 @@ class InstagramPostDto {
 @Controller('instagram')
 export class InstagramController {
   constructor(private readonly instagramService: InstagramService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post('post')
   async postToInstagram(
-    @Req() req: Request,
+    @Req() req: any,
     @Body() postDto: InstagramPostDto,
   ) {
     // 1. Get Facebook Token from Cookie
-    const accessToken = req.cookies['facebook_access_token'];
-    
-    // Fallback: Check header if cookie missing (useful for testing)
-    const token = accessToken || req.headers.authorization?.split(' ')[1];
-
-    if (!token) {
-      throw new BadRequestException('Facebook access token not found. Please log in with Facebook.');
-    }
-
+    const userId = req.user.id;
+  
     const { content, mediaUrl, mediaType } = postDto;
 
     if (!mediaUrl) {
@@ -46,7 +40,7 @@ export class InstagramController {
     }
      const safeContent = content || '';
     return this.instagramService.postToInstagram(
-      token,
+      userId,
       safeContent,
       mediaUrl,
       mediaType,

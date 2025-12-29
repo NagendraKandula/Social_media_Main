@@ -7,6 +7,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, map } from 'rxjs';
 import { AxiosError } from 'axios';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class InstagramService {
@@ -16,6 +17,7 @@ export class InstagramService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -23,6 +25,20 @@ export class InstagramService {
    * * FIX: Added ': never' return type to inform TypeScript 
    * that this function always throws and never returns a value.
    */
+  private async getFacebookToken(userId: number): Promise<string> {
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {  
+        userId: userId,
+        provider: 'facebook',
+      },
+    });
+    if (!account || !account.accessToken) {
+      throw new BadRequestException(
+        'Facebook account not connected or token missing. Please connect your Facebook account.',
+      );
+    }
+    return account.accessToken;
+  }
   private handleApiError(error: AxiosError, context: string): never {
     console.error(`Error during ${context}:`, error.response?.data);
     const apiError = (error.response?.data as any)?.error;
@@ -230,12 +246,14 @@ export class InstagramService {
    * Main service method called by the controller
    */
   async postToInstagram(
-    userAccessToken: string,
+    userId: number,
     content: string,
     mediaUrl: string,
     mediaType: 'IMAGE' | 'REEL' | 'STORIES',
   ) {
+    const userAccessToken = await this.getFacebookToken(userId);
     // Step 1: Get Page ID and Page Token
+  
     const { pageId, pageAccessToken } = await this.getFacebookPageDetails(
       userAccessToken,
     );
