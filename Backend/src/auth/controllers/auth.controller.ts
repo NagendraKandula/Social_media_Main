@@ -64,10 +64,9 @@ async refreshTokens(@Req() req, @Res({ passthrough: true }) res: Response) {
   // DB logic is encapsulated in the Service
   const tokens = await this.tokenService.rotateTokens(userId, email, refreshToken);
 
-  const isProd = this.configService.get('NODE_ENV') === 'production';
   const cookieOptions = {
     httpOnly: true,
-    secure: isProd,
+    secure: this.configService.get('NODE_ENV') !== 'development',
     sameSite: 'none' as const,
     path: '/',
   };

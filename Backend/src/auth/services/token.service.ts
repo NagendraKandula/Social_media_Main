@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import * as crypto from 'crypto';
 
+
 @Injectable()
 export class TokenService {
   constructor(
@@ -15,7 +16,10 @@ export class TokenService {
 
   // Standardized payload: strictly 'sub' for userId per JWT standards
   private generatePayload(userId: number, email: string) {
-    return { sub: userId, email };
+    return { sub: userId,
+       email ,
+       jti: crypto.randomBytes(32).toString('hex'),
+      };
   }
 
   private hashToken(token: string): string {
@@ -28,11 +32,11 @@ export class TokenService {
     const [at, rt] = await Promise.all([
       this.jwt.signAsync(payload, {
         secret: this.config.get('JWT_SECRET'),
-        expiresIn: '15m',
+        expiresIn: '3m',
       }),
       this.jwt.signAsync(payload, {
         secret: this.config.get('JWT_REFRESH_SECRET'),
-        expiresIn: '7d',
+        expiresIn: '5m',
       }),
     ]);
 
@@ -41,7 +45,7 @@ export class TokenService {
       data: {
         userId,
         token: this.hashToken(rt),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
       },
     });
 
