@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Head from "next/head";
 import { FaTwitter } from "react-icons/fa";
 import styles from "../styles/TwitterConnect.module.css";
+import apiClient from "../lib/axios";
 
 const TwitterConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
@@ -10,16 +11,25 @@ const TwitterConnect: React.FC = () => {
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-  const handleConnectTwitter = () => {
+  const handleConnectTwitter = async () => {
     setLoading(true);
     try {
+      await apiClient.get('/auth/profile');                                                   
       // After successful connection, redirect back to frontend landing page
       const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?twitter=connected`);
 
       // Redirect to backend OAuth route
       window.location.href = `${backendUrl}/twitter/authorize?redirect=${redirectUri}`;
     } catch (error) {
+      
       console.error("Connection error:", error);
+      // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (error.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }
       alert("Unable to connect to Twitter. Please try again later.");
       setLoading(false);
     }
