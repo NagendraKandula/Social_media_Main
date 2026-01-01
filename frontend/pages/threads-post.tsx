@@ -3,6 +3,7 @@ import apiClient from '../lib/axios';
 import styles from '../styles/ThreadsPost.module.css';
 import { AxiosError } from 'axios';
 
+
 const ThreadsPost: React.FC = () => {
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
@@ -23,6 +24,7 @@ const ThreadsPost: React.FC = () => {
     setMessage('');
 
     try {
+      await apiClient.get('/auth/profile');
       const response = await apiClient.post('/threads/post', {
         content: content.trim(),
         mediaUrl: mediaUrl.trim() || null,
@@ -36,11 +38,13 @@ const ThreadsPost: React.FC = () => {
       const axiosError = err as AxiosError;
       const apiError = (axiosError.response?.data as any)?.message;
 
-      if (axiosError.response?.status === 401) {
-        setError(
-          '⚠ You are not connected to Threads. Please connect your account first.'
-        );
-      } else {
+     // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (err.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }else {
         setError(apiError || '❌ Something went wrong while posting to Threads.');
       }
       console.error('Threads post error:', axiosError);

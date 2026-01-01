@@ -39,7 +39,7 @@ export class SocialAuthController {
   } 
     
     const state = encodeURIComponent(JSON.stringify({ userId }));
-    const promptValue = reconnect === 'true' ? 'select_account consent' : 'select_account';
+    const promptValue = reconnect === 'true' ? 'consent select_account' : 'consent';
      const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
                    `client_id=${process.env.YOUTUBE_CLIENT_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.YOUTUBE_CALLBACK_URL!)}` +

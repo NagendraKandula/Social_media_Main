@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styles from "../styles/InstagramConnect.module.css";
 import { FaInstagram, FaCheckCircle } from "react-icons/fa"; // Added FaCheckCircle
+import apiClient from "../lib/axios";
 
 const InstagramConnect = () => {
   const router = useRouter();
@@ -22,11 +23,24 @@ const InstagramConnect = () => {
     }
   }, [router.query]);
 
-  const handleConnect = () => {
+  const handleConnect =  async () => {
     // ✅ CRITICAL: Redirect to YOUR Backend, not Instagram directly.
     // The backend will generate the secure 'state' (User ID) and redirect to Instagram.
+    try {
+      await apiClient.get('/auth/profile');
+    
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
     window.location.href = `${backendUrl}/auth/instagram`;
+    }
+    catch (error) {
+      console.error("Connection error:", error);
+      if (error.response?.status === 401) {
+      router.push("/login");
+    } else {
+      setError("Unable to initiate connection. Please check your connection.");
+    }
+    }
+
   };
 
   return (
