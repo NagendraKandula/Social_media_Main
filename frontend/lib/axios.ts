@@ -50,12 +50,11 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
-        processQueue(refreshError, null); // Reject all waiting requests
-        
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
-        }
-        return Promise.reject(refreshError);
+failedQueue = []; // Clear queue on hard failure
+if (typeof window !== 'undefined') {
+    window.location.href = '/login';
+}
+return Promise.reject(refreshError);
       }
     }
 

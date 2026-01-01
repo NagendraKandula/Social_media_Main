@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import styles from "../styles/LinkedInConnect.module.css";
 import { FaLinkedinIn } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
 const LinkedInConnect = () => {
   const [loading, setLoading] = useState(false);
 
-  const handleConnectLinkedIn = () => {
+  const handleConnectLinkedIn =    async () => {
     setLoading(true);
     try {
+      await apiClient.get('/auth/profile'); 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -17,6 +19,13 @@ const LinkedInConnect = () => {
 
     } catch (error) {
       console.error("Connection error:", error);
+      // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (error.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }
       alert("Unable to connect to LinkedIn. Please try again later.");
       setLoading(false);
     }

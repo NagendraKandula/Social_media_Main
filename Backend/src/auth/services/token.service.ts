@@ -32,11 +32,11 @@ export class TokenService {
     const [at, rt] = await Promise.all([
       this.jwt.signAsync(payload, {
         secret: this.config.get('JWT_SECRET'),
-        expiresIn: '3m',
+        expiresIn: '15m',
       }),
       this.jwt.signAsync(payload, {
         secret: this.config.get('JWT_REFRESH_SECRET'),
-        expiresIn: '5m',
+        expiresIn: '7d',
       }),
     ]);
 
@@ -45,25 +45,26 @@ export class TokenService {
       data: {
         userId,
         token: this.hashToken(rt),
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
 
     return { accessToken: at, refreshToken: rt };
   }
 
-  async rotateTokens(userId: number, email: string, oldRt: string) {
+  async rotateTokens(userId: any, email: string, oldRt: string) {
+    const numberUserId = Number(userId);
     const hashedOldRt = this.hashToken(oldRt);
 
     // Atomic check and revoke
     const tokenRecord = await this.prisma.refreshToken.findFirst({
-      where: { token: hashedOldRt, userId, revoked: false },
+      where: { token: hashedOldRt, userId: numberUserId, revoked: false },
     });
 
     if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
       // Security: If a revoked token is used, potentially revoke ALL user sessions
       await this.prisma.refreshToken.updateMany({
-        where: { userId },
+        where: { userId:numberUserId },
         data: { revoked: true },
       });
       throw new UnauthorizedException('Invalid or reused refresh token');
@@ -75,6 +76,6 @@ export class TokenService {
       data: { revoked: true },
     });
 
-    return this.getTokens(userId, email);
+    return this.getTokens(numberUserId, email);
   }
 }

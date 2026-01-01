@@ -64,15 +64,17 @@ async refreshTokens(@Req() req, @Res({ passthrough: true }) res: Response) {
   // DB logic is encapsulated in the Service
   const tokens = await this.tokenService.rotateTokens(userId, email, refreshToken);
 
+  const isDev = this.configService.get('NODE_ENV') === 'development';
+  const sameSite: 'lax' | 'none' = isDev ? 'lax' : 'none';
   const cookieOptions = {
     httpOnly: true,
-    secure: this.configService.get('NODE_ENV') !== 'development',
-    sameSite: 'none' as const,
+    secure: !isDev, // Set to true in production (requires HTTPS)
+    sameSite ,
     path: '/',
   };
 
   res.cookie('access_token', tokens.accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
-  res.cookie('refresh_token', tokens.refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
+  res.cookie('refresh_token', tokens.refreshToken, { ...cookieOptions, maxAge:  7 * 24 * 60 * 60 * 1000 });
 
   return { message: 'Tokens rotated successfully' };
 }
