@@ -9,7 +9,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy'; // <-- Import GoogleStrategy
 import { YoutubeStrategy } from './strategies/youtube.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';// <-- Import YoutubeStrategy
-import { LinkedinStrategy } from './strategies/linkedin.strategy';
 import { InstagramStrategy } from './strategies/instagram.strategy';
 import { HttpModule } from '@nestjs/axios';
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
@@ -34,7 +33,7 @@ import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.modu
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, LinkedinStrategy,SocialAuthController],
+  controllers: [AuthController,SocialAuthController],
   providers: [AuthService, JwtStrategy,
      GoogleStrategy,YoutubeStrategy,
      FacebookStrategy,JwtRefreshTokenStrategy,

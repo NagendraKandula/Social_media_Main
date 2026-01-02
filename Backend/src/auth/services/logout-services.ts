@@ -160,6 +160,44 @@ async getThreadsProfile(userId: number) {
       };
     }
   }
+
+  async getLinkedinProfile(userId: number) {
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId: userId,
+        provider: 'linkedin',
+      },
+    });
+
+    if (!account || !account.accessToken) {
+      return null;
+    }
+
+    try {
+      const response = await axios.get('https://api.linkedin.com/v2/userinfo', {
+        headers: { Authorization: `Bearer ${account.accessToken}` },
+      });
+
+      return {
+        providerId: response.data.sub,
+        name: response.data.name,
+        profilePic: response.data.picture || null,
+        connected: true,
+      };
+    } catch (error) {
+      console.error('Error fetching LinkedIn profile:', error.response?.data || error.message);
+      
+      const needsReconnect = error.response?.status === 401;
+
+      return {
+        providerId: account.providerId,
+        name: 'LinkedIn User',
+        connected: !needsReconnect, // If 401, they are not strictly "connected" for usage
+        needsReconnect: true,
+      };
+    }
+  }
+  
   async getTwitterProfile(userId: number) {
     const account = await this.prisma.socialAccount.findFirst({
       where: {

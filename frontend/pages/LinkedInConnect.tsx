@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/router';
-import styles from '../styles/LinkedInConnect.module.css'; // We will create this CSS below
+import styles from '../styles/LinkedInConnect.module.css'; 
 import { withAuth } from '../utils/withAuth';
 import { GetServerSideProps } from 'next';
 
@@ -8,14 +8,15 @@ const LinkedInConnect: React.FC = () => {
     const router = useRouter();
 
     const handleConnect = () => {
-        // Redirect to your Backend OAuth route
-        window.location.href = 'http://localhost:4000/linkedin/authorize';
+        // ✅ CORRECTED: Points to '/auth/linkedin' instead of '/linkedin/authorize'
+        // This ensures it hits the SocialAuthController consistent with Twitter/Threads
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        window.location.href = `${apiUrl}/auth/linkedin`;
     };
 
     return (
         <div className={styles.container}>
             <div className={styles.card}>
-                {/* 1. Header Section */}
                 <div className={styles.headerSection}>
                     <img 
                         src="/linkedin.png" 
@@ -28,7 +29,6 @@ const LinkedInConnect: React.FC = () => {
                     </p>
                 </div>
 
-                {/* 2. Features List */}
                 <div className={styles.featuresList}>
                     <div className={styles.featureItem}>
                         <span className={styles.featureIcon}>📘</span>
@@ -55,7 +55,6 @@ const LinkedInConnect: React.FC = () => {
                     </div>
                 </div>
 
-                {/* 3. Security Badge */}
                 <div className={styles.securityNote}>
                     <span className={styles.lockIcon}>🔒</span> 
                     Secure connection via LinkedIn’s official OAuth 2.0 API
@@ -65,7 +64,6 @@ const LinkedInConnect: React.FC = () => {
                     🚫 We never post without your explicit approval
                 </div>
 
-                {/* 4. Action Button */}
                 <button 
                     className={styles.connectButton} 
                     onClick={handleConnect}
@@ -73,7 +71,6 @@ const LinkedInConnect: React.FC = () => {
                     Connect to LinkedIn
                 </button>
 
-                {/* 5. Footer Terms */}
                 <p className={styles.termsText}>
                     By connecting, you agree to our <span>Terms</span> and <span>Privacy Policy</span>.
                 </p>
@@ -82,7 +79,6 @@ const LinkedInConnect: React.FC = () => {
     );
 };
 
-// Server Side Auth Check
 export const getServerSideProps: GetServerSideProps = withAuth(async () => {
     return {
         props: {},
