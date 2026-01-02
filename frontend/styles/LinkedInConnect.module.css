@@ -4,185 +4,137 @@
   align-items: center;
   min-height: calc(100vh - 100px);
   padding: 40px 20px;
-  background: linear-gradient(135deg, #0077b5, #005582, #003d66);
+  background: linear-gradient(135deg, #129ca3, #3eebda, #20b4b9);
   background-size: 400% 400%;
-  animation: gradientShift 8s ease infinite;
-}
-
-@keyframes gradientShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  animation: gradientShift 8s ease infinite; /* Lets global background show through */
 }
 
 .card {
-  background: white;
-  border-radius: 16px;
+   background: white;
+  border-radius: 20px;
   padding: 40px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
   max-width: 700px;
   width: 100%;
   text-align: center;
   position: relative;
   overflow: hidden;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #ffe0e0;
   margin-top: 50px;
 }
 
-.card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 6px;
-  background: linear-gradient(90deg, #0077b5, #0088cc, #005582);
+.headerSection {
+  margin-bottom: 2rem;
 }
 
-.header {
-  margin-bottom: 30px;
+.mainIcon {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 1rem;
 }
 
-.linkedinIcon {
-  font-size: 2.5rem;
-  color: #0077b5;
-  margin-bottom: 16px;
-}
-
-.header h1 {
-  font-size: 2rem;
+.title {
+  font-size: 1.6rem;
   font-weight: 700;
-  color: #111;
-  margin: 0 0 12px;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
 }
 
 .subtitle {
-  font-size: 1.1rem;
-  color: #555;
-  line-height: 1.6;
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.benefits {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin: 30px 0;
-}
-
-.benefitItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  text-align: left;
-  padding: 16px;
-  background: #f8fbff;
-  border-radius: 12px;
-  transition: transform 0.2s ease, background-color 0.2s ease;
-  border: 1px solid #e0e0e0;
-}
-
-.benefitItem:hover {
-  transform: translateY(-3px);
-  background: #f0f7ff;
-  border-color: #c0dfff;
-}
-
-.benefitIcon {
-  font-size: 1.5rem;
-  min-width: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.benefitItem h3 {
-  font-size: 1.1rem;
-  margin: 0 0 6px;
-  color: #111;
-}
-
-.benefitItem p {
   font-size: 0.95rem;
   color: #666;
-  margin: 0;
   line-height: 1.5;
 }
 
-.trustSection {
+/* Features List Styles */
+.featuresList {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1.2rem;
+  padding: 0.5rem;
+}
+
+.featureIcon {
+  font-size: 1.4rem;
+  margin-right: 1rem;
   background: #f0f7ff;
-  padding: 16px;
-  border-radius: 10px;
-  margin: 30px 0;
-  font-size: 0.9rem;
-  color: #444;
-  line-height: 1.6;
-  border: 1px solid #cce5ff;
-}
-
-.trustSection p {
-  margin: 4px 0;
-}
-
-.connectButton {
-  background: linear-gradient(45deg, #0077b5, #0088cc, #005582);
-  color: white;
-  font-weight: 600;
-  font-size: 1.1rem;
-  padding: 16px 32px;
-  border: none;
-  border-radius: 50px;
-  cursor: pointer;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 20px auto; /* ← CENTERED BUTTON */
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 4px 15px rgba(0, 119, 181, 0.3);
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.featureText h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.2rem;
+}
+
+.featureText p {
+  font-size: 0.85rem;
+  color: #777;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Security Notes */
+.securityNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  color: #007d4f; /* Green for secure */
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.lockIcon {
+  margin-right: 6px;
+}
+
+.approvalNote {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+/* Connect Button */
+.connectButton {
+  background-color: #0077b5; /* LinkedIn Blue */
+  color: white;
+  border: none;
+  padding: 14px 0;
+  width: 100%;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
 }
 
 .connectButton:hover {
+  background-color: #005e93;
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 119, 181, 0.4);
 }
 
-.connectButton:active {
-  transform: translateY(0);
+/* Footer Terms */
+.termsText {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #999;
 }
 
-.footerNote {
-  font-size: 0.85rem;
-  color: #888;
-  margin-top: 20px;
-}
-
-.footerNote a {
+.termsText span {
   color: #0077b5;
-  text-decoration: none;
-}
-
-.footerNote a:hover {
+  cursor: pointer;
   text-decoration: underline;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .card {
-    padding: 30px 20px;
-  }
-
-  .header h1 {
-    font-size: 1.6rem;
-  }
-
-  .benefits {
-    gap: 16px;
-  }
-
-  .benefitItem {
-    flex-direction: column;
-    text-align: center;
-    align-items: center;
-  }
 }

@@ -19,10 +19,11 @@ import { LogoutService } from './services/logout-services';
 import { SocialAuthController } from './controllers/social-auth.controller';
 // <-- Import ThreadsStrategy                                                 
 import { TwitterModule } from '../social_media_platforms/twitter/twitter.module';
+import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.module';
 @Module({
   imports: [
     PrismaModule,
-    TwitterModule,
+    TwitterModule,LinkedinModule,
     HttpModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

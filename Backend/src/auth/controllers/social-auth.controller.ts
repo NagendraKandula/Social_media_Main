@@ -7,6 +7,7 @@ import { SocialAuthService } from '../services/social-auth.service';
 import { LogoutService } from '../services/logout-services';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { TwitterService } from '../../social_media_platforms/twitter/twitter.service';
+import { LinkedinService } from '../../social_media_platforms/linkedin/linkedin.service';
 @Controller('auth')
 export class SocialAuthController {
   constructor(
@@ -15,6 +16,7 @@ export class SocialAuthController {
     private logoutService: LogoutService,
     private prisma: PrismaService,
     private twitterService: TwitterService,
+    private linkedinService: LinkedinService,
   ) {}
   @Get('google')
     @UseGuards(AuthGuard('google'))
@@ -183,7 +185,85 @@ export class SocialAuthController {
     return res.redirect(url);
   }
 
-  
+  @Get('linkedin')
+  @UseGuards(JwtAuthGuard)
+  async linkedinAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
+    const userId = req.user.id;
+
+    // 1. Check if already connected
+    const existing = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'linkedin' },
+    });
+
+    if (existing && reconnect !== 'true') {
+      const frontendUrl = this.configService.get('FRONTEND_URL');
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
+    }
+
+    // 2. Generate Auth URL
+    const url = this.linkedinService.generateAuthUrl(userId);
+
+    // 3. Redirect
+    return res.redirect(url);
+  }
+
+  // ✅ ADD THIS: LinkedIn Callback Route
+  @Get('linkedin/callback')
+  async linkedinAuthRedirect(@Req() req, @Res() res: Response, @Query('code') code: string, @Query('state') state: string, @Query('error') error: string) {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    if (error) {
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_denied`);
+    }
+    
+    if (!code || !state) {
+        return res.redirect(`${frontendUrl}/ActivePlatforms?error=invalid_request`);
+    }
+
+    try {
+      // 1. Decode State to get User ID
+      const decodedState = JSON.parse(decodeURIComponent(state));
+      const userId = decodedState.userId;
+
+      // 2. Exchange Code for Token
+      const tokens = await this.linkedinService.exchangeCodeForToken(code);
+
+      // 3. Get Profile Info
+      const profile = await this.linkedinService.getUserProfile(tokens.access_token);
+      const linkedinId = profile.sub; 
+
+      // 4. Save to Database
+      await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'linkedin',
+            providerId: linkedinId,
+          },
+        },
+        update: {
+          userId: userId,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+          updatedAt: new Date(),
+        },
+        create: {
+          provider: 'linkedin',
+          providerId: linkedinId,
+          userId: userId,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token,
+          expiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+        },
+      });
+
+      return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
+
+    } catch (error) {
+      console.error('LinkedIn Login Error:', error);
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_failed`);
+    }
+  }
   @Get('instagram')
   @UseGuards(JwtAuthGuard)
   async redirectToInstagram(@Req() req,@Res() res: Response,@Query('reconnect') reconnect?: string) {

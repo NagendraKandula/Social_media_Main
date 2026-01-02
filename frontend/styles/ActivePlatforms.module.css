@@ -142,3 +142,7 @@
 .twitterIcon {
   background-color: #000000; /* X brand color */
 }
+.linkedinIcon {
+  color: #0077b5; /* LinkedIn Blue */
+  background: rgba(0, 119, 181, 0.1); /* Subtle blue background */
+}
