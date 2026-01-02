@@ -65,7 +65,7 @@ export class TwitterController {
     if (!storedCodeVerifier) throw new BadRequestException('Missing code verifier cookie');
 
     try {
-      // 1. Extract User ID from state
+      // 1. Extract User ID
       let userId = 1; 
       try {
         const decoded = JSON.parse(decodeURIComponent(state));
@@ -74,7 +74,7 @@ export class TwitterController {
         console.warn('Could not decode state, defaulting user ID');
       }
 
-      // 2. Exchange Code for Tokens
+      // 2. Exchange Code for Tokens using the UPDATED Service method
       const tokens = await this.twitterService.exchangeCodeForTokens(
         code,
         state,
@@ -82,10 +82,7 @@ export class TwitterController {
         storedCodeVerifier,
       );
 
-      // 3. ✅ FETCH REAL TWITTER ID (The Fix)
-      // This is the vital step. We ask Twitter for the real ID (e.g. "12345").
-      // Since "12345" is constant for the account, the DB will find the EXISTING row
-      // and update it, instead of creating a new row for User 2.
+      // 3. Fetch Real Twitter ID
       const twitterUser = await this.twitterService.getTwitterUser(tokens.access_token);
       const realProviderId = twitterUser.id;
 
@@ -96,11 +93,11 @@ export class TwitterController {
         where: {
           provider_providerId: {
             provider: 'twitter',
-            providerId: realProviderId, // ✅ Using Real ID
+            providerId: realProviderId,
           },
         },
         update: {
-          userId: userId, // ✅ Account ownership transfers to the new user
+          userId: userId,
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           expiresAt: new Date(Date.now() + (tokens.expires_in * 1000)),
@@ -108,7 +105,7 @@ export class TwitterController {
         },
         create: {
           provider: 'twitter',
-          providerId: realProviderId, // ✅ Using Real ID
+          providerId: realProviderId,
           userId: userId,
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
@@ -117,24 +114,22 @@ export class TwitterController {
       });
 
       res.clearCookie('twitter_code_verifier');
-      
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       res.redirect(`${frontendUrl}/ActivePlatforms?twitter=connected`);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Callback Error:", error);
       res.clearCookie('twitter_code_verifier');
       
-      // Handle the Rate Limit Gracefully
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+      
+      // Better error handling for the frontend
       if (error.message && error.message.includes('Rate Limit')) {
-         const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
          return res.redirect(`${frontendUrl}/ActivePlatforms?error=twitter_rate_limit`);
       }
-
-      throw new InternalServerErrorException('Failed to connect Twitter');
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=twitter_connection_failed`);
     }
   }
-
   @Post('post-media')
   @UseInterceptors(FileInterceptor('file'))
   async postMedia(

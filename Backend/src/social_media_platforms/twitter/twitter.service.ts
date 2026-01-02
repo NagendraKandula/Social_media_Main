@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
 import * as crypto from 'crypto';
 import { TwitterApi, EUploadMimeType } from 'twitter-api-v2';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
@@ -15,8 +14,7 @@ export class TwitterService {
   private readonly TWITTER_CLIENT_ID: string;
   private readonly TWITTER_CLIENT_SECRET: string;
   private readonly TWITTER_CALLBACK_URL: string;
-  private readonly TWITTER_AUTH_URL = 'https://twitter.com/i/oauth2/authorize';
-  private readonly TWITTER_TOKEN_URL = 'https://api.twitter.com/2/oauth2/token';
+  // REMOVED: TWITTER_AUTH_URL and TWITTER_TOKEN_URL are handled by the library now
 
   constructor(
     private readonly httpService: HttpService,
@@ -24,10 +22,8 @@ export class TwitterService {
     private readonly cloudinaryService: CloudinaryService,
   ) {
     this.TWITTER_CLIENT_ID = this.config.get<string>('TWITTER_CLIENT_ID')!;
-    this.TWITTER_CLIENT_SECRET =
-      this.config.get<string>('TWITTER_CLIENT_SECRET')!;
-    this.TWITTER_CALLBACK_URL =
-      this.config.get<string>('TWITTER_CALLBACK_URL')!;
+    this.TWITTER_CLIENT_SECRET = this.config.get<string>('TWITTER_CLIENT_SECRET')!;
+    this.TWITTER_CALLBACK_URL = this.config.get<string>('TWITTER_CALLBACK_URL')!;
   }
 
   generateAuthUrl(userId?: number) {
@@ -44,7 +40,6 @@ export class TwitterService {
       .update(codeVerifier)
       .digest('base64url');
 
-    // ✅ USING YOUR WORKING SCOPES (No 'openid' to avoid the access error)
     const scopes = [
       'tweet.read',
       'tweet.write',
@@ -53,7 +48,8 @@ export class TwitterService {
       'media.write',
     ].join(' ');
 
-    const url = new URL(this.TWITTER_AUTH_URL);
+    // Manual URL construction is still fine, or you could use client.generateOAuth2AuthLink()
+    const url = new URL('https://twitter.com/i/oauth2/authorize');
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', this.TWITTER_CLIENT_ID);
     url.searchParams.set('redirect_uri', this.TWITTER_CALLBACK_URL);
@@ -74,37 +70,34 @@ export class TwitterService {
     if (!storedCodeVerifier)
       throw new BadRequestException('Missing code verifier');
 
-    const basicAuth = Buffer.from(
-      `${this.TWITTER_CLIENT_ID}:${this.TWITTER_CLIENT_SECRET}`,
-    ).toString('base64');
-
-    const body = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: this.TWITTER_CALLBACK_URL,
-      code_verifier: storedCodeVerifier,
-    });
-
     try {
-      const response = await firstValueFrom(
-        this.httpService.post(this.TWITTER_TOKEN_URL, body.toString(), {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Authorization: `Basic ${basicAuth}`,
-          },
-        }),
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Twitter Token Exchange Error:', error.response?.data || error.message);
+      // ✅ FIX: Use TwitterApi instance to exchange tokens
+      // This automatically handles headers and avoids Cloudflare blocks
+      const client = new TwitterApi({
+        clientId: this.TWITTER_CLIENT_ID,
+        clientSecret: this.TWITTER_CLIENT_SECRET,
+      });
+
+      const { accessToken, refreshToken, expiresIn, scope } = await client.loginWithOAuth2({
+        code,
+        codeVerifier: storedCodeVerifier,
+        redirectUri: this.TWITTER_CALLBACK_URL,
+      });
+
+      // Return in the format your Controller expects
+      return {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_in: expiresIn,
+        scope,
+      };
+
+    } catch (error: any) {
+      console.error('Twitter Token Exchange Error:', error);
       throw new InternalServerErrorException('Failed to exchange Twitter code for tokens');
     }
   }
 
-  /**
-   * ✅ NEW METHOD: Fetch Real User ID
-   * This is critical to prevent duplicate rows.
-   */
   async getTwitterUser(accessToken: string) {
     try {
       const client = new TwitterApi(accessToken);
@@ -112,7 +105,6 @@ export class TwitterService {
       return currentUser.data; 
     } catch (error: any) {
       console.error('Failed to fetch Twitter user:', error);
-      // Handle Rate Limit specifically
       if (error.code === 429) {
         throw new InternalServerErrorException('Twitter Rate Limit Exceeded. Please try again later.');
       }
@@ -135,18 +127,12 @@ export class TwitterService {
         cloudinaryUrl = await this.cloudinaryService.uploadFile(file);
 
         let mediaType: EUploadMimeType;
-        if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg'))
-          mediaType = EUploadMimeType.Jpeg;
-        else if (file.mimetype.includes('png'))
-          mediaType = EUploadMimeType.Png;
-        else if (file.mimetype.includes('gif'))
-          mediaType = EUploadMimeType.Gif;
-        else if (file.mimetype.includes('mp4'))
-          mediaType = EUploadMimeType.Mp4;
-        else
-          throw new BadRequestException(
-            `Unsupported media type: ${file.mimetype}`,
-          );
+        // Simple mime type check
+        if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) mediaType = EUploadMimeType.Jpeg;
+        else if (file.mimetype.includes('png')) mediaType = EUploadMimeType.Png;
+        else if (file.mimetype.includes('gif')) mediaType = EUploadMimeType.Gif;
+        else if (file.mimetype.includes('mp4')) mediaType = EUploadMimeType.Mp4;
+        else throw new BadRequestException(`Unsupported media type: ${file.mimetype}`);
 
         mediaId = await userClient.v2.uploadMedia(file.buffer, {
           media_type: mediaType,
@@ -166,18 +152,12 @@ export class TwitterService {
     } catch (err: any) {
       console.error('Twitter Service Error:', err);
       if (err.code === 401) {
-        throw new InternalServerErrorException(
-          'Twitter token is invalid or expired. Please reconnect your account.',
-        );
+        throw new InternalServerErrorException('Twitter token is invalid or expired. Please reconnect your account.');
       }
       if (err.code === 403) {
-        throw new InternalServerErrorException(
-          'Twitter permission error (403). Ensure "media.write" scope is granted.',
-        );
+        throw new InternalServerErrorException('Twitter permission error (403). Ensure "media.write" scope is granted.');
       }
-      throw new InternalServerErrorException(
-        `Failed to post tweet: ${err.message}`,
-      );
+      throw new InternalServerErrorException(`Failed to post tweet: ${err.message}`);
     }
   }
 }
