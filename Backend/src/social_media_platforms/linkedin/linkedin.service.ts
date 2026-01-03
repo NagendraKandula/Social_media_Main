@@ -72,6 +72,8 @@ export class LinkedinService {
     }
   }
 
+  
+
   // --- Media Handling Helpers ---
 
   private async downloadMedia(url: string): Promise<Buffer> {
@@ -153,9 +155,14 @@ export class LinkedinService {
     const authorUrn = `urn:li:person:${providerId}`;
     let shareMediaCategory = 'NONE';
     let mediaAssets: any[] = [];
-
+ 
     // If media is provided, process it
     if (media && media.url) {
+      
+      
+    if (text.length > 3000) {
+    throw new BadRequestException('Text exceeds LinkedIn limit of 3000 characters.');
+    }
       // 1. Download file
       const fileBuffer = await this.downloadMedia(media.url);
       
