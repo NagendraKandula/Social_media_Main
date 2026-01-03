@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import apiClient from '../lib/axios'; // Matches your TwitterPost import
-import styles from '../styles/TwitterPost.module.css'; // ✅ Re-using Twitter styles for identical look
+import apiClient from '../lib/axios';
+import styles from '../styles/TwitterPost.module.css';
 import { withAuth } from '../utils/withAuth';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
 
-const MAX_LINKEDIN_CHARS = 3000; // LinkedIn allows more text
+const MAX_LINKEDIN_CHARS = 3000;
 
 const LinkedInPost: React.FC = () => {
   const [text, setText] = useState('');
-  // const [file, setFile] = useState<File | null>(null); // Image support requires extra backend work
+  const [mediaUrl, setMediaUrl] = useState('');
+  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const router = useRouter();
@@ -21,16 +22,21 @@ const LinkedInPost: React.FC = () => {
     setMessage('');
 
     try {
-      // ✅ Using the same apiClient as TwitterPost
-      const res = await apiClient.post('/linkedin/post', { text });
+      const payload: any = { text };
+      if (mediaUrl.trim()) {
+        payload.mediaUrl = mediaUrl.trim();
+        payload.mediaType = mediaType;
+      }
+
+      await apiClient.post('/linkedin/post', payload);
 
       setMessage('✅ Posted successfully to LinkedIn!');
       setText('');
+      setMediaUrl('');
     } catch (err: any) {
       console.error(err);
       const errorMsg = err.response?.data?.message || 'Failed to post to LinkedIn';
       
-      // Handle the case where user is not connected
       if (err.response?.status === 401) {
          setMessage('⚠️ Account not connected. Redirecting...');
          setTimeout(() => router.push('/LinkedInConnect'), 2000);
@@ -45,7 +51,6 @@ const LinkedInPost: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        {/* Header Section */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '10px' }}>
             <img src="/linkedin.png" alt="LinkedIn" width={40} height={40} />
             <h2 style={{ margin: 0 }}>Post to LinkedIn</h2>
@@ -57,17 +62,41 @@ const LinkedInPost: React.FC = () => {
           onChange={(e) => setText(e.target.value)}
           maxLength={MAX_LINKEDIN_CHARS}
           placeholder="What do you want to talk about?"
-          rows={6}
+          rows={5}
         />
 
-        {/* Note: Image upload disabled for now to ensure stability with your current backend scope */}
-        {/* <div style={{ margin: '10px 0', opacity: 0.5 }}>
-            <label>Upload Media (Coming Soon): </label>
-            <input type="file" disabled />
-        </div> 
-        */}
+        {/* Media URL Input */}
+        <div style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label style={{ fontWeight: 'bold' }}>Attach Media (Optional Public URL)</label>
+            <input 
+              type="text" 
+              placeholder="https://example.com/image.jpg"
+              value={mediaUrl}
+              onChange={(e) => setMediaUrl(e.target.value)}
+              style={{
+                padding: '10px',
+                borderRadius: '5px',
+                border: '1px solid #ccc',
+                width: '100%'
+              }}
+            />
+            
+            {mediaUrl && (
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                 <label>Type:</label>
+                 <select 
+                    value={mediaType} 
+                    onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO')}
+                    style={{ padding: '5px', borderRadius: '5px' }}
+                 >
+                    <option value="IMAGE">Image</option>
+                    <option value="VIDEO">Video</option>
+                 </select>
+              </div>
+            )}
+        </div>
 
-        <div className={styles.row}>
+        <div className={styles.row} style={{ marginTop: '20px' }}>
           <span className={styles.counter}>
             {text.length}/{MAX_LINKEDIN_CHARS}
           </span>
@@ -75,7 +104,7 @@ const LinkedInPost: React.FC = () => {
             className={styles.postButton}
             onClick={handlePost}
             disabled={loading || text.trim().length === 0}
-            style={{ backgroundColor: '#0077b5' }} // LinkedIn Blue Override
+            style={{ backgroundColor: '#0077b5' }} 
           >
             {loading ? 'Posting...' : 'Post to LinkedIn'}
           </button>
@@ -91,7 +120,6 @@ const LinkedInPost: React.FC = () => {
   );
 };
 
-// ✅ Server Side Auth Check (Matches your TwitterPost)
 export const getServerSideProps: GetServerSideProps = withAuth(async () => ({
   props: {},
 }));

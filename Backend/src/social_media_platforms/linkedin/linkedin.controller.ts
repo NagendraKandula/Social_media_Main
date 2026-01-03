@@ -10,14 +10,17 @@ export class LinkedinController {
     private readonly prisma: PrismaService,
   ) {}
 
-  // ✅ Only Post Logic Remains
   @Post('post')
   @UseGuards(JwtAuthGuard)
-  async postContent(@Req() req: any, @Body() body: { text: string }) {
+  async postContent(
+    @Req() req: any, 
+    @Body() body: { text: string; mediaUrl?: string; mediaType?: 'IMAGE' | 'VIDEO' }
+  ) {
     const userId = req.user.id;
-    const { text } = body;
+    const { text, mediaUrl, mediaType } = body;
 
     if (!text) throw new BadRequestException('Text is required');
+    if (mediaUrl && !mediaType) throw new BadRequestException('Media type (IMAGE or VIDEO) is required when mediaUrl is provided');
 
     // Find the connected account
     const account = await this.prisma.socialAccount.findFirst({
@@ -28,11 +31,14 @@ export class LinkedinController {
       throw new UnauthorizedException('LinkedIn account not connected');
     }
 
+    const mediaConfig = mediaUrl ? { url: mediaUrl, type: mediaType! } : undefined;
+
     // Call Service
     return this.linkedinService.postToLinkedIn(
       account.accessToken,
       account.providerId, 
-      text
+      text,
+      mediaConfig
     );
   }
 }
