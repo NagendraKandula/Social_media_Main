@@ -1,3 +1,4 @@
+
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -6,17 +7,20 @@ import { firstValueFrom } from 'rxjs';
 export class ThreadsService {
   private readonly GRAPH_API_URL = 'https://graph.threads.net/v1.0';
   private readonly TOKEN_URL = 'https://graph.threads.net/oauth/access_token';
+  private readonly LONG_LIVED_TOKEN_URL = 'https://graph.threads.net/access_token'; // ✅ Added URL
   private readonly CLIENT_ID = process.env.THREADS_APP_ID;
   private readonly CLIENT_SECRET = process.env.THREADS_APP_SECRET;
   private readonly REDIRECT_URI =
-    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/threads/callback';
+    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/auth/threads/callback';
 
   constructor(private readonly http: HttpService) {}
 
-  // ✅ Exchange code → access token
+  // ✅ Updated: Exchange code → Short Token → Long Token
   async exchangeCodeForTokens(code: string) {
     try {
-      const response = await firstValueFrom(
+      // 1️⃣ Get Short-Lived Token & User ID
+      console.log('🔄 Exchanging code for short-lived token...');
+      const shortRes = await firstValueFrom(
         this.http.post(this.TOKEN_URL, null, {
           params: {
             client_id: this.CLIENT_ID,
@@ -28,8 +32,34 @@ export class ThreadsService {
         }),
       );
 
-      console.log('🔑 Token exchange response:', response.data);
-      return response.data; // includes access_token & user_id
+      const { access_token: shortToken, user_id } = shortRes.data;
+      console.log('✅ Short-lived token received. User ID:', user_id);
+
+      if (!shortToken) {
+        throw new Error('No access_token received from short-lived exchange');
+      }
+
+      // 2️⃣ Exchange for Long-Lived Token (60 days)
+      console.log('🔄 Exchanging for long-lived token...');
+      const longRes = await firstValueFrom(
+        this.http.get(this.LONG_LIVED_TOKEN_URL, {
+          params: {
+            grant_type: 'th_exchange_token',
+            client_secret: this.CLIENT_SECRET,
+            access_token: shortToken,
+          },
+        }),
+      );
+
+      const { access_token: longToken, expires_in } = longRes.data;
+      console.log(`✅ Long-lived token received. Expires in: ${expires_in} seconds`);
+
+      return {
+        user_id, // Keep user_id from first call
+        access_token: longToken, // Use the new long-lived token
+        expires_in, // This should now be present (~5184000 seconds)
+      };
+
     } catch (err: any) {
       console.error(
         '❌ Failed to exchange code for tokens:',
@@ -40,7 +70,6 @@ export class ThreadsService {
   }
 
   // ✅ Helper to wait for media container to be ready
-  // FIXED: Removed 'status_code' field which was causing the 500 Error
   private async waitForContainer(containerId: string, accessToken: string, maxRetries = 20) {
     const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,7 +78,7 @@ export class ThreadsService {
         const response = await firstValueFrom(
           this.http.get(`${this.GRAPH_API_URL}/${containerId}`, {
             params: {
-              fields: 'status,error_message', // ✅ FIXED: Request 'status' instead of 'status_code'
+              fields: 'status,error_message',
               access_token: accessToken,
             },
           }),
@@ -59,7 +88,7 @@ export class ThreadsService {
         console.log(`⏳ Checking container status (${i + 1}/${maxRetries}): ${status}`);
 
         if (status === 'FINISHED') {
-          return true; // Ready to publish
+          return true;
         }
 
         if (status === 'ERROR' || status === 'EXPIRED') {
@@ -67,10 +96,7 @@ export class ThreadsService {
         }
       } catch (err: any) {
         console.warn(`⚠️ Warning checking container status: ${err.message}`);
-        // If it's a 500 or network error, we retry. If 400, it might be fatal, but we retry closely.
       }
-
-      // Wait 3 seconds before next check
       await delay(3000);
     }
     throw new Error('Timeout waiting for media container to process');
@@ -79,16 +105,13 @@ export class ThreadsService {
   // ✅ Post text / image / video to Threads
   async postToThreads(accessToken: string, content: string, mediaUrl?: string) {
     try {
-      // ✅ 1️⃣ Get user_id from token
       const meRes = await firstValueFrom(
         this.http.get(`${this.GRAPH_API_URL}/me?fields=id,username`, {
           params: { access_token: accessToken },
         }),
       );
       const userId = meRes.data.id;
-      console.log('👤 Threads user ID:', userId);
-
-      // ✅ 2️⃣ Prepare the create container body
+      
       let createBody: Record<string, any> = {
         access_token: accessToken,
         text: content,
@@ -97,19 +120,16 @@ export class ThreadsService {
       let isMediaPost = false;
 
       if (!mediaUrl) {
-        // ✅ Text-only (FIXED: Added media_type TEXT)
         createBody['media_type'] = 'TEXT';
       } else if (
         mediaUrl.toLowerCase().endsWith('.jpg') ||
         mediaUrl.toLowerCase().endsWith('.jpeg') ||
         mediaUrl.toLowerCase().endsWith('.png')
       ) {
-        // ✅ Image + caption
         createBody['media_type'] = 'IMAGE'; 
         createBody['image_url'] = mediaUrl;
         isMediaPost = true;
       } else if (mediaUrl.toLowerCase().endsWith('.mp4')) {
-        // ✅ Video + caption
         createBody['media_type'] = 'VIDEO';
         createBody['video_url'] = mediaUrl;
         isMediaPost = true;
@@ -119,7 +139,6 @@ export class ThreadsService {
         );
       }
 
-      // ✅ 3️⃣ Create container (DRAFT)
       const containerRes = await firstValueFrom(
         this.http.post(`${this.GRAPH_API_URL}/${userId}/threads`, createBody),
       );
@@ -127,13 +146,11 @@ export class ThreadsService {
       const containerId = containerRes.data.id;
       console.log('🧩 Container created:', containerId);
 
-      // ✅ 4️⃣ Wait for processing (Critical for both Image & Video to avoid "Media Not Found")
       if (isMediaPost) {
         console.log('🕒 Waiting for media processing...');
         await this.waitForContainer(containerId, accessToken);
       }
 
-      // ✅ 5️⃣ Publish the container
       const publishRes = await firstValueFrom(
         this.http.post(`${this.GRAPH_API_URL}/${userId}/threads_publish`, null, {
           params: {
@@ -143,7 +160,6 @@ export class ThreadsService {
         }),
       );
 
-      console.log('✅ Post published:', publishRes.data);
       return { postId: publishRes.data.id };
     } catch (err: any) {
       console.error('❌ Error posting to Threads:', err.response?.data || err.message);

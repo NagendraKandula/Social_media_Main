@@ -2,7 +2,17 @@ import React, { useEffect, useState } from 'react';
 import LHeader from './LHeader';
 import apiClient from '../lib/axios';
 import styles from '../styles/ActivePlatforms.module.css';
-import { FaFacebookF, FaInstagram, FaPlus, FaUnlink, FaSyncAlt,FaYoutube } from 'react-icons/fa';
+import { 
+  FaFacebookF, 
+  FaInstagram, 
+  FaPlus, 
+  FaUnlink, 
+  FaSyncAlt, 
+  FaYoutube, 
+  FaAt, 
+  FaTwitter, 
+  FaLinkedin // ✅ Added LinkedIn Import
+} from 'react-icons/fa';
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<any>(null);
@@ -20,7 +30,6 @@ const ActivePlatforms = () => {
     }
   };
   
-
   useEffect(() => { fetchAccounts(); }, []);
 
   const handleAction = async (provider: string, action: 'connect' | 'disconnect'| 'reconnect') => {
@@ -51,9 +60,22 @@ const ActivePlatforms = () => {
 
   const platforms = [
     { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
-    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon},
-      {id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon
-     },
+    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon },
+    { id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon },
+    { id: 'threads', name: 'Threads', icon: <FaAt />, color: styles.threadsIcon },
+    { 
+      id: 'twitter', 
+      name: 'X (Twitter)', 
+      icon: <FaTwitter />, 
+      color: styles.twitterIcon 
+    },
+    // ✅ Added LinkedIn Platform Object
+    { 
+      id: 'linkedin', 
+      name: 'LinkedIn', 
+      icon: <FaLinkedin />, 
+      color: styles.linkedinIcon // Make sure to add this class in your CSS
+    }
   ];
 
   return (
@@ -72,7 +94,11 @@ const ActivePlatforms = () => {
               <div className={styles.cardBody}>
                 {accounts?.[p.id] ? (
                   <div className={styles.connectedProfile}>
-                    <img src={accounts[p.id].profilePic || "/profile.png"} className={styles.avatar} />
+                    <img 
+                        src={accounts[p.id].profilePic || "/profile.png"} 
+                        className={styles.avatar} 
+                        onError={(e) => (e.currentTarget.src = '/profile.png')}
+                    />
                     <div className={styles.profileInfo}>
                       <p className={styles.userName}>{accounts[p.id].name}</p>
                       <p className={styles.statusBadge}>Connected</p>

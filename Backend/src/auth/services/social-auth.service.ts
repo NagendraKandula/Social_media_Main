@@ -5,10 +5,13 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { TokenService } from './token.service';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+// Import LinkedinService
+import { LinkedinService } from '../../social_media_platforms/linkedin/linkedin.service';
+
 @Injectable()
 export class SocialAuthService {
   constructor(
@@ -16,7 +19,10 @@ export class SocialAuthService {
     private readonly tokenService: TokenService,
     private readonly config: ConfigService,
     private readonly httpService: HttpService,
+    // Inject LinkedinService
+    private readonly linkedinService: LinkedinService,
   ) {}
+
   async googleLogin(req, res: Response) {
       if (!req.user) {
         throw new BadRequestException('No user from google');
@@ -51,6 +57,7 @@ export class SocialAuthService {
       const frontendUrl = this.config.get<string>('FRONTEND_URL');
        return res.redirect(`${frontendUrl}/Landing`);
     }
+
     async facebookLogin(req, res: Response, appUserId: number) {
         if (!req.user || !req.user.id) {
           throw new BadRequestException('No user from facebook');
@@ -109,7 +116,6 @@ export class SocialAuthService {
         async youtubeLogin(req, res: Response,appUserId: number) {
           //step1:get youtbe info from req.user strategy
         const { accessToken, refreshToken,youtubeId,displayName } = req.user;
-        //step 2: Get curently logged in app user
     
         if (!appUserId) {
           throw new BadRequestException('App user not found .please log in first');
@@ -143,7 +149,7 @@ export class SocialAuthService {
            // Set tokens in HTTP-only cookies
         res.cookie('youtube_access_token', accessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
+          secure: process.env.NODE_ENV !== 'development', 
           sameSite: 'none',
         });
     
@@ -163,30 +169,131 @@ export class SocialAuthService {
         // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
         return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
-      }
-     async instagramLogin(req, res: Response, appUserId: number) {
-    const { accessToken, instagramId, username } = req.user;
+    }
 
-    // 1. Exchange Short-Lived Token for Long-Lived Token (60 Days)
+    async instagramLogin(req, res: Response, appUserId: number) {
+        const { accessToken, instagramId, username } = req.user;
+
+        let longLivedToken = accessToken;
+        let expiresSeconds = 3600; 
+
+        try {
+            const exchangeUrl = 'https://graph.instagram.com/access_token';
+            const response = await firstValueFrom(
+                this.httpService.get(exchangeUrl, {
+                params: {
+                    grant_type: 'ig_exchange_token',
+                    client_secret: this.config.get('INSTAGRAM_APP_SECRET'),
+                    access_token: accessToken,
+                },
+                }),
+            );
+            
+            longLivedToken = response.data.access_token;
+            expiresSeconds = response.data.expires_in; 
+        } catch (error) {
+            console.error('⚠️ Failed to exchange long-lived token. Using short-lived token instead.', error.response?.data);
+        }
+
+        const existingAccount = await this.prisma.socialAccount.findUnique({
+            where: {
+                provider_providerId: {
+                provider: 'instagram',
+                providerId: instagramId.toString(),
+            },
+            },
+        });
+
+        if (existingAccount) {
+            await this.prisma.socialAccount.update({
+                where: { id: existingAccount.id },
+                data: {
+                accessToken: longLivedToken,
+                userId: appUserId,
+                updatedAt: new Date(),
+                expiresAt: new Date(Date.now() + expiresSeconds * 1000),
+                },
+            });
+        } else {
+            await this.prisma.socialAccount.create({
+                data: {
+                provider: 'instagram',
+                providerId: instagramId.toString(),
+                accessToken: longLivedToken,
+                userId: appUserId,
+                expiresAt: new Date(Date.now() + expiresSeconds * 1000),
+                },
+            });
+        }
+
+        const frontendUrl = this.config.get<string>('FRONTEND_URL');
+        return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
+    }
+
+    // ✅ ADDED: LinkedIn Login Logic
+    async linkedinLogin(req: any, res: Response, appUserId: number) {
+    const { linkedinId, accessToken, refreshToken } = req.user; // Data from Strategy
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+
+    try {
+      // Upsert into Database
+      await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'linkedin',
+            providerId: linkedinId,
+          },
+        },
+        update: {
+          userId: appUserId,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days default
+          updatedAt: new Date(),
+        },
+        create: {
+          provider: 'linkedin',
+          providerId: linkedinId,
+          userId: appUserId,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
+    } catch (error) {
+      console.error('LinkedIn Login DB Error:', error);
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_failed`);
+    }
+  }
+   
+
+    
+
+    async threadsLogin(req: any, res: Response, appUserId: number) {
+    const { accessToken, threadsId } = req.user; // 'accessToken' here is Short-Lived
+    
     let longLivedToken = accessToken;
     let expiresSeconds = 3600; // Default 1 hour
 
+    // 1. Exchange Short Token for Long Token
     try {
-      const exchangeUrl = 'https://graph.instagram.com/access_token';
+      const exchangeUrl = 'https://graph.threads.net/access_token';
       const response = await firstValueFrom(
         this.httpService.get(exchangeUrl, {
           params: {
-            grant_type: 'ig_exchange_token',
-            client_secret: this.config.get('INSTAGRAM_APP_SECRET'),
+            grant_type: 'th_exchange_token',
+            client_secret: this.config.get('THREADS_APP_SECRET'),
             access_token: accessToken,
           },
         }),
       );
-      
       longLivedToken = response.data.access_token;
-      expiresSeconds = response.data.expires_in; // 60 days
+      expiresSeconds = response.data.expires_in; // ~60 days
     } catch (error) {
-      console.error('⚠️ Failed to exchange long-lived token. Using short-lived token instead.', error.response?.data);
+      console.error('Failed to get long-lived Threads token', error);
+      // Fallback: proceed with short token if exchange fails
     }
 
    // Replace section 2 in instagramLogin with this:
@@ -223,9 +330,8 @@ try {
 }
 
     // 3. Redirect to Frontend
-    //console.log('✅ Instagram account connected:', longLivedToken);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
+    return res.redirect(`${frontendUrl}/ActivePlatforms?threads=connected`);
   }
-
+  
 }

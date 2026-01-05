@@ -1,110 +1,55 @@
-import { Controller, Get, Req, Res, Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { Strategy } from 'passport-linkedin-oauth2';
 import { ConfigService } from '@nestjs/config';
-import { Request, Response } from 'express';
-import axios from 'axios';
-import * as jwt from 'jsonwebtoken';
-
-// Define the shape of the access token response (OIDC)
-interface LinkedInTokenResponse {
-  access_token: string;
-  id_token?: string; // OIDC token
-}
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
-@Controller('auth/linkedin')
-export class LinkedinStrategy {
-  constructor(private readonly configService: ConfigService) {}
+export class LinkedInStrategy extends PassportStrategy(Strategy, 'linkedin') {
+  private readonly logger = new Logger(LinkedInStrategy.name);
 
-  @Get()
-  initiateLogin(@Res() res: Response) {
-    const clientId = this.configService.get<string>('LINKEDIN_CLIENT_ID')!;
-    const redirectUri = this.configService.get<string>('LINKEDIN_REDIRECT_URI')!;
-
-    // ✅ Use OIDC-style scopes
-    const scope = 'openid profile email w_member_social';
-
-    const linkedinAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(
-      redirectUri,
-    )}&scope=${encodeURIComponent(scope)}`;
-
-    res.redirect(linkedinAuthUrl);
+  constructor(
+    private configService: ConfigService,
+    private httpService: HttpService, // ✅ Inject HttpService
+  ) {
+    super({
+      clientID: configService.get<string>('LINKEDIN_CLIENT_ID'),
+      clientSecret: configService.get<string>('LINKEDIN_CLIENT_SECRET'),
+      callbackURL: configService.get<string>('LINKEDIN_CALLBACK_URL'),
+      scope: ['openid', 'profile', 'email', 'w_member_social'], // ✅ OIDC Scopes
+      state: false,
+    } as any);
   }
 
-  @Get('callback')
-async handleCallback(@Req() req: Request, @Res() res: Response) {
-  const code = req.query.code as string;
-  const frontendUrl = this.configService.get<string>('FRONTEND_URL')!;
-  if (!code) {
-    return res.redirect(`${frontendUrl}/login?error=linkedin_denied`);
-  }
-
-  try {
-    const tokenResponse = await this.getAccessToken(code);
-
-    if (!tokenResponse.id_token) {
-      throw new Error('No ID token returned from LinkedIn');
+  // ✅ OVERRIDE: Fetch profile from OIDC endpoint instead of v2/me
+  async userProfile(accessToken: string, done: Function) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get('https://api.linkedin.com/v2/userinfo', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      );
+      
+      // Pass the OIDC profile data to validate()
+      done(null, response.data);
+    } catch (error) {
+      this.logger.error('Error fetching LinkedIn profile', error.response?.data || error.message);
+      done(error, null);
     }
+  }
 
-    // Decode ID token to extract user info
-    const decoded: any = jwt.decode(tokenResponse.id_token);
+  async validate(accessToken: string, refreshToken: string, profile: any, done: Function) {
+    // ✅ Map OIDC fields (sub, name, picture, email)
     const user = {
-      provider: 'linkedin',
-      id: decoded.sub,
-      firstName: decoded.given_name || decoded.name?.split(' ')[0],
-      lastName: decoded.family_name || decoded.name?.split(' ')[1],
-      email: decoded.email,
+      linkedinId: profile.sub, // 'sub' is the unique ID in OIDC
+      name: profile.name,
+      email: profile.email,
+      picture: profile.picture,
+      accessToken,
+      refreshToken,
     };
-
-    // Store tokens in HTTP-only cookies
-    res.cookie('linkedin_access_token', tokenResponse.access_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'none',
-    });
-
-    res.cookie('linkedin_id_token', tokenResponse.id_token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV !== 'development',
-      sameSite: 'none',
-    });
-
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL')!;
-    // Redirect user to frontend
-    return res.redirect(`${frontendUrl}/Landing`);
-  } catch (error: any) {
-    console.error('LinkedIn authentication failed:', error.message);
-    return res.redirect(`${frontendUrl}/login?error=linkedin_failed`);
-  }
-}
-
-  // --- Helper Functions ---
-
-  private async getAccessToken(code: string): Promise<LinkedInTokenResponse> {
-    const clientId = this.configService.get<string>('LINKEDIN_CLIENT_ID');
-    const clientSecret = this.configService.get<string>('LINKEDIN_CLIENT_SECRET');
-
-    if (!clientId || !clientSecret) {
-      throw new Error('Missing LinkedIn OAuth environment variables');
-    }
-
-    const requestBody = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: this.configService.get<string>('LINKEDIN_REDIRECT_URI')!,
-      client_id: clientId,
-      client_secret: clientSecret,
-    }).toString();
-
-    const { data } = await axios.post<LinkedInTokenResponse>(
-      'https://www.linkedin.com/oauth/v2/accessToken',
-      requestBody,
-      {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      },
-    );
-
-   
-
-    return data;
+    
+    done(null, user);
   }
 }

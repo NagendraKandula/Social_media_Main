@@ -1,32 +1,85 @@
+
 // pages/Publish.tsx
 import React, { useState } from 'react';
 import styles from '../styles/Publish.module.css';
-import ChannelSelector, { Channel } from '../components/ChannelSelector'; // ✅ Import Channel type
+import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
 import DynamicPreview from '../components/DynamicPreview';
-import AIAssistant from '../components/AIAssistant'; // Import the AI Assistant component
+import AIAssistant from '../components/AIAssistant';
+import apiClient from '../lib/axios'; // ✅ Import API Client
 
 export default function Publish() {
-  // ✅ State for content and files
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-
-  // ✅ State for selected channels — MUST be a Set<Channel>
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
-  
-  // State to control the visibility of the AI Assistant
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false); // ✅ Loading state
 
   // ✅ Action handlers
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (selectedChannels.size === 0) {
       alert("Please select at least one channel.");
       return;
     }
-    console.log("Publishing to:", Array.from(selectedChannels));
-    console.log("Content:", content);
-    console.log("Files:", files);
-    // TODO: Call API
+
+    setIsPublishing(true);
+    const results: string[] = [];
+    const errors: string[] = [];
+
+    try {
+      // Convert Set to Array to iterate
+      const channels = Array.from(selectedChannels);
+
+      // ✅ Use Promise.all to publish to multiple channels in parallel (or sequential if preferred)
+      await Promise.all(channels.map(async (channel) => {
+        if (channel === 'threads') {
+          try {
+            console.log(`🚀 Publishing to Threads...`);
+            
+            // ✅ Construct FormData for file upload
+            const formData = new FormData();
+            formData.append('content', content);
+            
+            // Append first file if exists (Threads typically handles one media item per post via this API)
+            if (files.length > 0) {
+              formData.append('file', files[0]);
+            }
+
+            const response = await apiClient.post('/threads/post', formData, {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+
+            console.log(`✅ Threads success:`, response.data);
+            results.push(`Threads: Success (ID: ${response.data.postId})`);
+          } catch (error: any) {
+            console.error(`❌ Threads failed:`, error);
+            const errMsg = error.response?.data?.message || 'Unknown error';
+            errors.push(`Threads: Failed (${errMsg})`);
+          }
+        } else {
+          // Placeholder for other channels
+          console.log(`Skipping implementation for ${channel} (not yet connected in Publish.tsx)`);
+        }
+      }));
+
+      // ✅ Feedback to user
+      if (errors.length > 0) {
+        alert(`Publishing completed with errors:\n${errors.join('\n')}\n${results.join('\n')}`);
+      } else {
+        alert(`Successfully published to:\n${results.join('\n')}`);
+        // Optional: Clear form
+        setContent('');
+        setFiles([]);
+      }
+
+    } catch (err) {
+      console.error("Global publish error:", err);
+      alert("An unexpected error occurred during publishing.");
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const handleSaveDraft = () => {
@@ -44,12 +97,9 @@ export default function Publish() {
       </div>
 
       <div className={styles.editorPreviewContainer}>
-        {/* Conditionally render the AI Assistant on the left */}
         {aiAssistantEnabled && <AIAssistant />}
 
-        {/* Left panel: ChannelSelector + ContentEditor */}
         <div className={styles.leftPanel}>
-          {/* ✅ Pass selectedChannels and onSelectionChange */}
           <ChannelSelector
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
@@ -62,16 +112,16 @@ export default function Publish() {
             onPublish={handlePublish}
             onSaveDraft={handleSaveDraft}
             onSchedule={handleSchedule}
-            // Pass state and setter for the AI Assistant toggle
             aiAssistantEnabled={aiAssistantEnabled}
             setAiAssistantEnabled={setAiAssistantEnabled}
           />
+          {/* ✅ Show loading indicator */}
+          {isPublishing && <p style={{ color: '#0070f3', marginTop: '10px' }}>Publishing in progress...</p>}
         </div>
 
         <div className={styles.previewWrapper}>
-          {/* ✅ Pass REAL selected platforms (as strings) */}
           <DynamicPreview
-            selectedPlatforms={Array.from(selectedChannels)} // ✅ Dynamic!
+            selectedPlatforms={Array.from(selectedChannels)}
             content={content}
             mediaFiles={files}
             onPublish={handlePublish}
