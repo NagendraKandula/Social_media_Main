@@ -1,88 +1,57 @@
-import React from 'react';
-import { useRouter } from 'next/router';
-import styles from '../styles/LinkedInConnect.module.css'; 
-import { withAuth } from '../utils/withAuth';
-import { GetServerSideProps } from 'next';
+import React, { useState, useEffect } from "react";
+import styles from "../styles/LinkedInConnect.module.css";
+import apiClient from "../lib/axios";
 
 const LinkedInConnect: React.FC = () => {
-    const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // ✅ Get Backend URL
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
-    const handleConnect = () => {
-        // ✅ CORRECTED: Points to '/auth/linkedin' instead of '/linkedin/authorize'
-        // This ensures it hits the SocialAuthController consistent with Twitter/Threads
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        window.location.href = `${apiUrl}/auth/linkedin`;
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await apiClient.get('/auth/profile');
+        if (res.data && res.data.id) setCurrentUserId(res.data.id.toString());
+      } catch (error) {
+        console.error("Not authenticated", error);
+      }
     };
+    fetchUser();
+  }, []);
 
-    return (
-        <div className={styles.container}>
-            <div className={styles.card}>
-                <div className={styles.headerSection}>
-                    <img 
-                        src="/linkedin.png" 
-                        alt="LinkedIn" 
-                        className={styles.mainIcon} 
-                    />
-                    <h1 className={styles.title}>Connect Your LinkedIn Account</h1>
-                    <p className={styles.subtitle}>
-                        Manage your Personal Profile, schedule posts, and track engagement — all from one powerful dashboard.
-                    </p>
-                </div>
+  const handleConnect = () => {
+    if (!currentUserId) {
+        alert("Please log in again.");
+        return;
+    }
+    setLoading(true);
+    // 🚀 Secure Redirect to Backend
+    window.location.href = `${BACKEND_URL}/auth/linkedin`;
+  };
 
-                <div className={styles.featuresList}>
-                    <div className={styles.featureItem}>
-                        <span className={styles.featureIcon}>📘</span>
-                        <div className={styles.featureText}>
-                            <h3>Schedule Posts to Profile</h3>
-                            <p>Plan content weeks ahead and auto-publish at optimal times.</p>
-                        </div>
-                    </div>
-
-                    <div className={styles.featureItem}>
-                        <span className={styles.featureIcon}>📊</span>
-                        <div className={styles.featureText}>
-                            <h3>Track Likes, Shares & Comments</h3>
-                            <p>Understand what content resonates with your professional network.</p>
-                        </div>
-                    </div>
-
-                    <div className={styles.featureItem}>
-                        <span className={styles.featureIcon}>🤖</span>
-                        <div className={styles.featureText}>
-                            <h3>AI Caption & Hashtag Suggestions</h3>
-                            <p>Save time and boost reach with smart, tailored content ideas.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className={styles.securityNote}>
-                    <span className={styles.lockIcon}>🔒</span> 
-                    Secure connection via LinkedIn’s official OAuth 2.0 API
-                </div>
-                
-                <div className={styles.approvalNote}>
-                    🚫 We never post without your explicit approval
-                </div>
-
-                <button 
-                    className={styles.connectButton} 
-                    onClick={handleConnect}
-                >
-                    Connect to LinkedIn
-                </button>
-
-                <p className={styles.termsText}>
-                    By connecting, you agree to our <span>Terms</span> and <span>Privacy Policy</span>.
-                </p>
-            </div>
+  return (
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <div className={styles.headerSection}>
+            <img src="/linkedin.png" alt="LinkedIn" className={styles.mainIcon} />
+            <h1 className={styles.title}>Connect LinkedIn</h1>
+            <p className={styles.subtitle}>Manage your professional profile.</p>
         </div>
-    );
-};
+        
+        {/* ... (Features List) ... */}
 
-export const getServerSideProps: GetServerSideProps = withAuth(async () => {
-    return {
-        props: {},
-    };
-});
+        <button 
+            className={styles.connectButton} 
+            onClick={handleConnect}
+            disabled={loading || !currentUserId}
+        >
+            {loading ? "Connecting..." : "Connect to LinkedIn"}
+        </button>
+      </div>
+    </div>
+  );
+};
 
 export default LinkedInConnect;

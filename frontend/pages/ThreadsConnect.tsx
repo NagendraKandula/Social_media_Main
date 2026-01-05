@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from "react";
 import styles from "../styles/ThreadsConnect.module.css";
 import { SiThreads } from "react-icons/si";
-import apiClient from "../lib/axios"; // ✅ Import your axios client
+import apiClient from "../lib/axios";
 
 const ThreadsConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  const THREADS_APP_ID = process.env.NEXT_PUBLIC_THREADS_APP_ID!;
-  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URL!;
-  const SCOPES = ["threads_basic", "threads_content_publish"];
+  // ✅ Get Backend URL safely (uses env variable or defaults to localhost)
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
-  // ✅ 1. Fetch the User ID when component loads
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -35,21 +33,11 @@ const ThreadsConnect: React.FC = () => {
     try {
       setLoading(true);
 
-      // ✅ 2. Embed the real User ID into the state
-      const stateObj = {
-        userId: currentUserId, // <--- This fixes the "undefined" error
-        nonce: crypto.randomUUID()
-      };
-      const stateString = JSON.stringify(stateObj);
+      // 🚀 REDIRECT TO BACKEND
+      // The backend (SocialAuthController) will securely build the URL 
+      // with the Client ID, Redirect URI, and the userId in the 'state'.
+      window.location.href = `${BACKEND_URL}/auth/threads`; 
 
-      const authUrl = new URL("https://www.threads.net/oauth/authorize");
-      authUrl.searchParams.set("client_id", THREADS_APP_ID);
-      authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-      authUrl.searchParams.set("scope", SCOPES.join(","));
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("state", stateString); // ✅ Sending ID here
-
-      window.location.href = authUrl.toString();
     } catch (error) {
       console.error("Connection error:", error);
       alert("Unable to connect to Threads. Please try again later.");
@@ -60,18 +48,19 @@ const ThreadsConnect: React.FC = () => {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        {/* ... (Your existing UI) ... */}
+        <h2 className={styles.title}>Connect Threads</h2>
+        <p className={styles.description}>
+            Connect your Threads account to auto-publish content.
+        </p>
         
         <button
           className={styles.connectButton}
           onClick={handleConnectThreads}
-          disabled={loading || !currentUserId} // Disable if user not loaded
+          disabled={loading || !currentUserId}
         >
-          <SiThreads />
+          <SiThreads className={styles.icon} />
           {loading ? "Connecting..." : "Continue with Threads"}
         </button>
-
-        {/* ... */}
       </div>
     </div>
   );

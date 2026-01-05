@@ -11,7 +11,7 @@ export class ThreadsService {
   private readonly CLIENT_ID = process.env.THREADS_APP_ID;
   private readonly CLIENT_SECRET = process.env.THREADS_APP_SECRET;
   private readonly REDIRECT_URI =
-    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/threads/callback';
+    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/auth/threads/callback';
 
   constructor(private readonly http: HttpService) {}
 

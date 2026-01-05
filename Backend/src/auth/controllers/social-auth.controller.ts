@@ -83,7 +83,7 @@ export class SocialAuthController {
                    `client_id=${process.env.FACEBOOK_APP_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
                    `&state=${state}${forcePrompt}` +
-                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management')}`;
+                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management,instagram_manage_insights')}`;
      return res.redirect(oauthUrl);
   }
 
@@ -96,7 +96,7 @@ export class SocialAuthController {
     return this.socialauthservice.facebookLogin(req, res, appUserId);
   }
 
-  @Get('threads')
+ @Get('threads')
   @UseGuards(JwtAuthGuard)
   async threadsAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
     const userId = req.user.id;
@@ -108,16 +108,35 @@ export class SocialAuthController {
       const frontendUrl = this.configService.get('FRONTEND_URL');
       return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
     }
-
+    // Manual State Construction
     const state = encodeURIComponent(JSON.stringify({ userId }));
+    
     const clientId = process.env.THREADS_APP_ID;
     const redirectUri = process.env.THREADS_REDIRECT_URI; 
     const scope = 'threads_basic,threads_content_publish';
 
+    // Manual URL Building
     const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
 
     return res.redirect(oauthUrl);
-  } 
+  }
+
+  @Get('threads/callback')
+  @UseGuards(AuthGuard('threads')) // This exchanges code -> token using the Strategy
+  async threadsAuthRedirect(@Req() req, @Res() res: Response) {
+    // 1. Manually decode the state to find out WHO logged in
+    const state = JSON.parse(decodeURIComponent(req.query.state as string));
+    const appUserId = state.userId;
+
+    if (!appUserId) {
+      throw new BadRequestException('App user not found in state');
+    }
+
+    // 2. Call the service to save everything
+    return this.socialauthservice.threadsLogin(req, res, appUserId);
+  }
+
+
   
   @Get('twitter')
   @UseGuards(JwtAuthGuard)
@@ -144,12 +163,13 @@ export class SocialAuthController {
     return res.redirect(url);
   }
 
+
+  
+
   @Get('linkedin')
   @UseGuards(JwtAuthGuard)
   async linkedinAuth(@Req() req, @Res() res: Response, @Query('reconnect') reconnect?: string) {
     const userId = req.user.id;
-
-    // 1. Check if already connected
     const existing = await this.prisma.socialAccount.findFirst({
       where: { userId, provider: 'linkedin' },
     });
@@ -158,29 +178,34 @@ export class SocialAuthController {
       const frontendUrl = this.configService.get('FRONTEND_URL');
       return res.redirect(`${frontendUrl}/ActivePlatforms?error=already_connected`);
     }
+    // Manual State
+    const state = encodeURIComponent(JSON.stringify({ userId }));
+    const callbackUrl = process.env.LINKEDIN_CALLBACK_URL;
+    if (!callbackUrl) {
+        return res.status(400).send("Error: LINKEDIN_CALLBACK_URL is missing in .env");
+    }
+    // Manual URL Construction
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const redirectUri = encodeURIComponent(callbackUrl);
+    const scope = encodeURIComponent('openid profile email w_member_social');
+    
+    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`;
 
-    // 2. Generate Auth URL (This ensures user ID is encoded in state)
-    const url = this.linkedinService.generateAuthUrl(userId);
-
-    // 3. Redirect
     return res.redirect(url);
   }
 
   // ✅ LinkedIn Callback - Cleaned up and delegating to Service
   @Get('linkedin/callback')
-  async linkedinAuthRedirect(@Req() req, @Res() res: Response, @Query('code') code: string, @Query('state') state: string, @Query('error') error: string) {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+  @UseGuards(AuthGuard('linkedin')) // 👈 Strategy handles token exchange now
+  async linkedinAuthRedirect(@Req() req, @Res() res: Response) {
+    // 1. Decode State
+    const state = JSON.parse(decodeURIComponent(req.query.state as string));
+    const appUserId = state.userId;
 
-    if (error) {
-      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_denied`);
-    }
-    
-    if (!code || !state) {
-        return res.redirect(`${frontendUrl}/ActivePlatforms?error=invalid_request`);
-    }
+    if (!appUserId) throw new BadRequestException('User ID not found');
 
-    // Delegate to service
-    return this.socialauthservice.linkedinLogin(req, res, code, state);
+    // 2. Call Service
+    return this.socialauthservice.linkedinLogin(req, res, appUserId);
   }
 
   @Get('instagram')
