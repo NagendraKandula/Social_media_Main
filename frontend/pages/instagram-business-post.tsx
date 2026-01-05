@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { FaInstagram, FaImage, FaVideo, FaHistory, FaPaperPlane } from 'react-icons/fa';
 import styles from '../styles/InstagramBusinessPost.module.css';
+import apiClient from '../lib/axios';
 
 // Enum for Media Types
 type MediaType = 'IMAGE' | 'REELS' | 'STORIES';
@@ -25,6 +26,7 @@ const InstagramBusinessPost = () => {
     setStatus(null);
 
     try {
+      await apiClient.get('/auth/profile');
       // ✅ 1. Get Backend URL from Env
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -47,6 +49,10 @@ const InstagramBusinessPost = () => {
       setCaption('');
     } catch (error: any) {
       console.error(error);
+      if (error.response?.status === 401) {
+        router.push('/login');
+        return;
+      }
       const errorMsg = error.response?.data?.message || 'Failed to publish content. Check the URL and try again.';
       setStatus({ type: 'error', message: `❌ ${errorMsg}` });
     } finally {

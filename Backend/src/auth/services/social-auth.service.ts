@@ -46,7 +46,7 @@ export class SocialAuthService {
         });
       }
       
-      const token = await this.tokenService.signToken(user.id, user.email);
+      const token = await this.tokenService.getTokens(user.id, user.email);
       res.cookie('access_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV !== 'development',

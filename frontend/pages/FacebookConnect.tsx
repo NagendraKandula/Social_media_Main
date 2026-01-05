@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import styles from "../styles/FacebookConnect.module.css";
 import { FaFacebookF } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
 const FacebookConnect = () => {
   const [loading, setLoading] = useState(false);
 
-  const handleConnectFacebook = () => {
+  const handleConnectFacebook = async () => {
     setLoading(true);
     try {
+      await apiClient.get('/auth/profile');
        const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       
@@ -15,6 +17,10 @@ const FacebookConnect = () => {
       const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?facebook=connected`);
       window.location.href = `${backendUrl}/auth/facebook?redirect=${redirectUri}`;
     } catch (error) {
+      if (error.response?.status === 401) {
+         window.location.href = '/login';
+         return;
+      }
       console.error("Connection error:", error);
       alert("Unable to connect to Facebook. Please try again later.");
       setLoading(false);

@@ -38,6 +38,15 @@ const ActivePlatforms = () => {
       await apiClient.delete(`/auth/social/${provider}`);
       fetchAccounts();
     } else {
+      try{
+        await apiClient.get('/auth/profile');
+      }
+      catch (error) {
+        console.error("Session refresh failed before redirect:", error);
+        alert(`Unable to connect to ${provider.charAt(0).toUpperCase() + provider.slice(1)}. Please try again later.`);
+        return;
+      }
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       
       // Logic: If action is 'reconnect', add the query parameter to bypass the backend freeze
