@@ -233,6 +233,106 @@ try {
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
     return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
   }
+async threadsLogin(req: any, res: Response, appUserId: number) {
+    const { accessToken, threadsId } = req.user; // 'accessToken' here is Short-Lived
+    
+    let longLivedToken = accessToken;
+    let expiresSeconds = 3600; // Default 1 hour
 
+    // 1. Exchange Short Token for Long Token
+    try {
+      const exchangeUrl = 'https://graph.threads.net/access_token';
+      const response = await firstValueFrom(
+        this.httpService.get(exchangeUrl, {
+          params: {
+            grant_type: 'th_exchange_token',
+            client_secret: this.config.get('THREADS_APP_SECRET'),
+            access_token: accessToken,
+          },
+        }),
+      );
+      longLivedToken = response.data.access_token;
+      expiresSeconds = response.data.expires_in; // ~60 days
+    } catch (error) {
+      console.error('Failed to get long-lived Threads token', error);
+      // Fallback: proceed with short token if exchange fails
+    }
+
+    // 2. Database Upsert (Match Friend's Facebook Logic)
+    const existingAccount = await this.prisma.socialAccount.findUnique({
+      where: {
+        provider_providerId: {
+          provider: 'threads',
+          providerId: threadsId.toString(),
+        },
+      },
+    });
+
+    const expiresAt = new Date(Date.now() + expiresSeconds * 1000);
+
+    if (existingAccount) {
+      await this.prisma.socialAccount.update({
+        where: { id: existingAccount.id },
+        data: {
+          accessToken: longLivedToken,
+          userId: appUserId,
+          expiresAt: expiresAt,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      await this.prisma.socialAccount.create({
+        data: {
+          provider: 'threads',
+          providerId: threadsId.toString(),
+          accessToken: longLivedToken,
+          userId: appUserId,
+          expiresAt: expiresAt,
+        },
+      });
+    }
+
+    // 3. Redirect to Frontend
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+    return res.redirect(`${frontendUrl}/ActivePlatforms?threads=connected`);
+  }
+
+
+  async linkedinLogin(req: any, res: Response, appUserId: number) {
+    const { linkedinId, accessToken, refreshToken } = req.user; // Data from Strategy
+    const frontendUrl = this.config.get<string>('FRONTEND_URL');
+
+    try {
+      // Upsert into Database
+      await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'linkedin',
+            providerId: linkedinId,
+          },
+        },
+        update: {
+          userId: appUserId,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days default
+          updatedAt: new Date(),
+        },
+        create: {
+          provider: 'linkedin',
+          providerId: linkedinId,
+          userId: appUserId,
+          accessToken: accessToken,
+          refreshToken: refreshToken,
+          expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
+    } catch (error) {
+      console.error('LinkedIn Login DB Error:', error);
+      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_failed`);
+    }
+  }
   
 }
