@@ -96,7 +96,7 @@ export class SocialAuthController {
                    `client_id=${process.env.FACEBOOK_APP_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
                    `&state=${state}${forcePrompt}` +
-                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management')}`;
+                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management,instagram_manage_insights,instagram_manage_comments,pages_manage_metadata,pages_manage_ads')}`;
      return res.redirect(oauthUrl);
     // Initiates the Facebook OAuth2 login flow
   }
