@@ -18,8 +18,14 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         'pages_read_user_content',
         'instagram_basic',
         'instagram_content_publish',
-        'business_management','instagram_manage_insights',
-      ],
+        'business_management',// <-- ADD THIS
+        'instagram_manage_insights',
+        'instagram_manage_comments',
+        'pages_manage_metadata',
+        'pages_manage_ads',
+        
+ ]
+      ,
       profileFields: ['id', 'name','emails','photos'],
     });
   }

@@ -63,86 +63,90 @@ export class SocialAuthService {
           throw new BadRequestException('No user from facebook');
         }
     
-        const { accessToken, refreshToken,id:facebookId } = req.user;
-        const providerIdStr = facebookId.toString();
+      const { accessToken, refreshToken,id:facebookId } = req.user;
+      const providerIdStr = facebookId.toString();
 
-        const existingAccount = await this.prisma.socialAccount.findUnique({
-            where: {
-            provider_providerId: {
-                provider: 'facebook',
-                providerId: providerIdStr,
-            },
-            },
-        });
+      try{
+       await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'facebook',
+            providerId: providerIdStr,
+          },
+        },
+        update: {
+          accessToken,
+          refreshToken,
+          updatedAt: new Date(),
+          userId : appUserId,
+          expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), //  60 days from now
+        },
+        create: {
+          provider: 'facebook',
+          providerId: providerIdStr,
+          accessToken,
+          refreshToken,
+          userId: appUserId,
+          expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
+        },
+      });
+      res.cookie('facebook_access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development', // Use secure cookies in production
+        sameSite: 'none', 
+      });
 
-        if (existingAccount) {
-            await this.prisma.socialAccount.update({
-            where: { id: existingAccount.id },
-            data: {
-                accessToken,
-                refreshToken,
-                userId: appUserId,
-                updatedAt: new Date(),
-                expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-            },
-            });
-        } else {
-            await this.prisma.socialAccount.create({
-            data: {
-                provider: 'facebook',
-                providerId: providerIdStr,
-                accessToken,
-                refreshToken,
-                userId: appUserId,
-                expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
-            },
-            });
-        }
-        
+      res.cookie('facebook_refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'none',   
+      }); 
+   }
+      catch (error){
+        console.error('Error upserting Facebook social account:', error);
+        throw new BadRequestException('Failed to connect Facebook account');
+      }
+      
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
          return res.redirect(`${frontendUrl}/facebook-post`);
+     
+
       }
 
-    async youtubeLogin(req, res: Response,appUserId: number) {
+        async youtubeLogin(req, res: Response,appUserId: number) {
+          //step1:get youtbe info from req.user strategy
         const { accessToken, refreshToken,youtubeId,displayName } = req.user;
     
         if (!appUserId) {
           throw new BadRequestException('App user not found .please log in first');
         }
-        
-        const existingYoutube = await this.prisma.socialAccount.findUnique({
-          where:{
-            provider_providerId:{
-              providerId: youtubeId,
+        // check if youtbe account already eixst
+        const providerIdStr = youtubeId.toString();
+        try{
+        await this.prisma.socialAccount.upsert({
+          where: {
+            provider_providerId: {
               provider: 'youtube',
+              providerId: providerIdStr,
             },
           },
+          update: {
+            accessToken,
+            refreshToken,
+            updatedAt: new Date(),
+            userId : appUserId,
+            expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
+          },
+          create: {
+            provider: 'youtube',
+            providerId: providerIdStr,
+            accessToken,
+            refreshToken,
+            userId: appUserId,
+            expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
+          },
         });
-        if(existingYoutube){
-          await this.prisma.socialAccount.update({
-            where:{ id: existingYoutube.id },
-            data:{
-              accessToken,
-              refreshToken,
-              updatedAt: new Date(),
-              expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-              userId : appUserId, 
-            },
-          });
-        }
-        else{
-          await this.prisma.socialAccount.create({
-            data:{  
-              provider: 'youtube',
-              providerId: youtubeId,
-              accessToken,  
-              refreshToken,
-              userId: appUserId,
-              expiresAt: new Date(Date.now() + 60 * 60 * 1000), 
-            },
-          });
-        }
-        
+           // Set tokens in HTTP-only cookies
         res.cookie('youtube_access_token', accessToken, {
           httpOnly: true,
           secure: process.env.NODE_ENV !== 'development', 
@@ -154,7 +158,15 @@ export class SocialAuthService {
           secure: process.env.NODE_ENV !== 'development',
           sameSite: 'none',
         });
+      }
+        catch (error){
+          console.error('Error upserting YouTube social account:', error);
+          throw new BadRequestException('Failed to connect YouTube account');
+        }
+
+     
         
+        // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
         return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
     }
@@ -284,39 +296,38 @@ export class SocialAuthService {
       // Fallback: proceed with short token if exchange fails
     }
 
-    // 2. Database Upsert (Match Friend's Facebook Logic)
-    const existingAccount = await this.prisma.socialAccount.findUnique({
-      where: {
-        provider_providerId: {
-          provider: 'threads',
-          providerId: threadsId.toString(),
-        },
+   // Replace section 2 in instagramLogin with this:
+try {
+  await this.prisma.socialAccount.upsert({
+    where: {
+      provider_providerId: {
+        provider: 'instagram',
+        providerId: instagramId.toString(),
       },
-    });
-
-    const expiresAt = new Date(Date.now() + expiresSeconds * 1000);
-
-    if (existingAccount) {
-      await this.prisma.socialAccount.update({
-        where: { id: existingAccount.id },
-        data: {
-          accessToken: longLivedToken,
-          userId: appUserId,
-          expiresAt: expiresAt,
-          updatedAt: new Date(),
-        },
-      });
-    } else {
-      await this.prisma.socialAccount.create({
-        data: {
-          provider: 'threads',
-          providerId: threadsId.toString(),
-          accessToken: longLivedToken,
-          userId: appUserId,
-          expiresAt: expiresAt,
-        },
-      });
-    }
+    },
+    update: {
+      accessToken: longLivedToken,
+      userId: appUserId,
+      updatedAt: new Date(),
+      expiresAt: new Date(Date.now() + expiresSeconds * 1000),
+    },
+    create: {
+      provider: 'instagram',
+      providerId: instagramId.toString(),
+      accessToken: longLivedToken,
+      userId: appUserId,
+      expiresAt: new Date(Date.now() + expiresSeconds * 1000),
+    },
+  });
+  res.cookie('instagram_access_token', longLivedToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== 'development',
+    sameSite: 'none',
+  });
+} catch (error) {
+  console.error('Error saving Instagram account:', error);
+  throw new BadRequestException('Failed to save Instagram connection');
+}
 
     // 3. Redirect to Frontend
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
