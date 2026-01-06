@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "../styles/ThreadsConnect.module.css";
 import { SiThreads } from "react-icons/si";
+import apiClient from "../lib/axios";
 
 interface ThreadsConnectProps {
   onClose: () => void;
@@ -10,9 +11,22 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  const THREADS_APP_ID = process.env.NEXT_PUBLIC_THREADS_APP_ID!;
-  const REDIRECT_URI = process.env.NEXT_PUBLIC_THREADS_REDIRECT_URL!;
-  const SCOPES = ["threads_basic", "threads_content_publish"];
+  // ✅ Get Backend URL safely (uses env variable or defaults to localhost)
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await apiClient.get('/auth/profile');
+        if (res.data && res.data.id) {
+          setCurrentUserId(res.data.id.toString());
+        }
+      } catch (error) {
+        console.error("Not authenticated", error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   // ✅ CLOSE ON OUTSIDE CLICK
   useEffect(() => {
@@ -33,6 +47,11 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
 
   // 🔒 BACKEND / OAUTH LOGIC — UNCHANGED
   const handleConnectThreads = () => {
+    if (!currentUserId) {
+      alert("Please log in again to connect Threads.");
+      return;
+    }
+
     try {
       setLoading(true);
 
@@ -73,7 +92,7 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
         <button
           className={styles.primaryBtn}
           onClick={handleConnectThreads}
-          disabled={loading}
+          disabled={loading || !currentUserId}
         >
           {loading ? "Connecting..." : "Connect Threads"}
         </button>

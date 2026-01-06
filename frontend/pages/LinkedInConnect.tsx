@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "../styles/LinkedInConnect.module.css";
-import { FaLinkedinIn } from "react-icons/fa";
 import apiClient from "../lib/axios";
 
 interface LinkedInConnectProps {
@@ -48,9 +47,18 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
         window.location.href = "/login";
         return;
       }
-      alert("Unable to connect to LinkedIn. Please try again later.");
-      setLoading(false);
+    };
+    fetchUser();
+  }, []);
+
+  const handleConnect = () => {
+    if (!currentUserId) {
+        alert("Please log in again.");
+        return;
     }
+    setLoading(true);
+    // 🚀 Secure Redirect to Backend
+    window.location.href = `${BACKEND_URL}/auth/linkedin`;
   };
 
   return (
@@ -65,6 +73,8 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
         <div className={styles.optionHeader}>
           <FaLinkedinIn />
         </div>
+        
+        {/* ... (Features List) ... */}
 
         <h4>LinkedIn Profile</h4>
         <p className={styles.subtitle}>

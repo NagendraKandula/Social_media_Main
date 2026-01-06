@@ -49,6 +49,9 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
       alert("Unable to connect to Twitter. Try again later.");
       setLoading(false);
     }
+    setLoading(true);
+    // 🚀 Secure Redirect to Backend
+    window.location.href = `${BACKEND_URL}/auth/twitter`;
   };
 
   return (

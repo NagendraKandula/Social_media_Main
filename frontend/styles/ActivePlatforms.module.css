@@ -190,12 +190,14 @@
   background: #f1f5f9;
 }
 
-.disconnectBtn {
-  background: white;
-  border-color: #fee2e2 !important;
-  color: #ef4444;
+.emptyText { color: #94a3b8; font-size: 0.875rem; }
+.threadsIcon {
+  background-color: #000000; /* Threads branding is usually black */
 }
-
-.disconnectBtn:hover {
-  background: #fef2f2;
+.twitterIcon {
+  background-color: #000000; /* X brand color */
+}
+.linkedinIcon {
+  color: #0077b5; /* LinkedIn Blue */
+  background: rgba(0, 119, 181, 0.1); /* Subtle blue background */
 }

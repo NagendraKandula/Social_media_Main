@@ -1,24 +1,18 @@
-import React, { useEffect, useState } from "react";
-import apiClient from "../lib/axios";
-import styles from "../styles/ActivePlatforms.module.css";
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaPlus,
-  FaUnlink,
-  FaSyncAlt,
-  FaYoutube,
-} from "react-icons/fa";
-
-type Provider = "facebook" | "instagram" | "youtube";
-type Action = "connect" | "disconnect" | "reconnect";
-
-interface ConnectedAccount {
-  name: string;
-  profilePic?: string;
-}
-
-type AccountsResponse = Partial<Record<Provider, ConnectedAccount>>;
+import React, { useEffect, useState } from 'react';
+import LHeader from './LHeader';
+import apiClient from '../lib/axios';
+import styles from '../styles/ActivePlatforms.module.css';
+import { 
+  FaFacebookF, 
+  FaInstagram, 
+  FaPlus, 
+  FaUnlink, 
+  FaSyncAlt, 
+  FaYoutube, 
+  FaAt, 
+  FaTwitter, 
+  FaLinkedin // ✅ Added LinkedIn Import
+} from 'react-icons/fa';
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<AccountsResponse | null>(null);
@@ -36,10 +30,8 @@ const ActivePlatforms = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
+  
+  useEffect(() => { fetchAccounts(); }, []);
 
   const handleAction = async (provider: Provider, action: Action) => {
     if (action === "disconnect") {
@@ -82,24 +74,23 @@ const ActivePlatforms = () => {
   };
 
   const platforms = [
-    {
-      id: "facebook" as Provider,
-      name: "Facebook",
-      icon: <FaFacebookF />,
-      color: styles.facebookIcon,
+    { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
+    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon },
+    { id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon },
+    { id: 'threads', name: 'Threads', icon: <FaAt />, color: styles.threadsIcon },
+    { 
+      id: 'twitter', 
+      name: 'X (Twitter)', 
+      icon: <FaTwitter />, 
+      color: styles.twitterIcon 
     },
-    {
-      id: "instagram" as Provider,
-      name: "Instagram",
-      icon: <FaInstagram />,
-      color: styles.instagramIcon,
-    },
-    {
-      id: "youtube" as Provider,
-      name: "YouTube",
-      icon: <FaYoutube />,
-      color: styles.youtubeIcon,
-    },
+    // ✅ Added LinkedIn Platform Object
+    { 
+      id: 'linkedin', 
+      name: 'LinkedIn', 
+      icon: <FaLinkedin />, 
+      color: styles.linkedinIcon // Make sure to add this class in your CSS
+    }
   ];
 
   return (
@@ -114,11 +105,18 @@ const ActivePlatforms = () => {
             const connected = accounts?.[p.id];
             const isBusy = actionLoading === p.id;
 
-            return (
-              <div key={p.id} className={styles.card}>
-                <div className={styles.platformHeader}>
-                  <div className={`${styles.iconWrapper} ${p.color}`}>
-                    {p.icon}
+              <div className={styles.cardBody}>
+                {accounts?.[p.id] ? (
+                  <div className={styles.connectedProfile}>
+                    <img 
+                        src={accounts[p.id].profilePic || "/profile.png"} 
+                        className={styles.avatar} 
+                        onError={(e) => (e.currentTarget.src = '/profile.png')}
+                    />
+                    <div className={styles.profileInfo}>
+                      <p className={styles.userName}>{accounts[p.id].name}</p>
+                      <p className={styles.statusBadge}>Connected</p>
+                    </div>
                   </div>
                   <h3 className={styles.platformName}>{p.name}</h3>
                 </div>
