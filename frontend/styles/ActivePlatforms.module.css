@@ -1,3 +1,4 @@
+/* ===== PAGE LAYOUT ===== */
 .container {
   min-height: 100vh;
   background-color: #f8fafc;
@@ -9,6 +10,7 @@
   margin: 0 auto;
 }
 
+/* ===== PAGE HEADER ===== */
 .headerSection {
   margin-bottom: 2.5rem;
 }
@@ -19,12 +21,22 @@
   margin-bottom: 0.5rem;
 }
 
+/* ===== LOADING STATE ===== */
+.loadingText {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-top: 2rem;
+}
+
+/* ===== GRID ===== */
 .platformGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
 }
 
+/* ===== CARD ===== */
 .card {
   background: white;
   border-radius: 12px;
@@ -32,9 +44,16 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+/* ===== CARD HEADER ===== */
 .platformHeader {
   padding: 1.25rem;
   display: flex;
@@ -54,18 +73,33 @@
   color: white;
 }
 
-.facebookIcon { background-color: #1877F2; }
+/* Platform icon colors */
+.facebookIcon {
+  background-color: #1877f2;
+}
+
+.instagramIcon {
+  background: radial-gradient(
+    circle at 30% 107%,
+    #fdf497 0%,
+    #fdf497 5%,
+    #fd5949 45%,
+    #d6249f 60%,
+    #285aeb 90%
+  );
+}
+
+.youtubeIcon {
+  background-color: #ff0000;
+}
 
 .platformName h3 {
   font-size: 1.1rem;
   color: #0f172a;
+  margin: 0;
 }
 
-.platformName span {
-  font-size: 0.8rem;
-  color: #64748b;
-}
-
+/* ===== CARD BODY ===== */
 .cardBody {
   padding: 1.5rem 1.25rem;
   flex-grow: 1;
@@ -85,6 +119,11 @@
   border: 2px solid #f1f5f9;
 }
 
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+}
+
 .userName {
   font-weight: 600;
   color: #1e293b;
@@ -96,16 +135,24 @@
   color: #10b981;
   background: #ecfdf5;
   padding: 2px 8px;
-  border-radius: 99px;
+  border-radius: 999px;
   display: inline-block;
   margin-top: 4px;
+  width: fit-content;
 }
 
+.emptyText {
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+/* ===== CARD FOOTER ===== */
 .cardFooter {
   padding: 1rem;
   background: #f8fafc;
   display: flex;
   gap: 0.75rem;
+  border-top: 1px solid #f1f5f9;
 }
 
 .cardFooter button {
@@ -119,20 +166,36 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   border: 1px solid transparent;
 }
-.instagramIcon { 
-  background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%,#d6249f 60%,#285AEB 90%); 
+
+/* ===== BUTTON VARIANTS ===== */
+.connectBtn {
+  background: #1e293b;
+  color: white;
 }
 
-.connectBtn { background: #1e293b; color: white; }
-.connectBtn:hover { background: #0f172a; }
+.connectBtn:hover {
+  background: #0f172a;
+}
 
-.reconnectBtn { background: white; border-color: #e2e8f0 !important; color: #475569; }
-.reconnectBtn:hover { background: #f1f5f9; }
+.reconnectBtn {
+  background: white;
+  border-color: #e2e8f0 !important;
+  color: #475569;
+}
 
-.disconnectBtn { background: white; border-color: #fee2e2 !important; color: #ef4444; }
-.disconnectBtn:hover { background: #fef2f2; }
+.reconnectBtn:hover {
+  background: #f1f5f9;
+}
 
-.emptyText { color: #94a3b8; font-size: 0.875rem; }
+.disconnectBtn {
+  background: white;
+  border-color: #fee2e2 !important;
+  color: #ef4444;
+}
+
+.disconnectBtn:hover {
+  background: #fef2f2;
+}

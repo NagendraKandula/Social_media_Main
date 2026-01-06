@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import HeroContainer from "./HeroContainer";
 import MainContent from "./MainContent";
 
-// Dynamic import with SSR disabled
 const HeroSection = dynamic(() => import("./HeroSection1"), { ssr: false });
 
 export default function Home() {
@@ -14,8 +13,6 @@ export default function Home() {
       <Header />
       <MainContent />
       <HeroContainer />
-      {/* Other sections */}
     </div>
   );
 }
-
