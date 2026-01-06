@@ -9,7 +9,7 @@ import {
   UseInterceptors,
   UploadedFile,
   InternalServerErrorException,
-  BadRequestException,
+  BadRequestException,UseGuards,
   UnauthorizedException
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -28,6 +28,7 @@ export class TwitterController {
   ) {}
 
   @Get('authorize')
+  @UseGuards(JwtAuthGuard)
   authorize(@Res() res: Response) {
     try {
       const { url, state, codeVerifier } = this.twitterService.generateAuthUrl();
@@ -131,6 +132,7 @@ export class TwitterController {
     }
   }
   @Post('post-media')
+  @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
   async postMedia(
     @Body() body: { text: string; userId?: string },
