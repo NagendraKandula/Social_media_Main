@@ -1,93 +1,95 @@
-
-// pages/Publish.tsx
 import React, { useState } from 'react';
 import styles from '../styles/Publish.module.css';
 import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
 import DynamicPreview from '../components/DynamicPreview';
 import AIAssistant from '../components/AIAssistant';
-import apiClient from '../lib/axios'; // ✅ Import API Client
+// ✅ Import the new hook (Make sure you created this file in frontend/hooks/)
+import { usePostCreation } from '../hooks/usePostCreation';
 
 export default function Publish() {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  // Use Set for selection, but convert to Array for API
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false); // ✅ Loading state
 
-  // ✅ Action handlers
+  // ✅ Use the Hook for all backend interactions
+  const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
+
+  // ✅ THE NEW PUBLISH LOGIC
   const handlePublish = async () => {
+    // 1. Validation
     if (selectedChannels.size === 0) {
       alert("Please select at least one channel.");
       return;
     }
-
-    setIsPublishing(true);
-    const results: string[] = [];
-    const errors: string[] = [];
+    if (!content && files.length === 0) {
+      alert("Please add content or a media file.");
+      return;
+    }
 
     try {
-      // Convert Set to Array to iterate
-      const channels = Array.from(selectedChannels);
+      let mediaData = { publicUrl: "", storagePath: "" };
 
-      // ✅ Use Promise.all to publish to multiple channels in parallel (or sequential if preferred)
-      await Promise.all(channels.map(async (channel) => {
-        if (channel === 'threads') {
-          try {
-            console.log(`🚀 Publishing to Threads...`);
-            
-            // ✅ Construct FormData for file upload
-            const formData = new FormData();
-            formData.append('content', content);
-            
-            // Append first file if exists (Threads typically handles one media item per post via this API)
-            if (files.length > 0) {
-              formData.append('file', files[0]);
-            }
-
-            const response = await apiClient.post('/threads/post', formData, {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            });
-
-            console.log(`✅ Threads success:`, response.data);
-            results.push(`Threads: Success (ID: ${response.data.postId})`);
-          } catch (error: any) {
-            console.error(`❌ Threads failed:`, error);
-            const errMsg = error.response?.data?.message || 'Unknown error';
-            errors.push(`Threads: Failed (${errMsg})`);
-          }
-        } else {
-          // Placeholder for other channels
-          console.log(`Skipping implementation for ${channel} (not yet connected in Publish.tsx)`);
-        }
-      }));
-
-      // ✅ Feedback to user
-      if (errors.length > 0) {
-        alert(`Publishing completed with errors:\n${errors.join('\n')}\n${results.join('\n')}`);
-      } else {
-        alert(`Successfully published to:\n${results.join('\n')}`);
-        // Optional: Clear form
-        setContent('');
-        setFiles([]);
+      // 2. Upload Media (Direct-to-Cloud)
+      if (files.length > 0) {
+        // We handle the first file for now. 
+        // If you support multi-image/carousel later, you'd map over files here.
+        const fileToUpload = files[0];
+        mediaData = await uploadMedia(fileToUpload);
       }
 
-    } catch (err) {
-      console.error("Global publish error:", err);
-      alert("An unexpected error occurred during publishing.");
-    } finally {
-      setIsPublishing(false);
+      // 3. Construct Payload (Matches Backend DTO)
+      const payload = {
+        content: content,
+        
+        // Media Info (from Google Cloud)
+        mediaUrl: mediaData.publicUrl || "",      
+        storagePath: mediaData.storagePath || "", 
+        mimeType: files[0]?.type || "",
+        mediaType: files[0]?.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+
+        // Platforms (Convert Set -> Array)
+        platforms: Array.from(selectedChannels),
+        
+        // Scheduling (null = Post Now)
+        scheduledAt: null, 
+        
+        // Rich Metadata (Future-proofing)
+        contentMetadata: {
+          text: content,
+          platformOverrides: {
+             // Example: You could add specific text for LinkedIn here if your UI supported it
+          }
+        }
+      };
+
+      // 4. Send to Backend (Single API call)
+      await createPost(payload);
+      
+      alert("Post Published Successfully! 🚀");
+      
+      // 5. Reset Form
+      setContent('');
+      setFiles([]);
+      setSelectedChannels(new Set());
+
+    } catch (err: any) {
+      console.error("Publish Error:", err);
+      const msg = err.response?.data?.message || err.message || "Failed to publish.";
+      alert(`Error: ${msg}`);
     }
   };
 
   const handleSaveDraft = () => {
-    console.log("Saving draft...");
+    // Placeholder for draft logic
+    alert("Draft saved locally! (Backend implementation pending)");
   };
 
   const handleSchedule = () => {
-    console.log("Scheduling post...");
+    // Placeholder - would open a date picker and pass date to createPost
+    alert("Scheduler UI coming soon! Backend is ready for it.");
   };
 
   return (
@@ -97,28 +99,46 @@ export default function Publish() {
       </div>
 
       <div className={styles.editorPreviewContainer}>
+        {/* AI Assistant Toggle */}
         {aiAssistantEnabled && <AIAssistant />}
 
+        {/* LEFT PANEL: Editor */}
         <div className={styles.leftPanel}>
           <ChannelSelector
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
           />
+          
           <ContentEditor
             content={content}
             onContentChange={setContent}
             files={files}
             onFilesChange={setFiles}
+            
+            // Connect actions
             onPublish={handlePublish}
             onSaveDraft={handleSaveDraft}
             onSchedule={handleSchedule}
+            
+            // AI Props
             aiAssistantEnabled={aiAssistantEnabled}
             setAiAssistantEnabled={setAiAssistantEnabled}
           />
-          {/* ✅ Show loading indicator */}
-          {isPublishing && <p style={{ color: '#0070f3', marginTop: '10px' }}>Publishing in progress...</p>}
+
+          {/* Status Indicators */}
+          {uploading && (
+            <div className={styles.statusMessage} style={{ color: '#0070f3' }}>
+              ☁️ Uploading media to cloud...
+            </div>
+          )}
+          {publishing && (
+            <div className={styles.statusMessage} style={{ color: '#0070f3' }}>
+              🚀 Sending to platforms...
+            </div>
+          )}
         </div>
 
+        {/* RIGHT PANEL: Preview */}
         <div className={styles.previewWrapper}>
           <DynamicPreview
             selectedPlatforms={Array.from(selectedChannels)}
