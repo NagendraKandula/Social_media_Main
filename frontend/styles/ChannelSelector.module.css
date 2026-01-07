@@ -122,6 +122,12 @@
   background-color: #374151;
 }
 
+.disabled {
+  opacity: 0.35;
+  filter: grayscale(100%);
+  cursor: not-allowed;
+}
+
 /* Responsive: Stack on small screens */
 @media (max-width: 768px) {
   .horizontalWrapper {

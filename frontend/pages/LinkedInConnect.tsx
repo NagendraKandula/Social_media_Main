@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import styles from "../styles/LinkedInConnect.module.css";
 import apiClient from "../lib/axios";
+import { FaLinkedinIn } from "react-icons/fa";
 
 interface LinkedInConnectProps {
   onClose: () => void;
@@ -10,7 +11,9 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // ✅ CLOSE ON OUTSIDE CLICK
+  /* =========================
+     CLOSE ON OUTSIDE CLICK
+     ========================= */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -27,10 +30,14 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
     };
   }, [onClose]);
 
-  // 🔒 BACKEND LOGIC — UNCHANGED
+  /* =========================
+     CONNECT LINKEDIN
+     ========================= */
   const handleConnectLinkedIn = async () => {
     setLoading(true);
+
     try {
+      // 🔒 Validate session
       await apiClient.get("/auth/profile");
 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
@@ -42,39 +49,26 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
 
       window.location.href = `${backendUrl}/auth/linkedin?redirect=${redirectUri}`;
     } catch (error: any) {
-      console.error("Connection error:", error);
+      console.error("LinkedIn connection error:", error);
+
       if (error?.response?.status === 401) {
         window.location.href = "/login";
         return;
       }
-    };
-    fetchUser();
-  }, []);
 
-  const handleConnect = () => {
-    if (!currentUserId) {
-        alert("Please log in again.");
-        return;
+      alert("Unable to connect LinkedIn. Please try again.");
+      setLoading(false);
     }
-    setLoading(true);
-    // 🚀 Secure Redirect to Backend
-    window.location.href = `${BACKEND_URL}/auth/linkedin`;
   };
 
   return (
     <div ref={popupRef} className={styles.linkedinPopover}>
-      {/* ✅ TITLE */}
-      <h3 className={styles.popupTitle}>
-        Connect a LinkedIn account
-      </h3>
+      <h3 className={styles.popupTitle}>Connect a LinkedIn account</h3>
 
-      {/* ✅ SINGLE CARD */}
       <div className={styles.optionCard}>
         <div className={styles.optionHeader}>
           <FaLinkedinIn />
         </div>
-        
-        {/* ... (Features List) ... */}
 
         <h4>LinkedIn Profile</h4>
         <p className={styles.subtitle}>

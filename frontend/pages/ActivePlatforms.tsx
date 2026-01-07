@@ -1,37 +1,87 @@
-import React, { useEffect, useState } from 'react';
-import LHeader from './LHeader';
-import apiClient from '../lib/axios';
-import styles from '../styles/ActivePlatforms.module.css';
-import { 
-  FaFacebookF, 
-  FaInstagram, 
-  FaPlus, 
-  FaUnlink, 
-  FaSyncAlt, 
-  FaYoutube, 
-  FaAt, 
-  FaTwitter, 
-  FaLinkedin // ✅ Added LinkedIn Import
-} from 'react-icons/fa';
+import React, { useEffect, useState } from "react";
+import apiClient from "../lib/axios";
+import styles from "../styles/ActivePlatforms.module.css";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaPlus,
+  FaUnlink,
+  FaSyncAlt,
+  FaYoutube,
+  FaAt,
+  FaTwitter,
+  FaLinkedin,
+} from "react-icons/fa";
+
+/* =========================
+   TYPE DEFINITIONS
+   ========================= */
+
+type Provider =
+  | "facebook"
+  | "instagram"
+  | "youtube"
+  | "threads"
+  | "twitter"
+  | "linkedin";
+
+type Action = "connect" | "reconnect" | "disconnect";
+
+interface SocialAccount {
+  name: string;
+  profilePic?: string;
+}
+
+type AccountsResponse = {
+  [key in Provider]?: SocialAccount;
+};
+
+let cachedAccounts: AccountsResponse | null = null;
+/* =========================
+   COMPONENT
+   ========================= */
+
+
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<AccountsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Provider | null>(null);
 
-  const fetchAccounts = async () => {
-    try {
-      setLoading(true);
-      const res = await apiClient.get("/auth/social/active-accounts");
-      setAccounts(res.data);
-    } catch (err) {
-      console.error("Failed to fetch active accounts:", err);
-    } finally {
-      setLoading(false);
-    }
+  const fetchAccounts = async (silent = false) => {
+  try {
+    if (!silent) setLoading(true);
+
+    const res = await apiClient.get("/auth/social/active-accounts");
+
+    setAccounts(res.data);
+    cachedAccounts = res.data; // ✅ update cache
+  } catch (err) {
+    console.error("Failed to fetch active accounts:", err);
+  } finally {
+    if (!silent) setLoading(false);
+  }
+};
+
+
+  useEffect(() => {
+  if (cachedAccounts) {
+    // ✅ Instant render from cache
+    setAccounts(cachedAccounts);
+    setLoading(false);
+
+    // 🔄 Background refresh
+    fetchAccounts(true);
+  } else {
+    // First time only
+    fetchAccounts();
+  }
+}, []);
+
+
+  const notifyHeader = () => {
+    window.dispatchEvent(new Event("social-accounts-updated"));
   };
-  
-  useEffect(() => { fetchAccounts(); }, []);
 
   const handleAction = async (provider: Provider, action: Action) => {
     if (action === "disconnect") {
@@ -42,9 +92,9 @@ const ActivePlatforms = () => {
         setActionLoading(provider);
         await apiClient.delete(`/auth/social/${provider}`);
         await fetchAccounts();
-      } catch (err) {
-        console.error(`Failed to disconnect ${provider}:`, err);
-        alert(`Unable to disconnect ${provider}. Please try again.`);
+        notifyHeader(); // ✅ sync header immediately
+      } catch {
+        alert(`Unable to disconnect ${provider}`);
       } finally {
         setActionLoading(null);
       }
@@ -61,36 +111,21 @@ const ActivePlatforms = () => {
           ? `${backendUrl}/auth/${provider}?reconnect=true`
           : `${backendUrl}/auth/${provider}`;
 
+      notifyHeader(); // ✅ sync before redirect
       window.location.href = redirectUrl;
-    } catch (error) {
-      console.error("Session validation failed:", error);
-      alert(
-        `Unable to connect to ${
-          provider.charAt(0).toUpperCase() + provider.slice(1)
-        }. Please try again later.`
-      );
+    } catch {
+      alert(`Unable to connect ${provider}`);
       setActionLoading(null);
     }
   };
 
-  const platforms = [
-    { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
-    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon },
-    { id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon },
-    { id: 'threads', name: 'Threads', icon: <FaAt />, color: styles.threadsIcon },
-    { 
-      id: 'twitter', 
-      name: 'X (Twitter)', 
-      icon: <FaTwitter />, 
-      color: styles.twitterIcon 
-    },
-    // ✅ Added LinkedIn Platform Object
-    { 
-      id: 'linkedin', 
-      name: 'LinkedIn', 
-      icon: <FaLinkedin />, 
-      color: styles.linkedinIcon // Make sure to add this class in your CSS
-    }
+  const platforms: { id: Provider; name: string; icon: JSX.Element }[] = [
+    { id: "facebook", name: "Facebook", icon: <FaFacebookF /> },
+    { id: "instagram", name: "Instagram", icon: <FaInstagram /> },
+    { id: "youtube", name: "YouTube", icon: <FaYoutube /> },
+    { id: "threads", name: "Threads", icon: <FaAt /> },
+    { id: "twitter", name: "X (Twitter)", icon: <FaTwitter /> },
+    { id: "linkedin", name: "LinkedIn", icon: <FaLinkedin /> },
   ];
 
   return (
@@ -105,22 +140,15 @@ const ActivePlatforms = () => {
             const connected = accounts?.[p.id];
             const isBusy = actionLoading === p.id;
 
-              <div className={styles.cardBody}>
-                {accounts?.[p.id] ? (
-                  <div className={styles.connectedProfile}>
-                    <img 
-                        src={accounts[p.id].profilePic || "/profile.png"} 
-                        className={styles.avatar} 
-                        onError={(e) => (e.currentTarget.src = '/profile.png')}
-                    />
-                    <div className={styles.profileInfo}>
-                      <p className={styles.userName}>{accounts[p.id].name}</p>
-                      <p className={styles.statusBadge}>Connected</p>
-                    </div>
-                  </div>
+            return (
+              <div key={p.id} className={styles.card}>
+                {/* HEADER */}
+                <div className={styles.cardHeader}>
+                  <span className={styles.platformIcon}>{p.icon}</span>
                   <h3 className={styles.platformName}>{p.name}</h3>
                 </div>
 
+                {/* BODY */}
                 <div className={styles.cardBody}>
                   {connected ? (
                     <div className={styles.connectedProfile}>
@@ -128,6 +156,9 @@ const ActivePlatforms = () => {
                         src={connected.profilePic || "/profile.png"}
                         alt={connected.name}
                         className={styles.avatar}
+                        onError={(e) =>
+                          (e.currentTarget.src = "/profile.png")
+                        }
                       />
                       <div className={styles.profileInfo}>
                         <p className={styles.userName}>{connected.name}</p>
@@ -141,6 +172,7 @@ const ActivePlatforms = () => {
                   )}
                 </div>
 
+                {/* FOOTER */}
                 <div className={styles.cardFooter}>
                   {connected ? (
                     <>

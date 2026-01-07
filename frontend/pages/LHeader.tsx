@@ -21,13 +21,16 @@ import LinkedInConnect from "./LinkedInConnect";
 import ThreadsConnect from "./ThreadsConnect";
 
 interface LHeaderProps {
-  setActivePlatform: (platform: string | null) => void; // kept for future use
+  setActivePlatform: (platform: string | null) => void;
 }
 
 type ConnectedMap = {
   instagram?: boolean;
   facebook?: boolean;
   youtube?: boolean;
+  twitter?: boolean;
+  linkedin?: boolean;
+  threads?: boolean;
 };
 
 type PopupType =
@@ -44,26 +47,41 @@ const LHeader: React.FC<LHeaderProps> = () => {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activePopup, setActivePopup] = useState<PopupType>(null);
-  const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedMap>(
-    {}
-  );
+  const [connectedPlatforms, setConnectedPlatforms] =
+    useState<ConnectedMap>({});
 
   /* ================= FETCH CONNECTED PLATFORMS ================= */
-  useEffect(() => {
-    const fetchConnectedPlatforms = async () => {
-      try {
-        const res = await apiClient.get("/auth/social/active-accounts");
-        const connected: ConnectedMap = {};
-        Object.keys(res.data || {}).forEach((key) => {
-          connected[key as keyof ConnectedMap] = true;
-        });
-        setConnectedPlatforms(connected);
-      } catch (error) {
-        console.error("Failed to fetch connected platforms:", error);
+  const fetchConnectedPlatforms = async () => {
+  try {
+    const res = await apiClient.get("/auth/social/active-accounts");
+    const connected: ConnectedMap = {};
+
+    Object.entries(res.data || {}).forEach(([key, value]) => {
+      if (value) {
+        connected[key as keyof ConnectedMap] = true;
       }
+    });
+
+    setConnectedPlatforms(connected);
+  } catch (error) {
+    console.error("Failed to fetch connected platforms:", error);
+  }
+};
+
+
+  /* ================= INITIAL LOAD + LIVE SYNC ================= */
+  useEffect(() => {
+    fetchConnectedPlatforms();
+
+    const handleUpdate = () => {
+      fetchConnectedPlatforms();
     };
 
-    fetchConnectedPlatforms();
+    window.addEventListener("social-accounts-updated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("social-accounts-updated", handleUpdate);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -106,7 +124,9 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Twitter */}
         <div className={styles.iconWrapper}>
           <button
-            className={styles.channelIcon}
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.twitter ? styles.connected : ""
+            }`}
             onClick={() => togglePopup("twitter")}
           >
             <FaTwitter />
@@ -134,7 +154,9 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* LinkedIn */}
         <div className={styles.iconWrapper}>
           <button
-            className={styles.channelIcon}
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.linkedin ? styles.connected : ""
+            }`}
             onClick={() => togglePopup("linkedin")}
           >
             <FaLinkedinIn />
@@ -162,7 +184,9 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Threads */}
         <div className={styles.iconWrapper}>
           <button
-            className={styles.channelIcon}
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.threads ? styles.connected : ""
+            }`}
             onClick={() => togglePopup("threads")}
           >
             <SiThreads />

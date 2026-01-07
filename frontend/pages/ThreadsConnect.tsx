@@ -11,24 +11,9 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // ✅ Get Backend URL safely (uses env variable or defaults to localhost)
-  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await apiClient.get('/auth/profile');
-        if (res.data && res.data.id) {
-          setCurrentUserId(res.data.id.toString());
-        }
-      } catch (error) {
-        console.error("Not authenticated", error);
-      }
-    };
-    fetchUser();
-  }, []);
-
-  // ✅ CLOSE ON OUTSIDE CLICK
+  /* =========================
+     CLOSE ON OUTSIDE CLICK
+     ========================= */
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -45,39 +30,41 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
     };
   }, [onClose]);
 
-  // 🔒 BACKEND / OAUTH LOGIC — UNCHANGED
-  const handleConnectThreads = () => {
-    if (!currentUserId) {
-      alert("Please log in again to connect Threads.");
-      return;
-    }
+  /* =========================
+     CONNECT THREADS
+     ========================= */
+  const handleConnectThreads = async () => {
+    setLoading(true);
 
     try {
-      setLoading(true);
+      // 🔒 Validate session
+      await apiClient.get("/auth/profile");
 
-      const authUrl = new URL("https://www.threads.net/oauth/authorize");
-      authUrl.searchParams.set("client_id", THREADS_APP_ID);
-      authUrl.searchParams.set("redirect_uri", REDIRECT_URI);
-      authUrl.searchParams.set("scope", SCOPES.join(","));
-      authUrl.searchParams.set("response_type", "code");
-      authUrl.searchParams.set("state", crypto.randomUUID());
+      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-      window.location.href = authUrl.toString();
-    } catch (error) {
-      console.error("Connection error:", error);
-      alert("Unable to connect to Threads. Please try again later.");
+      const redirectUri = encodeURIComponent(
+        `${frontendUrl}/Landing?threads=connected`
+      );
+
+      window.location.href = `${backendUrl}/auth/threads?redirect=${redirectUri}`;
+    } catch (error: any) {
+      console.error("Threads connection error:", error);
+
+      if (error?.response?.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
+      alert("Unable to connect Threads. Please try again.");
       setLoading(false);
     }
   };
 
   return (
     <div ref={popupRef} className={styles.threadsPopover}>
-      {/* ✅ TITLE */}
-      <h3 className={styles.popupTitle}>
-        Connect a Threads account
-      </h3>
+      <h3 className={styles.popupTitle}>Connect a Threads account</h3>
 
-      {/* ✅ SINGLE CARD */}
       <div className={styles.optionCard}>
         <div className={styles.optionHeader}>
           <SiThreads />
@@ -92,7 +79,7 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
         <button
           className={styles.primaryBtn}
           onClick={handleConnectThreads}
-          disabled={loading || !currentUserId}
+          disabled={loading}
         >
           {loading ? "Connecting..." : "Connect Threads"}
         </button>
