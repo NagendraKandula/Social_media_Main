@@ -38,6 +38,9 @@ model SocialAccount {
   accessToken  String
   refreshToken String?
   expiresAt    DateTime?
+  platformUsername String?  // Stores @username or channel ID
+  platformName     String?  // Stores Display Name (e.g. "John Doe")
+  profilePic       String?  // Stores URL to the profile image
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
