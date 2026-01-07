@@ -3,7 +3,8 @@ import axios from 'axios';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { FaInstagram, FaImage, FaVideo, FaHistory, FaPaperPlane } from 'react-icons/fa';
-import styles from '../styles/InstagramPost.module.css'; // Use the CSS provided below
+import styles from '../styles/InstagramPost.module.css';
+import apiClient from "../lib/axios"; // Use the CSS provided below
 
 type MediaType = 'IMAGE' | 'REEL' | 'STORIES';
 
@@ -23,6 +24,10 @@ const InstagramPostViaFacebook = () => {
     setStatus(null);
 
     try {
+      // ✅ ADD THIS: Trigger session check/refresh before the actual post
+      // This allows the interceptor in lib/axios.ts to handle 401 errors
+      await apiClient.get('/auth/profile');
+
       // ✅ Using your Facebook-Auth based endpoint
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
       
@@ -43,6 +48,10 @@ const InstagramPostViaFacebook = () => {
       setMediaUrl('');
     } catch (error: any) {
       console.error(error);
+      if (error.response?.status === 401) {
+        router.push('/login');
+        return;
+      }
       const errorMsg = error.response?.data?.message || 'Failed to post. Ensure you are logged in with Facebook.';
       setStatus({ type: 'error', message: `❌ ${errorMsg}` });
     } finally {

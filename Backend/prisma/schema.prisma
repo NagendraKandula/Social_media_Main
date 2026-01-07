@@ -1,22 +1,22 @@
+// Backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // or your provider
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int                  @id @default(autoincrement())
-  fullName  String
-  email     String               @unique
-  password  String
-  createdAt DateTime             @default(now())
-  otp       String?
-  otpExpiry DateTime?
-
-  // Relations
+  id             Int             @id @default(autoincrement())
+  fullName       String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  otp            String?
+  otpExpiry      DateTime?
   refreshTokens  RefreshToken[]
   socialAccounts SocialAccount[]
 }
@@ -27,23 +27,28 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
-  
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
 }
 
 model SocialAccount {
-  id          Int      @id @default(autoincrement())
-  provider    String   // e.g. "twitter", "facebook", "linkedin"
-  providerId  String   // user ID from provider
-  accessToken String   // short-lived access token
-  refreshToken String? // optional (some providers don’t give this)
-  expiresAt   DateTime? // when accessToken expires
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           Int       @id @default(autoincrement())
+  provider     String    // e.g. "twitter", "facebook", "threads"
+  providerId   String    // user ID from provider
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user   User @relation(fields: [userId], references: [id])
   userId Int
+
+  // ✅ CONSTRAINT 1: Prevent Account Theft
+  // No two users can claim the same external social account
   @@unique([provider, providerId])
+
+  // ✅ CONSTRAINT 2: Prevent Duplicates
+  // A single user cannot link the same platform twice
+  @@unique([userId, provider])
 }

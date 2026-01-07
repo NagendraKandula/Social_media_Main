@@ -53,23 +53,32 @@ export class AuthController {
     return req.user;
   }
 
-  @UseGuards(JwtRefreshGuard) 
-  @Post('refresh')
-  @HttpCode(HttpStatus.OK)
-  async refreshTokens(@Request() req, @Res({ passthrough: true }) res: Response) {
-    const userId = req.user.id;
-    const refreshToken = req
-    .get('Authorization')
-    .replace('Bearer', '')
-    .trim();
-    const {accessToken } = await this.tokenService.refreshTokens(userId, refreshToken);
-    res.cookie('access_token', accessToken, {
-      httpOnly: true, 
-      secure: this.configService.get('NODE_ENV') !== 'development', 
-      sameSite:'none',
-    });
-    return res.send({accessToken});
-  }
+ @UseGuards(JwtRefreshGuard)
+@Post('refresh')
+@HttpCode(HttpStatus.OK)
+async refreshTokens(@Req() req, @Res({ passthrough: true }) res: Response) {
+  const userId = req.user.id;
+  const email = req.user.email;
+  const refreshToken = req.cookies['refresh_token'];
+
+  // DB logic is encapsulated in the Service
+  const tokens = await this.tokenService.rotateTokens(userId, email, refreshToken);
+
+  const isDev = this.configService.get('NODE_ENV') === 'development';
+  const sameSite: 'lax' | 'none' = isDev ? 'lax' : 'none';
+  const cookieOptions = {
+    httpOnly: true,
+    secure: !isDev, // Set to true in production (requires HTTPS)
+    sameSite ,
+    path: '/',
+  };
+
+  res.cookie('access_token', tokens.accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+  res.cookie('refresh_token', tokens.refreshToken, { ...cookieOptions, maxAge:  7 * 24 * 60 * 60 * 1000 });
+
+  return { message: 'Tokens rotated successfully' };
+}
+
   @UseGuards(JwtAuthGuard)
 @Post('logout')
 @UseGuards(JwtAuthGuard)
@@ -86,16 +95,19 @@ async logout(@Req() req, @Res({ passthrough: true }) res: Response) {
 @Get('social/active-accounts')
 async getActiveAccounts(@Req() req) {
   const userId = req.user.id; // From JwtAuthGuard
-  
+  //console.log(`Fetching active platforms for UserId: ${userId}`);
   // Use the new service to get the profile
-  const [facebook,instagram,youtube] = await Promise.all([
+  const [facebook,instagram,youtube,threads,twitter,linkedin] = await Promise.all([
     this.logoutService.getFacebookProfile(userId),
     this.logoutService.getInstagramProfile(userId),
     this.logoutService.getYoutubeProfile(userId),
+    this.logoutService.getThreadsProfile(userId),
+    this.logoutService.getTwitterProfile(userId),
+    this.logoutService.getLinkedinProfile(userId),
   ]);
   
   return { facebook,
-    instagram ,youtube};
+    instagram ,youtube,threads,twitter,linkedin};
   
 }
 @UseGuards(JwtAuthGuard)

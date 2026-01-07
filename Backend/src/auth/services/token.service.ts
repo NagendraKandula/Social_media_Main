@@ -1,68 +1,81 @@
-import { PrismaService } from '../../prisma/prisma.service';
+// Backend/src/auth/services/token.service.ts
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config'; 
-import {
-  Injectable,
-  BadRequestException,
-} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as crypto from 'crypto';
+
 
 @Injectable()
 export class TokenService {
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService,
-     private config: ConfigService,
+    private jwt: JwtService,
+    private prisma: PrismaService,
+    private config: ConfigService,
   ) {}
+
+  // Standardized payload: strictly 'sub' for userId per JWT standards
+  private generatePayload(userId: number, email: string) {
+    return { sub: userId,
+       email ,
+       jti: crypto.randomBytes(32).toString('hex'),
+      };
+  }
+
+  private hashToken(token: string): string {
+    return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
   async getTokens(userId: number, email: string) {
-      const payload = { sub: userId, email };
-      const accessToken = this.jwtService.sign(payload,{
-        secret: this.config.get<string>('JWT_SECRET'),
+    const payload = this.generatePayload(userId, email);
+    
+    const [at, rt] = await Promise.all([
+      this.jwt.signAsync(payload, {
+        secret: this.config.get('JWT_SECRET'),
         expiresIn: '15m',
-      });
-      const refreshToken = this.jwtService.sign(payload,{
-        secret: this.config.get<string>('JWT_REFRESH_SECRET'),
+      }),
+      this.jwt.signAsync(payload, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
         expiresIn: '7d',
+      }),
+    ]);
+
+    // Store HASHED token in DB
+    await this.prisma.refreshToken.create({
+      data: {
+        userId,
+        token: this.hashToken(rt),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    return { accessToken: at, refreshToken: rt };
+  }
+
+  async rotateTokens(userId: any, email: string, oldRt: string) {
+    const numberUserId = Number(userId);
+    const hashedOldRt = this.hashToken(oldRt);
+
+    // Atomic check and revoke
+    const tokenRecord = await this.prisma.refreshToken.findFirst({
+      where: { token: hashedOldRt, userId: numberUserId, revoked: false },
+    });
+
+    if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+      // Security: If a revoked token is used, potentially revoke ALL user sessions
+      await this.prisma.refreshToken.updateMany({
+        where: { userId:numberUserId },
+        data: { revoked: true },
       });
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-      await this.prisma.refreshToken.create({
-        data: {
-          userId,
-          token: refreshToken,
-          expiresAt,
-        },
-      });
-      return { accessToken, refreshToken };
+      throw new UnauthorizedException('Invalid or reused refresh token');
     }
-      
-    public async signToken(userId: number, email: string): Promise<string> {
-      const payload = { sub: userId, email };
-      return this.jwtService.signAsync(payload, { expiresIn: '60m' });
-    }
-  
-    async refreshTokens(userId: number, refreshToken: string) {
-        const user = await this.prisma.user.findUnique({
-          where: { id: userId },
-          include: { refreshTokens: true },
-        });
-        if(!user) {
-          throw new BadRequestException('User not found');
-        }
-        const token = user.refreshTokens.find(
-          (token) => token.token === refreshToken,
-        );  
-        if(!token || token.revoked){
-          throw new BadRequestException('Invalid refresh token');
-        }
-        if(token.expiresAt < new Date()){
-          throw new BadRequestException('Refresh token expired');
-        }
-        const payload = { sub: user.id, email: user.email };
-        const newAccessToken = this.jwtService.sign(payload,{
-          secret: this.config.get<string>('JWT_SECRET'),
-          expiresIn: '15m',
-        });
-        return { accessToken: newAccessToken };
-      }
-  
+
+    // Revoke old token
+    await this.prisma.refreshToken.update({
+      where: { id: tokenRecord.id },
+      data: { revoked: true },
+    });
+
+    return this.getTokens(numberUserId, email);
+  }
 }

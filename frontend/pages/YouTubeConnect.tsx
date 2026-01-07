@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import styles from "../styles/TwitterConnect.module.css";
 import { FaYoutube } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
 const YouTubeConnect = () => {
   const [loading, setLoading] = useState(false);
 
-  const handleConnectYouTube = () => {
+  const handleConnectYouTube = async () => {
     setLoading(true);
     try {
+      await apiClient.get('/auth/profile');
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       // Redirect to backend OAuth route
@@ -17,11 +19,16 @@ const YouTubeConnect = () => {
 
     } catch (error) {
       console.error("Connection error:", error);
+      if (error.response?.status === 401) {
+        window.location.href = '/login';
+      }
+      else {
       alert(
         "Unable to connect to YouTube. Check your internet or try again later."
       );
       setLoading(false);
-    }
+        }
+     }
   };
 
   return (

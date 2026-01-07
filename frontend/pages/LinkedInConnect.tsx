@@ -1,88 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "../styles/LinkedInConnect.module.css";
-import { FaLinkedinIn } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
-const LinkedInConnect = () => {
+const LinkedInConnect: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  
+  // ✅ Get Backend URL
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
-  const handleConnectLinkedIn = () => {
-    setLoading(true);
-    try {
-      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await apiClient.get('/auth/profile');
+        if (res.data && res.data.id) setCurrentUserId(res.data.id.toString());
+      } catch (error) {
+        console.error("Not authenticated", error);
+      }
+    };
+    fetchUser();
+  }, []);
 
-      // Construct the final URL dynamically
-      const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?linkedin=connected`);
-      window.location.href = `${backendUrl}/auth/linkedin?redirect=${redirectUri}`;
-
-    } catch (error) {
-      console.error("Connection error:", error);
-      alert("Unable to connect to LinkedIn. Please try again later.");
-      setLoading(false);
+  const handleConnect = () => {
+    if (!currentUserId) {
+        alert("Please log in again.");
+        return;
     }
+    setLoading(true);
+    // 🚀 Secure Redirect to Backend
+    window.location.href = `${BACKEND_URL}/auth/linkedin`;
   };
 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <div className={styles.header}>
-          <FaLinkedinIn className={styles.linkedinIcon} />
-          <h1>Connect Your LinkedIn Account</h1>
-          <p className={styles.subtitle}>
-            Grow your professional brand, schedule posts, and track engagement — all in one place.
-          </p>
+        <div className={styles.headerSection}>
+            <img src="/linkedin.png" alt="LinkedIn" className={styles.mainIcon} />
+            <h1 className={styles.title}>Connect LinkedIn</h1>
+            <p className={styles.subtitle}>Manage your professional profile.</p>
         </div>
+        
+        {/* ... (Features List) ... */}
 
-        <div className={styles.benefits}>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>👔</div>
-            <div>
-              <h3>Schedule Professional Posts</h3>
-              <p>
-                Share articles, updates, and videos at optimal times for your network.
-              </p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>📈</div>
-            <div>
-              <h3>Track Engagement & Reach</h3>
-              <p>
-                Measure post performance and understand what resonates with your audience.
-              </p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>🤖</div>
-            <div>
-              <h3>AI-Powered Post Suggestions</h3>
-              <p>
-                Get content ideas tailored to your industry and professional goals.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.trustSection}>
-          <p>🔒 Secure connection via LinkedIn’s official API</p>
-          <p>🚫 We never post without your explicit approval</p>
-        </div>
-
-        <button
-          className={styles.connectButton}
-          onClick={handleConnectLinkedIn}
-          disabled={loading}
+        <button 
+            className={styles.connectButton} 
+            onClick={handleConnect}
+            disabled={loading || !currentUserId}
         >
-          <FaLinkedinIn />
-          {loading ? "Connecting..." : "Connect to LinkedIn"}
+            {loading ? "Connecting..." : "Connect to LinkedIn"}
         </button>
-
-        <div className={styles.footerNote}>
-          <p>
-            By connecting, you agree to our <a href="#">Terms</a> and{" "}
-            <a href="#">Privacy Policy</a>.
-          </p>
-        </div>
       </div>
     </div>
   );

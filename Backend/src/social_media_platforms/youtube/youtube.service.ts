@@ -1,10 +1,10 @@
 // Backend/src/youtube/youtube.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException ,InternalServerErrorException} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google } from 'googleapis';
-import { Readable } from 'stream';
+import axios from 'axios';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotFoundException } from '@nestjs/common';
+
 
 @Injectable()
 export class YoutubeService {
@@ -14,14 +14,17 @@ export class YoutubeService {
     ) {}
 
   async uploadVideoToYoutube(
-    accessToken: string,
-    refreshToken: string,
-    file: Express.Multer.File,
+   userId: number,
     title: string,
     description: string,
+    mediaType: 'VIDEO' | 'SHORTS',
+    mediaUrl: string,
   ) {
-    if (!file) {
-      throw new BadRequestException('No video file uploaded.');
+    const account = await this.prisma.socialAccount.findFirst({
+      where: { userId, provider: 'youtube' },
+    });
+    if (!account || !account.accessToken) {
+      throw new BadRequestException('YouTube account not connected.');
     }
 
     const oauth2Client = new google.auth.OAuth2(
@@ -31,8 +34,8 @@ export class YoutubeService {
     );
 
     oauth2Client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
+      access_token: account.accessToken,
+      refresh_token: account.refreshToken,
     });
 
     const youtube = google.youtube({
@@ -40,29 +43,36 @@ export class YoutubeService {
       auth: oauth2Client,
     });
 
-    const readableFile = new Readable();
-    readableFile.push(file.buffer);
-    readableFile.push(null);
 
     try {
+      const responseStream = await axios({
+        method: 'get',
+        url: mediaUrl,
+        responseType: 'stream',
+      });
+
+      const finalDescription = mediaType === 'SHORTS' ? `${description}\n\n#shorts` : description;
       const response = await youtube.videos.insert({
         part: ['snippet', 'status'],
         requestBody: {
           snippet: {
             title,
             description,
+            categoryId: '22',
           },
           status: {
             privacyStatus: 'public',
+            selfDeclaredMadeForKids: false,
           },
         },
         media: {
-          body: readableFile,
+          body: responseStream.data,
         },
       });
 
       return {
-        message: 'Video uploaded successfully!',
+        success: true,
+        message: `${mediaType === 'SHORTS' ? 'Youtube Shorts' : 'Youtube Video'} uploaded successfully .`,
         videoId: response.data.id,
       };
     } catch (error) {

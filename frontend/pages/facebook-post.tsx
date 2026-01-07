@@ -15,7 +15,7 @@ interface FacebookPage {
 const FacebookPostPage = () => {
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
-  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO' | 'STORY'>('IMAGE');
+  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO' | 'STORY' | 'REEL'>('IMAGE');
   
   // State for pages
   const [pages, setPages] = useState<FacebookPage[]>([]);
@@ -61,6 +61,8 @@ const FacebookPostPage = () => {
 
     setIsLoading(true);
     // ... (rest of the submit logic is the same)
+    setMessage(''); // Clear previous messages
+    setError('');   // Clear previous errors
 
     const body = {
       content,
@@ -70,6 +72,7 @@ const FacebookPostPage = () => {
     };
 
     try {
+        await apiClient.get('/auth/profile');
       const response = await apiClient.post('/facebook/post', body, {
         headers: { 'Content-Type': 'application/json' },
       });
@@ -78,6 +81,10 @@ const FacebookPostPage = () => {
       setContent('');
       setMediaUrl('');
     } catch (err: any) {
+      if (err.response?.status === 401) {
+         window.location.href = '/login';
+         return;
+      }
       setError(err.response?.data?.message || 'An error occurred while posting.');
     } finally {
       setIsLoading(false);
@@ -167,13 +174,15 @@ const FacebookPostPage = () => {
             <select
               id="media-type"
               value={mediaType}
-              onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO' | 'STORY')}
+              onChange={(e) => setMediaType(e.target.value as 'IMAGE' | 'VIDEO' | 'STORY'| 'REEL')}
               disabled={isLoading}
               className={styles.select}
             >
               <option value="IMAGE">Image</option>
               <option value="VIDEO">Video</option>
+              <option value="REEL">Reel</option>
               <option value="STORY">Story</option>
+              
             </select>
           </div>
           <textarea
