@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-oauth2';
 import { ConfigService } from '@nestjs/config';
-
+ 
 @Injectable()
 export class ThreadsStrategy extends PassportStrategy(Strategy, 'threads') {
   constructor(private configService: ConfigService) {
@@ -21,9 +21,9 @@ export class ThreadsStrategy extends PassportStrategy(Strategy, 'threads') {
     // Basic profile extraction
     const { id, username, threads_profile_picture_url } = profile || {};
     const user = {
-      threadsId: id,
-      username: username,
-      picture: threads_profile_picture_url,
+      threadsId: id?? null,
+      username: username ?? null,
+      profilePic: threads_profile_picture_url??null,
       accessToken, // This is the SHORT-LIVED token
     };
     done(null, user);

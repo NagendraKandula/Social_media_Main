@@ -11,6 +11,7 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 // Import LinkedinService
 import { LinkedinService } from '../../social_media_platforms/linkedin/linkedin.service';
+import axios from 'axios';
 
 @Injectable()
 export class SocialAuthService {
@@ -53,7 +54,6 @@ export class SocialAuthService {
         sameSite: 'none',
         expires: new Date(Date.now() + 1 * 60 * 60 * 1000),
       });
-  
       const frontendUrl = this.config.get<string>('FRONTEND_URL');
        return res.redirect(`${frontendUrl}/Landing`);
     }
@@ -61,10 +61,11 @@ export class SocialAuthService {
         if (!req.user || !req.user.id) {
           throw new BadRequestException('No user from facebook');
         }
-    
-      const { accessToken, refreshToken,id:facebookId } = req.user;
-      const providerIdStr = facebookId.toString();
+      
+      const { accessToken, refreshToken,id:facebookId,firstName,lastName,picture } = req.user;
 
+      const providerIdStr = facebookId.toString();
+      const displayName = `${firstName} ${lastName}`.trim() || 'Facebook User';
       try{
        await this.prisma.socialAccount.upsert({
         where: {
@@ -78,6 +79,8 @@ export class SocialAuthService {
           refreshToken,
           updatedAt: new Date(),
           userId : appUserId,
+          platformName: displayName,
+          profilePic: picture,
           expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), //  60 days from now
         },
         create: {
@@ -86,6 +89,8 @@ export class SocialAuthService {
           accessToken,
           refreshToken,
           userId: appUserId,
+          platformName: displayName,
+          profilePic: picture,
           expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
         },
       });
@@ -108,20 +113,39 @@ export class SocialAuthService {
       
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
          return res.redirect(`${frontendUrl}/facebook-post`);
-     
-
       }
 
         async youtubeLogin(req, res: Response,appUserId: number) {
           //step1:get youtbe info from req.user strategy
-        const { accessToken, refreshToken,youtubeId,displayName } = req.user;
+        const { accessToken, refreshToken,youtubeId,displayName,profilePic:strategyPic } = req.user;
         //step 2: Get curently logged in app user
-    
+    let finalProfilePic = strategyPic;
+
+    // 🛡️ FALLBACK: If Strategy failed to get the pic, fetch it manually now
+    if (!finalProfilePic) {
+      try {
+        console.log('⚠️ Strategy missing profile pic, fetching manually...');
+        const response = await axios.get('https://www.googleapis.com/youtube/v3/channels', {
+          params: {
+            part: 'snippet',
+            mine: true,
+            access_token: accessToken,
+          },
+        });
+        const snippet = response.data.items?.[0]?.snippet;
+        finalProfilePic = snippet?.thumbnails?.default?.url || null;
+      } catch (error) {
+        console.error('❌ Failed to fetch fallback YouTube profile pic:', error.message);
+        // It's okay, we just proceed without a pic rather than failing login
+        finalProfilePic = null; 
+      }
+    }
         if (!appUserId) {
           throw new BadRequestException('App user not found .please log in first');
         }
         // check if youtbe account already eixst
         const providerIdStr = youtubeId.toString();
+
         try{
         await this.prisma.socialAccount.upsert({
           where: {
@@ -134,16 +158,20 @@ export class SocialAuthService {
             accessToken,
             refreshToken,
             updatedAt: new Date(),
+            platformName: displayName,
+            profilePic: finalProfilePic,
             userId : appUserId,
-            expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
+            expiresAt: new Date(Date.now() + 60 *60 * 1000), // 1 hour from now
           },
           create: {
             provider: 'youtube',
             providerId: providerIdStr,
             accessToken,
             refreshToken,
+            platformName: displayName,
+            profilePic: finalProfilePic,
             userId: appUserId,
-            expiresAt: new Date(Date.now() + 60 *24 *60 *60 * 1000), // 1 hour from now
+            expiresAt: new Date(Date.now() + 7 *24 *60 *60 * 1000), // 1 hour from now
           },
         });
            // Set tokens in HTTP-only cookies
@@ -171,7 +199,7 @@ export class SocialAuthService {
         return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
       }
      async instagramLogin(req, res: Response, appUserId: number) {
-    const { accessToken, instagramId, username } = req.user;
+    const { accessToken, instagramId, username,profilePic } = req.user;
 
     // 1. Exchange Short-Lived Token for Long-Lived Token (60 Days)
     let longLivedToken = accessToken;
@@ -207,6 +235,8 @@ try {
     update: {
       accessToken: longLivedToken,
       userId: appUserId,
+      platformName: username,
+      profilePic: profilePic,
       updatedAt: new Date(),
       expiresAt: new Date(Date.now() + expiresSeconds * 1000),
     },
@@ -215,6 +245,8 @@ try {
       providerId: instagramId.toString(),
       accessToken: longLivedToken,
       userId: appUserId,
+      platformName: username,
+      profilePic: profilePic,
       expiresAt: new Date(Date.now() + expiresSeconds * 1000),
     },
   });
@@ -234,7 +266,7 @@ try {
     return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
   }
 async threadsLogin(req: any, res: Response, appUserId: number) {
-    const { accessToken, threadsId } = req.user; // 'accessToken' here is Short-Lived
+    const { accessToken, threadsId ,username, profilePic} = req.user; // 'accessToken' here is Short-Lived
     
     let longLivedToken = accessToken;
     let expiresSeconds = 3600; // Default 1 hour
@@ -258,38 +290,41 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
       // Fallback: proceed with short token if exchange fails
     }
 
-    // 2. Database Upsert (Match Friend's Facebook Logic)
-    const existingAccount = await this.prisma.socialAccount.findUnique({
-      where: {
-        provider_providerId: {
-          provider: 'threads',
-          providerId: threadsId.toString(),
-        },
-      },
-    });
-
-    const expiresAt = new Date(Date.now() + expiresSeconds * 1000);
-
-    if (existingAccount) {
-      await this.prisma.socialAccount.update({
-        where: { id: existingAccount.id },
-        data: {
+    // 2. Upsert Social Account
+    try {
+      await this.prisma.socialAccount.upsert({
+        where: {
+          provider_providerId: {
+            provider: 'threads',  
+            providerId: threadsId.toString(),
+          },
+        },  
+        update: {
           accessToken: longLivedToken,
           userId: appUserId,
-          expiresAt: expiresAt,
-          updatedAt: new Date(),
+          platformName: username,
+          profilePic: profilePic,
+          updatedAt: new Date(),  
+          expiresAt: new Date(Date.now() + expiresSeconds * 1000),
         },
-      });
-    } else {
-      await this.prisma.socialAccount.create({
-        data: {
-          provider: 'threads',
+        create: {
+          provider: 'threads',  
           providerId: threadsId.toString(),
           accessToken: longLivedToken,
           userId: appUserId,
-          expiresAt: expiresAt,
+          platformName: username,
+          profilePic: profilePic,
+          expiresAt: new Date(Date.now() + expiresSeconds * 1000),
         },
       });
+      res.cookie('threads_access_token', longLivedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'none',
+      });
+    } catch (error) {
+      console.error('Error upserting Threads social account:', error);
+      throw new BadRequestException('Failed to connect Threads account');
     }
 
     // 3. Redirect to Frontend
@@ -299,7 +334,7 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
 
 
   async linkedinLogin(req: any, res: Response, appUserId: number) {
-    const { linkedinId, accessToken, refreshToken } = req.user; // Data from Strategy
+    const { linkedinId, accessToken, refreshToken,name,picture } = req.user; // Data from Strategy
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
 
     try {
@@ -315,6 +350,8 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
           userId: appUserId,
           accessToken: accessToken,
           refreshToken: refreshToken,
+          platformName: name,       
+          profilePic: picture,
           expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000), // ~60 days default
           updatedAt: new Date(),
         },
@@ -324,10 +361,17 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
           userId: appUserId,
           accessToken: accessToken,
           refreshToken: refreshToken,
+          platformName: name,       
+          profilePic: picture,
           expiresAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
         },
       });
-
+       res.cookie('linkedin_access_token', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV !== 'development',
+        sameSite: 'none',
+      });
+      
       return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
     } catch (error) {
       console.error('LinkedIn Login DB Error:', error);
