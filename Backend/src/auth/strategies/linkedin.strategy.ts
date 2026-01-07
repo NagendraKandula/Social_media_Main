@@ -42,10 +42,10 @@ export class LinkedInStrategy extends PassportStrategy(Strategy, 'linkedin') {
   async validate(accessToken: string, refreshToken: string, profile: any, done: Function) {
     // ✅ Map OIDC fields (sub, name, picture, email)
     const user = {
-      linkedinId: profile.sub, // 'sub' is the unique ID in OIDC
-      name: profile.name,
-      email: profile.email,
-      picture: profile.picture,
+      linkedinId: profile?.sub??null, // 'sub' is the unique ID in OIDC
+      name: profile?.name ?? null,
+      email: profile?.email ?? null,
+      picture: profile?.picture ?? null,
       accessToken,
       refreshToken,
     };

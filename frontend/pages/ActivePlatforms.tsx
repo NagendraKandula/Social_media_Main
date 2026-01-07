@@ -11,7 +11,7 @@ import {
   FaYoutube, 
   FaAt, 
   FaTwitter, 
-  FaLinkedin // ✅ Added LinkedIn Import
+  FaLinkedin 
 } from 'react-icons/fa';
 
 const ActivePlatforms = () => {
@@ -38,10 +38,9 @@ const ActivePlatforms = () => {
       await apiClient.delete(`/auth/social/${provider}`);
       fetchAccounts();
     } else {
-      try{
+      try {
         await apiClient.get('/auth/profile');
-      }
-      catch (error) {
+      } catch (error) {
         console.error("Session refresh failed before redirect:", error);
         alert(`Unable to connect to ${provider.charAt(0).toUpperCase() + provider.slice(1)}. Please try again later.`);
         return;
@@ -69,12 +68,11 @@ const ActivePlatforms = () => {
       icon: <FaTwitter />, 
       color: styles.twitterIcon 
     },
-    // ✅ Added LinkedIn Platform Object
     { 
       id: 'linkedin', 
       name: 'LinkedIn', 
       icon: <FaLinkedin />, 
-      color: styles.linkedinIcon // Make sure to add this class in your CSS
+      color: styles.linkedinIcon 
     }
   ];
 
@@ -98,10 +96,23 @@ const ActivePlatforms = () => {
                         src={accounts[p.id].profilePic || "/profile.png"} 
                         className={styles.avatar} 
                         onError={(e) => (e.currentTarget.src = '/profile.png')}
+                        alt={`${p.name} Profile`}
                     />
                     <div className={styles.profileInfo}>
                       <p className={styles.userName}>{accounts[p.id].name}</p>
-                      <p className={styles.statusBadge}>Connected</p>
+                      
+                      {/* ✅ UPDATE 1: Smart Status Badge */}
+                      {accounts[p.id].needsReconnect ? (
+                        <p 
+                          className={styles.statusBadge} 
+                          style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                        >
+                          Session Expired
+                        </p>
+                      ) : (
+                        <p className={styles.statusBadge}>Connected</p>
+                      )}
+                      
                     </div>
                   </div>
                 ) : (
@@ -112,11 +123,23 @@ const ActivePlatforms = () => {
               <div className={styles.cardFooter}>
                 {accounts?.[p.id] ? (
                   <>
-                    <button onClick={() => handleAction(p.id, 'reconnect')} className={styles.reconnectBtn}><FaSyncAlt /> Reconnect</button>
-                    <button onClick={() => handleAction(p.id, 'disconnect')} className={styles.disconnectBtn}><FaUnlink /> Disconnect</button>
+                    <button 
+                      onClick={() => handleAction(p.id, 'reconnect')} 
+                      className={styles.reconnectBtn}
+                      // ✅ UPDATE 2: Visual Alert on Button
+                      style={accounts[p.id].needsReconnect ? { border: '1px solid #ef4444', color: '#ef4444' } : {}}
+                    >
+                      <FaSyncAlt /> {accounts[p.id].needsReconnect ? 'Fix Connection' : 'Reconnect'}
+                    </button>
+                    
+                    <button onClick={() => handleAction(p.id, 'disconnect')} className={styles.disconnectBtn}>
+                      <FaUnlink /> Disconnect
+                    </button>
                   </>
                 ) : (
-                  <button onClick={() => handleAction(p.id, 'connect')} className={styles.connectBtn}><FaPlus /> Connect</button>
+                  <button onClick={() => handleAction(p.id, 'connect')} className={styles.connectBtn}>
+                    <FaPlus /> Connect
+                  </button>
                 )}
               </div>
             </div>

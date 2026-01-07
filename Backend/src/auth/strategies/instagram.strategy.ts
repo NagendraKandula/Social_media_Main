@@ -28,14 +28,16 @@ export class InstagramStrategy extends PassportStrategy(Strategy, 'instagram') {
       state: false, // We'll handle state manually
         });
     }
+
  async userProfile(accessToken: string,done: Function) {
     try{
-       const url = `https://graph.instagram.com/v24.0/me?fields=user_id,username,account_type&access_token=${accessToken}`;
+       const url = `https://graph.instagram.com/v24.0/me?fields=user_id,username,account_type,profile_picture_url&access_token=${accessToken}`;
        const response = await firstValueFrom(this.httpService.get(url));
        const profile = {
         provider : 'instagram',
         id: response.data.user_id,
         username: response.data.username,
+        profilePic: response.data.profile_picture_url || null,
         _raw: response.data,
        }
        done(null,profile);
@@ -49,6 +51,7 @@ export class InstagramStrategy extends PassportStrategy(Strategy, 'instagram') {
     const instagramUser = {
       instagramId: profile.id,
       username: profile.username,
+      profilePic: profile.profilePic,
       accessToken, // This is the SHORT-LIVED token (1 hour)
       refreshToken,
     };
