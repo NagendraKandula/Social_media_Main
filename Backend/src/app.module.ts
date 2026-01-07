@@ -14,6 +14,7 @@ import { TwitterModule } from './social_media_platforms/twitter/twitter.module';
 import { ThreadsModule } from './social_media_platforms/threads/threads.module';
 import { InstagramBusinessModule } from './social_media_platforms/instagram-business/instagram-business.module';
 import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.module';
+import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module'; //
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -24,7 +25,7 @@ import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.modul
     YoutubeModule,
     FacebookModule,
     AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule
+    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,InstagramAnalyticsModule
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],

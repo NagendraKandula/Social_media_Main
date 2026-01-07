@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from '../lib/axios'; //
+import apiClient from '../lib/axios'; //
 import styles from '../styles/Analytics.module.css'; //
 import { withAuth } from '../utils/withAuth'; //
 import { GetServerSideProps } from 'next';
-import Link from 'next/link';
 
 // --- INTERFACES ---
 interface ProfileData {
@@ -42,19 +41,20 @@ const InstagramAnalytics: React.FC = () => {
     setError('');
     try {
       if (viewMode === 'account') {
-        const response = await axios.get('/instagram-analytics/account');
-        // Ensure we are accessing the data correctly based on the service response
+        // Calls Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts -> getAccountStats
+        const response = await apiClient.get('/instagram-analytics/account');
         setProfile(response.data.profile);
         setAccountMetrics(response.data.metrics || []);
         setPostTotals(null); 
       } else {
-        const response = await axios.get('/instagram-analytics/posts-summary');
+        // Calls Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts -> getPostsSummary
+        const response = await apiClient.get('/instagram-analytics/posts-summary');
         setPostTotals(response.data);
         setProfile(null);
       }
     } catch (err: any) {
       console.error('Error fetching Instagram analytics:', err);
-      setError('Failed to load data. Ensure your Instagram Business account is connected.');
+      setError('Ensure your Instagram Business account is connected.');
     } finally {
       setLoading(false);
     }
@@ -66,47 +66,48 @@ const InstagramAnalytics: React.FC = () => {
 
   return (
     <div className={styles.analyticsContainer}>
-      {/* --- Platform Navigation Bar --- */}
-      <nav className={styles.toggle} style={{ marginBottom: '2rem', display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Link href="/Analytics"><button>YouTube</button></Link>
-        
-        {/* Instagram Dropdown */}
-        <div style={{ position: 'relative', display: 'inline-block' }}>
-          <select 
-            className={styles.active} 
-            style={{ 
-                padding: '10px 15px', 
-                borderRadius: '8px', 
-                cursor: 'pointer', 
-                border: 'none', 
-                background: '#3b82f6', 
-                color: 'white',
-                fontWeight: 'bold'
-            }}
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as 'account' | 'posts')}
-          >
-            <option value="account" style={{color: 'black'}}>Instagram: Account Level</option>
-            <option value="posts" style={{color: 'black'}}>Instagram: Post Level</option>
-          </select>
-        </div>
+      {/* --- Platform Header (Only Instagram) --- */}
+      <div className={styles.platformHeader} style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <button 
+          className={styles.active} 
+          style={{ 
+            background: '#E1306C', // Instagram Brand Color
+            color: 'white',
+            padding: '12px 30px',
+            borderRadius: '12px',
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            border: 'none'
+          }}
+        >
+          Instagram Analytics
+        </button>
+      </div>
 
-        {/* Visible Platform Placeholders */}
-        <button disabled style={{ opacity: 0.5 }}>Facebook</button>
-        <button disabled style={{ opacity: 0.5 }}>LinkedIn</button>
-        <button disabled style={{ opacity: 0.5 }}>Twitter</button>
-      </nav>
+      {/* --- Sub-Level Toggle --- */}
+      <div className={styles.toggle} style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '3rem' }}>
+        <button
+          className={viewMode === 'account' ? styles.active : ''}
+          onClick={() => setViewMode('account')}
+          style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Account Level
+        </button>
+        <button
+          className={viewMode === 'posts' ? styles.active : ''}
+          onClick={() => setViewMode('posts')}
+          style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Post Level
+        </button>
+      </div>
 
-      <h1 className={styles.header}>
-        {viewMode === 'account' ? '📸 Account Analytics' : '📊 Post Level Totals'}
-      </h1>
-
-      {loading && <p className={styles.message}>Loading Data...</p>}
+      {loading && <p className={styles.message}>Loading data...</p>}
       {error && <p className={styles.errorMessage}>{error}</p>}
 
       {!loading && !error && (
         <div className={styles.statsGrid}>
-          {/* Account Level Display */}
+          {/* Account Level Analytics */}
           {viewMode === 'account' && profile && (
             <>
               <div className={styles.statCard}>
@@ -114,7 +115,7 @@ const InstagramAnalytics: React.FC = () => {
                 <p className={styles.statValue}>{profile.followers_count?.toLocaleString() || 0}</p>
               </div>
               <div className={styles.statCard}>
-                <h3 className={styles.statTitle}>Total Media</h3>
+                <h3 className={styles.statTitle}>Posts</h3>
                 <p className={styles.statValue}>{profile.media_count?.toLocaleString() || 0}</p>
               </div>
               {accountMetrics.map((m) => (
@@ -126,32 +127,24 @@ const InstagramAnalytics: React.FC = () => {
             </>
           )}
 
-          {/* Post Level Display */}
+          {/* Post Level Analytics */}
           {viewMode === 'posts' && postTotals && (
             <>
               <div className={styles.statCard}>
                 <h3 className={styles.statTitle}>Total Likes</h3>
-                <p className={styles.statValue}>{postTotals.totalLikes?.toLocaleString() || 0}</p>
+                <p className={styles.statValue}>{postTotals.totalLikes?.toLocaleString()}</p>
               </div>
               <div className={styles.statCard}>
                 <h3 className={styles.statTitle}>Total Comments</h3>
-                <p className={styles.statValue}>{postTotals.totalComments?.toLocaleString() || 0}</p>
+                <p className={styles.statValue}>{postTotals.totalComments?.toLocaleString()}</p>
               </div>
               <div className={styles.statCard}>
                 <h3 className={styles.statTitle}>Total Reach</h3>
-                <p className={styles.statValue}>{postTotals.totalReach?.toLocaleString() || 0}</p>
+                <p className={styles.statValue}>{postTotals.totalReach?.toLocaleString()}</p>
               </div>
               <div className={styles.statCard}>
-                <h3 className={styles.statTitle}>Total Impressions</h3>
-                <p className={styles.statValue}>{postTotals.totalImpressions?.toLocaleString() || 0}</p>
-              </div>
-              <div className={styles.statCard}>
-                <h3 className={styles.statTitle}>Total Saved</h3>
-                <p className={styles.statValue}>{postTotals.totalSaved?.toLocaleString() || 0}</p>
-              </div>
-              <div className={styles.statCard}>
-                <h3 className={styles.statTitle}>Video Views</h3>
-                <p className={styles.statValue}>{postTotals.totalVideoViews?.toLocaleString() || 0}</p>
+                <h3 className={styles.statTitle}>Impressions</h3>
+                <p className={styles.statValue}>{postTotals.totalImpressions?.toLocaleString()}</p>
               </div>
             </>
           )}
