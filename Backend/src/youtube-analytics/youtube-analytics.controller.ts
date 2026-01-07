@@ -1,7 +1,6 @@
-import { Controller, Get, UseGuards, Req, Query,BadRequestException } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { YoutubeAnalyticsService } from './youtube-analytics.service';
-
 
 @Controller('youtube-analytics')
 export class YoutubeAnalyticsController {
@@ -9,15 +8,14 @@ export class YoutubeAnalyticsController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getAnalytics(@Req() req,
-  @Query('range') range: string,
-  @Query('year') year?: number,
-  @Query('month') month?: number,
-) {
-    // req.user contains the payload from the JWT, including the user's ID
+  async getAnalytics(
+    @Req() req,
+    @Query('range') range: string,
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+  ) {
     const userId = req.user.userId;
-    return this.analyticsService.getChannelAnalytics(userId,range,year,month);
+    // Calling the method defined in youtube-analytics.service.ts
+    return this.analyticsService.getChannelAnalytics(userId, range, year, month);
   }
-
-// Add this new method to your YoutubeController class
 }

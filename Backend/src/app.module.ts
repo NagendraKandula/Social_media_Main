@@ -1,7 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth/controllers/auth.controller';
-import { AuthService } from './auth/services/auth.service';
-import { PrismaService } from './prisma/prisma.service';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,19 +10,27 @@ import { InstagramModule } from './social_media_platforms/instagram/instagram.mo
 import { TwitterModule } from './social_media_platforms/twitter/twitter.module';
 import { ThreadsModule } from './social_media_platforms/threads/threads.module';
 import { InstagramBusinessModule } from './social_media_platforms/instagram-business/instagram-business.module';
-import { InstagramAnalyticsModule} from './Analytics/instagram-analytics/instagram-analytics.module';
+import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.module'; // Ensure this matches disk case
+import { AuthController } from './auth/controllers/auth.controller';
+import { AuthService } from './auth/services/auth.service';
+import { PrismaService } from './prisma/prisma.service';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Makes the ConfigModule available globally
+      isGlobal: true,
     }),
     PrismaModule,
     AuthModule,
     YoutubeModule,
     FacebookModule,
     YoutubeAnalyticsModule,
-     AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,InstagramAnalyticsModule,
+    AiAssistantModule,
+    InstagramModule,
+    TwitterModule,
+    ThreadsModule,
+    InstagramBusinessModule,
+    LinkedinModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],
