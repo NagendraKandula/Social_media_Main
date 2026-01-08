@@ -151,10 +151,12 @@ export class TwitterController {
       throw new UnauthorizedException('Twitter account not connected');
     }
 
+    // ✅ UPDATED: Pass userId as the 4th argument
     return this.twitterService.postTweetWithUserToken(
       body.text,
       file,
       account.accessToken,
+      userId, 
     );
   }
 }
