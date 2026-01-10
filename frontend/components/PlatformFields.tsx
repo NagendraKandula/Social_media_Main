@@ -63,6 +63,32 @@ export default function PlatformFields({
           </div>
         </div>
       )}
+      {/* 📸 INSTAGRAM (New Section) */}
+      {selectedChannels.has("instagram") && (
+        <div className={styles.platformCard}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            {/* You can add an icon here if you like */}
+            <h4 style={{ margin: 0 }}>Instagram Settings</h4>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Post Type:</label>
+            <select
+              value={platformState.instagramPostType || "post"}
+              onChange={(e) => update("instagramPostType", e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              <option value="post">Feed Post (Image/Video)</option>
+              <option value="reel">Reel (Video)</option>
+              <option value="story">Story (24h)</option>
+            </select>
+            <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+              {platformState.instagramPostType === 'story' && "Stories expire after 24 hours."}
+              {platformState.instagramPostType === 'reel' && "Reels are shared to the Reels tab and Feed."}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ▶️ YOUTUBE */}
       {selectedChannels.has("youtube") && (
