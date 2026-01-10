@@ -1,134 +1,127 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../styles/Publish.module.css';
 import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
-import AIAssistant from '../components/AIAssistant';
+import PlatformFields, { PlatformState } from '../components/PlatformFields';
 import { usePostCreation } from '../hooks/usePostCreation';
-import apiClient from '../lib/axios'; // ✅ Import API Client for fetching pages
+import apiClient from '../lib/axios';
+import { resolveEditorRules } from '../utils/resolveEditorRules';
 
-// ✅ 1. Define Expanded Post Types to match Backend Logic
-type PostType = 'POST' | 'REEL' | 'STORY';
-
-interface FacebookPage {
-  id: string;
-  name: string;
-  pictureUrl?: string;
-}
+interface FacebookPage { id: string; name: string; }
 
 export default function Publish() {
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(""); 
   const [files, setFiles] = useState<File[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
-  const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
   
-  // ✅ 2. New State for Post Type & Facebook Page
-  const [postType, setPostType] = useState<PostType>('POST');
-  const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
-  const [selectedPageId, setSelectedPageId] = useState<string>("");
+  // ✅ Scheduling State
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(""); // ISO String
 
+  // Unified State for platform options
+  const [platformState, setPlatformState] = useState<PlatformState>({
+    facebookPostType: 'feed',
+    instagramPostType: 'post',
+    youtubeType: 'video',
+    youtubeVisibility: 'public'
+  });
+
+  const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
   const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
 
-  // ✅ 3. Fetch Facebook Pages when 'facebook' is selected
+  // 1. Calculate Editor Rules
+  const selectedChannelList = useMemo(() => Array.from(selectedChannels), [selectedChannels]);
+  const effectiveRules = useMemo(() => resolveEditorRules(selectedChannelList as any), [selectedChannelList]);
+
+  // 2. Fetch Facebook Pages
   useEffect(() => {
     if (selectedChannels.has('facebook')) {
-      fetchFacebookPages();
+      apiClient.get('/facebook/pages')
+        .then(({ data }) => {
+          setFacebookPages(data);
+          if (data.length > 0) {
+             setPlatformState(prev => ({ ...prev, facebookPageId: data[0].id }));
+          }
+        })
+        .catch(err => console.error("FB Pages Error:", err));
     }
   }, [selectedChannels]);
 
-  const fetchFacebookPages = async () => {
-    try {
-      const { data } = await apiClient.get('/facebook/pages');
-      setFacebookPages(data);
-      if (data.length > 0 && !selectedPageId) {
-        setSelectedPageId(data[0].id); // Default to first page
-      }
-    } catch (error) {
-      console.error("Failed to fetch Facebook pages", error);
-    }
-  };
+  // 3. Main Submit Function (Handles "Publish Now" AND "Schedule")
+  const handleSubmit = async (isScheduled: boolean) => {
+    if (selectedChannels.size === 0) return alert("Select a channel.");
+    if (!content && files.length === 0) return alert("Add content or media.");
 
-  const handlePublish = async () => {
-    if (selectedChannels.size === 0) {
-      alert("Please select at least one channel.");
-      return;
+    // Validation
+    if (selectedChannels.has('facebook') && !platformState.facebookPageId) {
+      return alert("Please select a Facebook Page.");
     }
-    if (!content && files.length === 0) {
-      alert("Please add content or a media file.");
-      return;
+    if (selectedChannels.has('youtube') && !platformState.youtubeTitle) {
+      return alert("YouTube requires a Title.");
     }
 
-    // 🛡️ Validation: Facebook requires a Page ID
-    if (selectedChannels.has('facebook') && !selectedPageId) {
-      alert("Please select a Facebook Page.");
-      return;
-    }
-
-    // 🛡️ Validation: Reels require Video
-    if (postType === 'REEL' && files.length > 0 && !files[0].type.startsWith('video')) {
-      alert("Reels/Shorts require a video file.");
-      return;
+    // ✅ Scheduling Validation
+    if (isScheduled && !scheduleDate) {
+        return alert("Please select a date and time to schedule.");
     }
 
     try {
+      // A. Upload Media
       let mediaData = { publicUrl: "", storagePath: "" };
-
-      // 1. Upload Media (Direct-to-Cloud)
       if (files.length > 0) {
         mediaData = await uploadMedia(files[0]);
       }
 
-      // ✅ 4. Determine the correct backend MediaType
-      // Backend expects: 'IMAGE' | 'VIDEO' | 'REEL' | 'STORY'
-      let finalMediaType = 'IMAGE'; 
-
-      if (files.length > 0) {
-        const isVideo = files[0].type.startsWith('video');
-
-        if (postType === 'STORY') {
-          finalMediaType = 'STORY';
-        } else if (postType === 'REEL') {
-          finalMediaType = 'REEL'; // Implies Video
-        } else {
-          // 'POST' (Feed)
-          finalMediaType = isVideo ? 'VIDEO' : 'IMAGE';
-        }
-      }
-
-      // 5. Construct Payload
+      // B. Construct Payload
       const payload = {
         content: content,
         mediaUrl: mediaData.publicUrl || "",      
         storagePath: mediaData.storagePath || "", 
         mimeType: files[0]?.type || "",
-        
-        // ✅ Send the determined type
-        mediaType: finalMediaType, 
-
+        mediaType: files[0]?.type.startsWith('video') ? 'VIDEO' : 'IMAGE', 
         platforms: Array.from(selectedChannels),
-        scheduledAt: null, 
         
-        // ✅ 6. Send Metadata with Facebook Page ID
+        // ✅ SEND SCHEDULE TIME TO BACKEND
+        scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
+        
         contentMetadata: {
-          title: content.substring(0, 50), // YouTube requires a title
           text: content,
+          title: platformState.youtubeTitle, 
           platformOverrides: {
-            facebook: {
-              pageId: selectedPageId // Required by Backend Logic
+            facebook: { 
+              pageId: platformState.facebookPageId,
+              postType: platformState.facebookPostType 
+            },
+            instagram: {
+              postType: platformState.instagramPostType 
+            },
+            youtube: {
+              title: platformState.youtubeTitle,
+              visibility: platformState.youtubeVisibility,
+              postType: platformState.youtubeType 
             }
           }
         }
       };
 
       await createPost(payload);
-      alert("Post Published Successfully! 🚀");
       
+      const successMsg = isScheduled 
+        ? `Post Scheduled for ${new Date(scheduleDate).toLocaleString()}! 📅` 
+        : "Post Published Successfully! 🚀";
+      
+      alert(successMsg);
+      
+      // Cleanup
       setContent('');
       setFiles([]);
       setSelectedChannels(new Set());
+      setScheduleDate("");
+      setShowScheduleModal(false);
 
     } catch (err: any) {
-      console.error("Publish Error:", err);
-      alert(`Error: ${err.message || "Failed to publish"}`);
+      console.error("Error:", err);
+      alert(`Error: ${err.message || "Failed"}`);
     }
   };
 
@@ -139,77 +132,72 @@ export default function Publish() {
       </div>
 
       <div className={styles.editorPreviewContainer}>
-        {aiAssistantEnabled && <AIAssistant />}
-
         <div className={styles.leftPanel}>
           
-          {/* ✅ 7. Enhanced Post Type Selector */}
-          <div className={styles.formatSelector}>
-            <h3>Post Format</h3>
-            <div className={styles.toggleContainer}>
-              <button 
-                className={`${styles.toggleBtn} ${postType === 'POST' ? styles.active : ''}`}
-                onClick={() => setPostType('POST')}
-              >
-                📝 Feed Post
-              </button>
-              <button 
-                className={`${styles.toggleBtn} ${postType === 'REEL' ? styles.active : ''}`}
-                onClick={() => setPostType('REEL')}
-              >
-                🎬 Reel / Short
-              </button>
-              <button 
-                className={`${styles.toggleBtn} ${postType === 'STORY' ? styles.active : ''}`}
-                onClick={() => setPostType('STORY')}
-              >
-                📖 Story
-              </button>
-            </div>
-          </div>
-
           <ChannelSelector
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
           />
 
-          {/* ✅ 8. Facebook Page Selector (Only visible if Facebook is selected) */}
-          {selectedChannels.has('facebook') && (
-            <div className={styles.pageSelector}>
-              <label>Select Facebook Page:</label>
-              <select 
-                value={selectedPageId} 
-                onChange={(e) => setSelectedPageId(e.target.value)}
-                className={styles.dropdown}
-              >
-                {facebookPages.length === 0 && <option value="">Loading pages...</option>}
-                {facebookPages.map(page => (
-                  <option key={page.id} value={page.id}>
-                    {page.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          
+          <PlatformFields 
+             selectedChannels={selectedChannels}
+             platformState={platformState}
+             setPlatformState={setPlatformState}
+             facebookPages={facebookPages}
+          />
+
           <ContentEditor
             content={content}
             onContentChange={setContent}
             files={files}
             onFilesChange={setFiles}
-            onPublish={handlePublish}
-            onSaveDraft={() => {}}
-            onSchedule={() => {}}
-            aiAssistantEnabled={aiAssistantEnabled}
-            setAiAssistantEnabled={setAiAssistantEnabled}
+            aiAssistantEnabled={false} 
+            setAiAssistantEnabled={() => {}}
+            effectiveRules={effectiveRules}
+            validation={{}}
+            
+            // ✅ Connect Buttons to Actions
+            onPublish={() => handleSubmit(false)} // Publish Immediately
+            onSchedule={() => setShowScheduleModal(true)} // Open Modal
+            onSaveDraft={() => alert("Draft saved! (Demo)")}
           />
 
-          {uploading && <p style={{ color: '#0070f3' }}>☁️ Uploading media...</p>}
-          {publishing && <p style={{ color: '#0070f3' }}>🚀 Publishing post...</p>}
-        </div>
+          {/* ✅ Simple Schedule Modal */}
+          {showScheduleModal && (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', 
+                alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+                <div style={{
+                    backgroundColor: 'white', padding: '2rem', borderRadius: '12px',
+                    width: '350px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                }}>
+                    <h3>Pick a Date & Time</h3>
+                    <input 
+                        type="datetime-local" 
+                        style={{ width: '100%', padding: '10px', margin: '15px 0', fontSize: '16px' }}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button 
+                            onClick={() => setShowScheduleModal(false)}
+                            style={{ padding: '8px 16px', border: '1px solid #ccc', background: 'white', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => handleSubmit(true)}
+                            disabled={!scheduleDate || uploading || publishing}
+                            style={{ padding: '8px 16px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            {publishing ? "Scheduling..." : "Confirm Schedule"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+          )}
 
-        <div className={styles.previewWrapper}>
-         {/* Previews can be added here */}
         </div>
       </div>
     </div>
