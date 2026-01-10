@@ -1,5 +1,29 @@
 /* styles/ContentEditor.module.css */
+.actionButtons {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border-top: 1px solid #eee;
+  justify-content: flex-end;
+}
 
+.draftBtn, .scheduleBtn, .publishBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.publishBtn {
+  background: #0070f3;
+  color: white;
+  border: none;
+}
 .contentEditor {
   max-width: 660px;
   width: 100%;

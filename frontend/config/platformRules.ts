@@ -13,17 +13,17 @@ export type Platform =
 export interface PlatformRule {
   text?: {
     required?: boolean;
-    maxLength?: number; // Character limit
+    maxLength?: number;
   };
   media?: {
     required?: boolean;
-    inputType?: "file" | "url"; // Forces a specific input method
-    mediaTypes?: string[]; // e.g., ['image/jpeg', 'video/mp4']
+    inputType?: "file" | "url";
+    mediaTypes?: string[];
   };
-  title?: boolean; // Requires a title (e.g., YouTube)
-  description?: boolean; // Uses separate description field
-  requiresPageSelection?: boolean; // e.g., Facebook/LinkedIn pages
-  notes?: string[]; // Warnings to show user
+  title?: boolean;            // ✅ YouTube needs this
+  description?: boolean;      // ✅ ADDED THIS (Fixes your error)
+  requiresPageSelection?: boolean; 
+  notes?: string[];
 }
 
 export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
@@ -43,15 +43,15 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
   linkedin: {
     text: { maxLength: 3000 },
     media: { inputType: "file" },
-    requiresPageSelection: true,
   },
   twitter: {
     text: { maxLength: 280 },
-    media: { inputType: "file", mediaTypes: ["image/*", "video/*"] },
+    media: { inputType: "file" },
   },
   youtube: {
-    title: true, // YouTube needs a Title field
-    text: { required: true, maxLength: 5000 }, // Description
+    title: true,
+    description: true, // ✅ Explicitly marking description as supported
+    text: { required: true, maxLength: 5000 }, 
     media: { required: true, inputType: "file", mediaTypes: ["video/*"] },
   },
   threads: {
@@ -60,6 +60,7 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
   },
   pinterest: {
     title: true,
+    description: true,
     text: { maxLength: 500 },
     media: { required: true, inputType: "file", mediaTypes: ["image/*"] },
   },

@@ -48,7 +48,7 @@ export class PostingProcessor {
       try {
         // Uncomment if using private bucket
         mediaUrl = await this.storageService.getSignedReadUrl(post.media.storagePath);
-        //this.logger.log(`🔑 Signed URL Generated: ${mediaUrl}`);
+        this.logger.log(`🔑 Signed URL Generated: ${mediaUrl}`);
       } catch (e) {
         this.logger.warn(`Could not sign URL: ${e.message}`);
       }

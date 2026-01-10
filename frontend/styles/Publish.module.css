@@ -1,41 +1,34 @@
-/* styles/Publish.module.css */
+/* frontend/styles/Publish.module.css */
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem 1.5rem; /* Responsive padding: top/bottom + left/right */
-  /* Removed calc(2rem + 72px) — use consistent spacing instead */
+  padding: 2rem 1.5rem;
 }
 
+/* Header Section */
 .headerSection {
   margin-bottom: 2rem;
   text-align: center;
-  max-width: 700px; /* Prevents overly wide headings on large screens */
+  max-width: 700px;
   margin-left: auto;
   margin-right: auto;
 }
 
 .title {
-  font-size: 2rem; /* 32px */
+  font-size: 2rem;
   font-weight: 800;
   line-height: 1.2;
   color: #111827;
   margin: 0;
 }
 
-.subtitle {
-  font-size: 1.25rem; /* 20px — slightly reduced for better hierarchy */
-  font-weight: 600;
-  color: #374151;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-}
-
-/* Main layout: Editor + Preview side by side */
+/* Main Layout */
 .editorPreviewContainer {
   display: flex;
   gap: 28px;
   margin-top: 1.5rem;
+  align-items: flex-start;
 }
 
 .leftPanel {
@@ -43,46 +36,86 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
-  min-width: 0; /* Critical for flex children to shrink properly */
+  min-width: 0; /* Prevents overflow issues */
 }
 
+/* ✅ NEW: Action Buttons (Publish Now) */
+.actions {
+  display: flex;
+  justify-content: flex-end; /* Pushes button to the right */
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.publishBtn {
+  background-color: #0070f3; /* Brand Blue */
+  color: white;
+  border: none;
+  padding: 0.8rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 112, 243, 0.2);
+}
+
+.publishBtn:hover {
+  background-color: #0051a8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 112, 243, 0.3);
+}
+
+.publishBtn:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Right Panel (Optional Preview) */
 .previewWrapper {
-  width: 380px; /* Match DynamicPreview’s max-width */
+  width: 380px;
   flex-shrink: 0;
+  position: sticky;
+  top: 2rem;
 }
 
-/* Responsive: Stack on tablets and mobile */
+/* Responsive Design */
 @media (max-width: 900px) {
   .editorPreviewContainer {
     flex-direction: column;
     align-items: center;
-    gap: 24px;
   }
 
   .leftPanel {
     width: 100%;
-    max-width: 660px; /* Match ContentEditor’s max-width */
-    align-items: center;
+    max-width: 660px;
   }
 
   .previewWrapper {
     width: 100%;
     max-width: 380px;
     margin: 0 auto;
+    position: static;
   }
 }
 
-/* Smaller screens: adjust typography */
 @media (max-width: 640px) {
   .container {
-    padding: 1.5rem 1rem;
+    padding: 1rem;
   }
 
   .title {
-    font-size: 1.75rem; /* 28px */
+    font-size: 1.75rem;
   }
-
-  .subtitle {
-    font-size: 1.125rem; /* 18px */
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .publishBtn {
+    width: 100%;
   }
 }
