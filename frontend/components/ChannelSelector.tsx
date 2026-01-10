@@ -1,4 +1,3 @@
-// ChannelSelector.tsx
 import React from "react";
 import {
   FaTwitter,
@@ -18,37 +17,24 @@ export type Channel =
   | "youtube"
   | "threads";
 
-const channels: Channel[] = [
-  "twitter",
-  "facebook",
-  "instagram",
-  "linkedin",
-  "youtube",
-  "threads",
-];
-
-const ChannelIcon: Record<Channel, JSX.Element> = {
-  twitter: <FaTwitter size={18} />,
-  facebook: <FaFacebook size={22} />,
-  instagram: <FaInstagram size={23} />,
-  linkedin: <FaLinkedin size={22} />,
-  youtube: <FaYoutube size={22} />,
-  threads: <SiThreads size={19} />,
+const ChannelIcon = {
+  twitter: <FaTwitter />,
+  facebook: <FaFacebook />,
+  instagram: <FaInstagram />,
+  linkedin: <FaLinkedin />,
+  youtube: <FaYoutube />,
+  threads: <SiThreads />,
 };
 
-const ChannelStyle: Record<Channel, string> = {
-  twitter: styles.twitter,
-  facebook: styles.facebook,
-  instagram: styles.instagram,
-  linkedin: styles.linkedin,
-  youtube: styles.youtube,
-  threads: styles.threads,
-};
+export interface SocialAccount {
+  name: string;
+  profilePic?: string;
+}
 
 interface ChannelSelectorProps {
   selectedChannels: Set<Channel>;
-  onSelectionChange: (selected: Set<Channel>) => void;
-  connectedAccounts: Partial<Record<Channel, boolean>>;
+  onSelectionChange: (channels: Set<Channel>) => void;
+  connectedAccounts: Partial<Record<Channel, SocialAccount>>;
 }
 
 export default function ChannelSelector({
@@ -57,69 +43,70 @@ export default function ChannelSelector({
   connectedAccounts,
 }: ChannelSelectorProps) {
   const toggleChannel = (channel: Channel) => {
-    if (!connectedAccounts[channel]) return;
-
-    const newSelected = new Set(selectedChannels);
-    if (newSelected.has(channel)) {
-      newSelected.delete(channel);
-    } else {
-      newSelected.add(channel);
-    }
-    onSelectionChange(newSelected);
+    const next = new Set(selectedChannels);
+    next.has(channel) ? next.delete(channel) : next.add(channel);
+    onSelectionChange(next);
   };
 
-  const toggleSelectAll = () => {
-    const connectedChannels = channels.filter(
-      (channel) => connectedAccounts[channel]
-    );
-
-    if (selectedChannels.size === connectedChannels.length) {
-      onSelectionChange(new Set());
-    } else {
-      onSelectionChange(new Set(connectedChannels));
-    }
-  };
+  const channels = Object.keys(connectedAccounts) as Channel[];
 
   return (
     <div className={styles.container}>
-      <div className={styles.horizontalWrapper}>
-        <h2 className={styles.title}>Select Channels</h2>
+      <h3 className={styles.title}>Channels</h3>
 
-        <div className={styles.iconWrapper}>
-          {channels.map((channel) => {
-            const isConnected = !!connectedAccounts[channel];
-            const isSelected = selectedChannels.has(channel);
+      {channels.length === 0 && (
+        <p className={styles.emptyState}>
+          No channels connected
+        </p>
+      )}
 
-            return (
-              <button
-                key={channel}
-                className={`${styles.iconButton} ${
-                  ChannelStyle[channel]
-                } ${isSelected ? styles.selected : ""} ${
-                  !isConnected ? styles.disabled : ""
+      <div className={styles.list}>
+        {channels.map((channel) => {
+          const account = connectedAccounts[channel];
+          if (!account) return null;
+
+          const isSelected = selectedChannels.has(channel);
+
+          return (
+            <button
+              key={channel}
+              type="button"
+              className={`${styles.item} ${
+                isSelected ? styles.selected : ""
+              }`}
+              onClick={() => toggleChannel(channel)}
+              aria-pressed={isSelected}
+              aria-label={`Toggle ${account.name}`}
+            >
+              {/* Selection indicator */}
+              <span
+                className={`${styles.checkIndicator} ${
+                  isSelected ? styles.checkActive : ""
                 }`}
-                onClick={() => toggleChannel(channel)}
-                disabled={!isConnected}
-                aria-pressed={isSelected}
-                aria-disabled={!isConnected}
-                title={
-                  isConnected
-                    ? `Post to ${channel}`
-                    : `Connect ${channel} to enable`
-                }
-              >
-                {ChannelIcon[channel]}
-              </button>
-            );
-          })}
-        </div>
+              />
 
-        <button
-          className={styles.selectAllButton}
-          onClick={toggleSelectAll}
-        >
-          Select Connected
-        </button>
+              {/* Avatar */}
+              <div className={styles.avatarWrap}>
+                <img
+                  src={account.profilePic || "/profile.png"}
+                  alt={account.name}
+                />
+                <span
+                  className={`${styles.platformBadge} ${
+                    styles[channel]
+                  }`}
+                >
+                  {ChannelIcon[channel]}
+                </span>
+              </div>
+
+              {/* Name */}
+              <span className={styles.name}>
+                {account.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

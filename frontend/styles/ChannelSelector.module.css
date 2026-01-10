@@ -1,155 +1,121 @@
-/* styles/ChannelSelector.module.css */
-
 .container {
-  width: 100%;
-  padding: 0 20px;
-  margin-top: 10px;
   display: flex;
-  justify-content: center; /* Center the whole selector */
-  margin-left: -20px; /* Maintain left margin for alignment with other components */
+  flex-direction: column;
+  gap: 14px;
 }
 
-/* Main horizontal flex container */
-.horizontalWrapper {
+/* Header */
+.title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+/* List */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Row */
+.item {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: nowrap;
-  padding: 16px 24px;
+  gap: 12px;
+  padding: 10px 12px 10px 10px;
   border-radius: 12px;
-  max-width: 660px;
-  width: 100%;
-  border: 1px solid #e5e7eb;
-  box-sizing: border-box;
-  background-color: #fff; /* Ensure solid background */
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
 }
 
-/* Title */
-.title {
-  font-size: 1.2rem;
-  font-weight: 900;
-  color: #111827;
-  white-space: nowrap;
-  margin: 0;
-  flex-shrink: 0; /* Prevent title from shrinking */
+.item:hover {
+  background: #f5f6fa;
 }
 
-/* Icon wrapper */
-.iconWrapper {
-  display: flex;
-  gap: 10px;
-  flex: 1;
-  justify-content: center;
-  min-width: 0;
-  overflow-x: auto; /* Allow horizontal scroll if needed */
-  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  padding: 2px 0; /* Vertical padding for scroll area */
+/* Selected state */
+.selected {
+  background: #eef2ff;
 }
 
-/* Hide scrollbar for cleaner look (optional) */
-.iconWrapper::-webkit-scrollbar {
-  display: none;
-}
-.iconWrapper {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;     /* Firefox */
+/* Left selection indicator */
+.checkIndicator {
+  width: 4px;
+  height: 100%;
+  border-radius: 4px;
+  background: transparent;
 }
 
-/* Icon button */
-.iconButton {
+.selected .checkIndicator {
+  background: #6366f1;
+}
+
+/* Avatar */
+.avatarWrap {
+  position: relative;
   width: 36px;
   height: 36px;
+  flex-shrink: 0;
+}
+
+.avatarWrap img {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 2px solid transparent;
+  object-fit: cover;
+}
+
+/* Platform badge */
+.platformBadge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
-  color: white;
-  font-size: 18px;
-  background-clip: padding-box;
-  flex-shrink: 0; /* Prevent shrinking in flex */
-}
-
-.iconButton:hover {
-  transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* Selected state: stronger visual cue */
-.iconButton.selected {
-  border-color: #4ade4c;
-  box-shadow: 0 0 0 2px #4ade4c40; /* Subtle outer glow */
+  font-size: 9px;
+  box-shadow: 0 0 0 1px #e5e7eb;
 }
 
 /* Platform colors */
-.twitter { background-color: #000000; }
-.facebook { background-color: #1877f2; }
-.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
-.linkedin { background-color: #0a66c2; }
-.pinterest { background-color: #bd081c; }
-.youtube { background-color: #ff0000; }
-.threads { background-color: #000000; }
+.instagram { color: #e1306c; }
+.youtube { color: #ff0000; }
+.linkedin { color: #0a66c2; }
+.twitter { color: #1da1f2; }
+.facebook { color: #1877f2; }
+.threads { color: #000000; }
 
-/* Preserve background when selected (redundant but safe) */
-.selected.twitter { background-color: #000000; }
-.selected.facebook { background-color: #1877f2; }
-.selected.instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
-.selected.linkedin { background-color: #0a66c2; }
-.selected.pinterest { background-color: #bd081c; }
-.selected.youtube { background-color: #ff0000; }
-.selected.threads { background-color: #000000; }
-
-/* Select All Button */
-.selectAllButton {
-  padding: 6px 12px;
-  background-color: #1f2937; /* Slightly lighter than black for better contrast */
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.85rem;
+/* Name */
+.name {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: #111827;
   white-space: nowrap;
-  height: fit-content;
-  flex-shrink: 0;
-  transition: background-color 0.2s;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.selectAllButton:hover {
-  background-color: #374151;
+.emptyState {
+  font-size: 14px;
+  color: #6b7280;
+  padding: 8px 0;
 }
 
-.disabled {
-  opacity: 0.35;
-  filter: grayscale(100%);
-  cursor: not-allowed;
+.checkIndicator {
+  width: 4px;
+  height: 100%;
+  border-radius: 4px;
+  background: transparent;
 }
 
-/* Responsive: Stack on small screens */
-@media (max-width: 768px) {
-  .horizontalWrapper {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
-  }
-
-  .iconWrapper {
-    justify-content: flex-start;
-    padding: 4px 0;
-  }
-
-  .title {
-    text-align: center;
-  }
-
-  /* Ensure Select All stays centered or full-width */
-  .selectAllButton {
-    align-self: center;
-    width: 100%;
-    max-width: 200px;
-  }
+.checkActive {
+  background: #6366f1;
 }

@@ -1,88 +1,85 @@
-/* styles/Publish.module.css */
-
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem; /* Responsive padding: top/bottom + left/right */
-  /* Removed calc(2rem + 72px) — use consistent spacing instead */
+.publishPage {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  gap: 20px;
+  padding: 20px;
+  min-height: 100vh;
 }
 
-.headerSection {
-  margin-bottom: 2rem;
-  text-align: center;
-  max-width: 700px; /* Prevents overly wide headings on large screens */
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.title {
-  font-size: 2rem; /* 32px */
-  font-weight: 800;
-  line-height: 1.2;
-  color: #111827;
-  margin: 0;
-}
-
-.subtitle {
-  font-size: 1.25rem; /* 20px — slightly reduced for better hierarchy */
-  font-weight: 600;
-  color: #374151;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-}
-
-/* Main layout: Editor + Preview side by side */
-.editorPreviewContainer {
-  display: flex;
-  gap: 28px;
-  margin-top: 1.5rem;
-}
-
-.leftPanel {
-  flex: 1;
+/* PANELS */
+.leftPanel,
+.centerPanel,
+.rightPanel {
+  background: #fff0ec;
+  border-radius: 10px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  min-width: 0; /* Critical for flex children to shrink properly */
+  border: 1px solid #e4ecf8;
 }
 
-.previewWrapper {
-  width: 380px; /* Match DynamicPreview’s max-width */
-  flex-shrink: 0;
+/* CENTER HEADER */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
-/* Responsive: Stack on tablets and mobile */
-@media (max-width: 900px) {
-  .editorPreviewContainer {
-    flex-direction: column;
-    align-items: center;
-    gap: 24px;
-  }
-
-  .leftPanel {
-    width: 100%;
-    max-width: 660px; /* Match ContentEditor’s max-width */
-    align-items: center;
-  }
-
-  .previewWrapper {
-    width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
-  }
+.header h2 {
+  font-size: 18px;
+  font-weight: 600;
 }
 
-/* Smaller screens: adjust typography */
-@media (max-width: 640px) {
-  .container {
-    padding: 1.5rem 1rem;
-  }
+.headerActions {
+  display: flex;
+  gap: 10px;
+}
 
-  .title {
-    font-size: 1.75rem; /* 28px */
-  }
+.headerActions button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: white;
+  cursor: pointer;
+}
 
-  .subtitle {
-    font-size: 1.125rem; /* 18px */
-  }
+.headerActions button:last-child {
+  background: #ff5e45;
+  color: white;
+}
+
+/* PLACEHOLDER */
+.placeholder {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  color: #6b7280;
+  flex: 1;
+}
+
+/* =============================
+   MULTI-PUBLISH CONTEXT
+   ============================= */
+
+.publishContext {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.contextTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.contextChannels {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
