@@ -6,10 +6,11 @@ import { StorageService } from '../storage/storage.service';
 
 // Platform Services
 import { FacebookService } from '../social_media_platforms/facebook/facebook.service';
-import { InstagramService } from '../social_media_platforms/instagram/instagram.service';
+import { InstagramBusinessService } from '../social_media_platforms/instagram-business/instagram-business.service';
 import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.service';
 import { YoutubeService } from '../social_media_platforms/youtube/youtube.service';
 import { ThreadsService } from '../social_media_platforms/threads/threads.service';
+import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
 
 @Processor('social-posting')
 export class PostingProcessor {
@@ -19,10 +20,11 @@ export class PostingProcessor {
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
     private readonly facebookService: FacebookService,
-    private readonly instagramService: InstagramService,
+    private readonly instagramBusinessService: InstagramBusinessService,
     private readonly linkedinService: LinkedinService,
     private readonly youtubeService: YoutubeService,
     private readonly threadsService: ThreadsService,
+    private readonly twitterService: TwitterService,
   ) {}
 
   @Process('publish-post')
@@ -76,13 +78,39 @@ export class PostingProcessor {
             );
             externalId = result.postId || 'fb_id';
         } 
-        else if (platformEntry.platform === 'instagram') {
+       else if (platformEntry.platform === 'instagram') {
             if (!mediaUrl) throw new Error('Media URL is required for Instagram');
-            const result = await this.instagramService.postToInstagram(
-                post.userId, contentText, mediaUrl, post.media?.type as 'IMAGE' | 'REEL' | 'STORIES'
+            const account = await this.getAccount(post.userId, 'instagram');
+            const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
+            const userPostType = instaMeta?.postType || 'post'; // 'post', 'reel', 'story'
+
+            let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
+
+            if (userPostType === 'story') {
+                apiMediaType = 'STORIES';
+            } else if (userPostType === 'reel') {
+                apiMediaType = 'REELS';
+            } else {
+                // If 'post' (Feed), check if it's actually a video file.
+                // Instagram Business API requires Videos to be sent as REELS mostly.
+                if (post.media?.type === 'VIDEO') {
+                    apiMediaType = 'REELS';
+                } else {
+                    apiMediaType = 'IMAGE';
+                }
+            }
+
+            // 3. Call Service
+            // Note: account.providerId MUST be the Instagram Business Account ID
+            const result = await this.instagramBusinessService.publishContent(
+                account.providerId, 
+                account.accessToken, 
+                apiMediaType, 
+                mediaUrl, 
+                contentText
             );
-            externalId = result.postId;
-        } 
+            externalId = result.id;
+        }
         else if (platformEntry.platform === 'linkedin') {
             const account = await this.getAccount(post.userId, 'linkedin');
             const result = await this.linkedinService.postToLinkedIn(
@@ -91,13 +119,24 @@ export class PostingProcessor {
             );
             externalId = result.postId;
         } 
-        else if (platformEntry.platform === 'threads') {
+       else if (platformEntry.platform === 'threads') {
             const account = await this.getAccount(post.userId, 'threads');
+            
+            // ✅ Determine type safely from Post Media
+            // Note: Your schema uses 'IMAGE', 'VIDEO', 'REEL'
+            const type = (post.media?.type === 'VIDEO' || post.media?.type === 'REEL') 
+              ? 'VIDEO' 
+              : 'IMAGE';
+
             const result = await this.threadsService.postToThreads(
-                account.accessToken, contentText, mediaUrl || undefined
+                account.accessToken, 
+                contentText, 
+                mediaUrl || undefined, 
+                type // 👈 Pass the type here
             );
             externalId = result.postId;
-        } 
+        }
+        
         else if (platformEntry.platform === 'youtube') {
             if (!mediaUrl) throw new Error('Video file is required for YouTube');
             const title = (post.contentMetadata as any)?.title || 'New Video';
@@ -106,7 +145,7 @@ export class PostingProcessor {
             );
             externalId = result.videoId ?? 'unknown_id';
         }
-
+        
         // ✅ Success Update
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },

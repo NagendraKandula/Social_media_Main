@@ -3,7 +3,7 @@ export interface ContentMetadata {
   hashtags?: string[];
   mentions?: {
     username: string;
-    platform: 'instagram'  | 'facebook' | 'linkedin' | 'threads' | 'youtube';
+    platform: 'instagram'  | 'facebook' | 'linkedin' | 'threads' | 'youtube' | 'twitter';
     id?: string;
   }[];
   emojis?: string[];
