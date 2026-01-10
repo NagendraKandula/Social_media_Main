@@ -15,13 +15,14 @@ export class PostingController {
   @Get('presigned-url')
   @UseGuards(JwtAuthGuard)
   async getPresignedUrl(@Request() req, @Query('fileName') fileName: string, @Query('contentType') contentType: string) {
-    return this.storageService.getPresignedUrl(fileName, contentType, req.user.userId);
+    return this.storageService.getPresignedUrl(fileName, contentType, req.user.id);
+    //console.log("usere_id", req.user.userId);
   }
 
   // 2. Create the Post
   @Post('create')
   @UseGuards(JwtAuthGuard)
   async create(@Request() req, @Body() createPostDto: CreatePostDto) {
-    return this.postingService.createPost(req.user.userId, createPostDto);
+    return this.postingService.createPost(req.user.id, createPostDto);
   }
 }
