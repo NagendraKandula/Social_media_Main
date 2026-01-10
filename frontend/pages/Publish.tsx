@@ -99,7 +99,8 @@ export default function Publish() {
               title: platformState.youtubeTitle,
               visibility: platformState.youtubeVisibility,
               postType: platformState.youtubeType 
-            }
+            },
+            twitter: {}
           }
         }
       };

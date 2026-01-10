@@ -6,18 +6,14 @@ import {
   Query,
   Req,
   Res,
-  UseInterceptors,
-  UploadedFile,
   InternalServerErrorException,
   BadRequestException,
   UnauthorizedException
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { TwitterService } from './twitter.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express'; 
-import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
 @Controller('twitter')
 export class TwitterController {
@@ -65,7 +61,6 @@ export class TwitterController {
     if (!storedCodeVerifier) throw new BadRequestException('Missing code verifier cookie');
 
     try {
-      // 1. Extract User ID
       let userId = 1; 
       try {
         const decoded = JSON.parse(decodeURIComponent(state));
@@ -74,7 +69,6 @@ export class TwitterController {
         console.warn('Could not decode state, defaulting user ID');
       }
 
-      // 2. Exchange Code for Tokens using the UPDATED Service method
       const tokens = await this.twitterService.exchangeCodeForTokens(
         code,
         state,
@@ -82,13 +76,11 @@ export class TwitterController {
         storedCodeVerifier,
       );
 
-      // 3. Fetch Real Twitter ID
       const twitterUser = await this.twitterService.getTwitterUser(tokens.access_token);
       const realProviderId = twitterUser.id;
 
       console.log(`✅ Twitter Connected. App User: ${userId}, Twitter ID: ${realProviderId}`);
 
-      // 4. Save/Update in Database
       await this.prisma.socialAccount.upsert({
         where: {
           provider_providerId: {
@@ -123,20 +115,19 @@ export class TwitterController {
       
       const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
       
-      // Better error handling for the frontend
       if (error.message && error.message.includes('Rate Limit')) {
          return res.redirect(`${frontendUrl}/ActivePlatforms?error=twitter_rate_limit`);
       }
       return res.redirect(`${frontendUrl}/ActivePlatforms?error=twitter_connection_failed`);
     }
   }
+
   @Post('post-media')
-  @UseInterceptors(FileInterceptor('file'))
   async postMedia(
-    @Body() body: { text: string; userId?: string },
-    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { text: string; userId?: string; mediaPath?: string },
     @Req() req: any, 
   ) {
+    // ✅ Updated to accept mediaPath from body instead of file upload
     if (!body.text) throw new BadRequestException('Tweet text is required');
 
     const userId = req.user?.id || parseInt(body.userId || '1'); 
@@ -151,7 +142,7 @@ export class TwitterController {
 
     return this.twitterService.postTweetWithUserToken(
       body.text,
-      file,
+      body.mediaPath, // Pass the GCS path (e.g., 'uploads/1/123-image.jpg')
       account.accessToken,
     );
   }

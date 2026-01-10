@@ -145,7 +145,19 @@ export class PostingProcessor {
             );
             externalId = result.videoId ?? 'unknown_id';
         }
-        
+        else if (platformEntry.platform === 'twitter') {
+            const account = await this.getAccount(post.userId, 'twitter');
+            this.logger.log(`🐦 Posting to Twitter...`);
+
+            // ✅ Pass storagePath (not the signed URL) because the updated 
+            // TwitterService handles the GCS download/signing internally.
+            const result = await this.twitterService.postTweetWithUserToken(
+                contentText,
+                post.media?.storagePath, 
+                account.accessToken
+            );
+            externalId = result.tweetId;
+        }
         // ✅ Success Update
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },

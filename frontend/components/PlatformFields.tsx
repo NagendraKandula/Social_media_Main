@@ -90,7 +90,20 @@ export default function PlatformFields({
         </div>
       )}
 
-
+{/* 🐦 TWITTER (New Section) */}
+      {selectedChannels.has("twitter") && (
+        <div className={styles.platformCard}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0 }}>Twitter Settings</h4>
+          </div>
+          <p style={{ fontSize: '14px', color: '#555', margin: 0 }}>
+            Post will be published as a <strong>Standard Tweet</strong>.
+          </p>
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
+             Supported media: Images (JPG, PNG, GIF) and Video (MP4).
+          </p>
+        </div>
+      )}
 
       {/* ▶️ YOUTUBE */}
       {selectedChannels.has("youtube") && (
