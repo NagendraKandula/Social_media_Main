@@ -21,7 +21,6 @@ import { TwitterModule } from '../social_media_platforms/twitter/twitter.module'
 import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.module';
 import { ThreadsStrategy } from './strategies/threads.strategy';
 import { LinkedInStrategy } from './strategies/linkedin.strategy';
-
 //import { TwitterStrategy } from './strategies/twitter.strategy';
 @Module({
   imports: [
