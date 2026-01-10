@@ -4,22 +4,23 @@ import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
 import DynamicPreview from '../components/DynamicPreview';
 import AIAssistant from '../components/AIAssistant';
-// ✅ Import the new hook (Make sure you created this file in frontend/hooks/)
 import { usePostCreation } from '../hooks/usePostCreation';
+
+// ✅ 1. Define the formats
+type PostFormat = 'VIDEO' | 'REEL'; 
 
 export default function Publish() {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  // Use Set for selection, but convert to Array for API
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
+  
+  // ✅ 2. New State for Youtube Format
+  const [postFormat, setPostFormat] = useState<PostFormat>('VIDEO');
 
-  // ✅ Use the Hook for all backend interactions
   const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
 
-  // ✅ THE NEW PUBLISH LOGIC
   const handlePublish = async () => {
-    // 1. Validation
     if (selectedChannels.size === 0) {
       alert("Please select at least one channel.");
       return;
@@ -29,67 +30,57 @@ export default function Publish() {
       return;
     }
 
+    // 🛡️ Validation: YouTube Shorts must be < 60s (You can add check here if you want)
+    // if (postFormat === 'REEL' && files[0].size > 50 * 1024 * 1024) { ... }
+
     try {
       let mediaData = { publicUrl: "", storagePath: "" };
 
-      // 2. Upload Media (Direct-to-Cloud)
+      // 1. Upload Media (Direct-to-Cloud)
       if (files.length > 0) {
-        // We handle the first file for now. 
-        // If you support multi-image/carousel later, you'd map over files here.
-        const fileToUpload = files[0];
-        mediaData = await uploadMedia(fileToUpload);
+        mediaData = await uploadMedia(files[0]);
       }
 
-      // 3. Construct Payload (Matches Backend DTO)
+      // ✅ 3. Determine the correct backend type
+      // If user selected "YouTube Short" -> Send 'REEL'
+      // If user selected "Regular Video" -> Send 'VIDEO'
+      let finalMediaType = 'IMAGE';
+      if (files.length > 0) {
+        const fileType = files[0].type;
+        if (fileType.startsWith('video')) {
+            finalMediaType = postFormat === 'REEL' ? 'REEL' : 'VIDEO';
+        }
+      }
+
+      // 4. Construct Payload
       const payload = {
         content: content,
-        
-        // Media Info (from Google Cloud)
         mediaUrl: mediaData.publicUrl || "",      
         storagePath: mediaData.storagePath || "", 
         mimeType: files[0]?.type || "",
-        mediaType: files[0]?.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+        
+        // ✅ Send the determined type
+        mediaType: finalMediaType, 
 
-        // Platforms (Convert Set -> Array)
         platforms: Array.from(selectedChannels),
-        
-        // Scheduling (null = Post Now)
         scheduledAt: null, 
-        
-        // Rich Metadata (Future-proofing)
         contentMetadata: {
+          title: content.substring(0, 50), // YouTube requires a title
           text: content,
-          platformOverrides: {
-             // Example: You could add specific text for LinkedIn here if your UI supported it
-          }
         }
       };
 
-      // 4. Send to Backend (Single API call)
       await createPost(payload);
-      
       alert("Post Published Successfully! 🚀");
       
-      // 5. Reset Form
       setContent('');
       setFiles([]);
       setSelectedChannels(new Set());
 
     } catch (err: any) {
       console.error("Publish Error:", err);
-      const msg = err.response?.data?.message || err.message || "Failed to publish.";
-      alert(`Error: ${msg}`);
+      alert(`Error: ${err.message || "Failed to publish"}`);
     }
-  };
-
-  const handleSaveDraft = () => {
-    // Placeholder for draft logic
-    alert("Draft saved locally! (Backend implementation pending)");
-  };
-
-  const handleSchedule = () => {
-    // Placeholder - would open a date picker and pass date to createPost
-    alert("Scheduler UI coming soon! Backend is ready for it.");
   };
 
   return (
@@ -99,11 +90,29 @@ export default function Publish() {
       </div>
 
       <div className={styles.editorPreviewContainer}>
-        {/* AI Assistant Toggle */}
         {aiAssistantEnabled && <AIAssistant />}
 
-        {/* LEFT PANEL: Editor */}
         <div className={styles.leftPanel}>
+          
+          {/* ✅ 4. THE NEW TOGGLE UI */}
+          <div className={styles.formatSelector}>
+            <h3>Post Type</h3>
+            <div className={styles.toggleContainer}>
+              <button 
+                className={`${styles.toggleBtn} ${postFormat === 'VIDEO' ? styles.active : ''}`}
+                onClick={() => setPostFormat('VIDEO')}
+              >
+                📺 Regular Video
+              </button>
+              <button 
+                className={`${styles.toggleBtn} ${postFormat === 'REEL' ? styles.active : ''}`}
+                onClick={() => setPostFormat('REEL')}
+              >
+                📱 YouTube Short / Reel
+              </button>
+            </div>
+          </div>
+
           <ChannelSelector
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
@@ -114,40 +123,19 @@ export default function Publish() {
             onContentChange={setContent}
             files={files}
             onFilesChange={setFiles}
-            
-            // Connect actions
             onPublish={handlePublish}
-            onSaveDraft={handleSaveDraft}
-            onSchedule={handleSchedule}
-            
-            // AI Props
+            onSaveDraft={() => {}}
+            onSchedule={() => {}}
             aiAssistantEnabled={aiAssistantEnabled}
             setAiAssistantEnabled={setAiAssistantEnabled}
           />
 
-          {/* Status Indicators */}
-          {uploading && (
-            <div className={styles.statusMessage} style={{ color: '#0070f3' }}>
-              ☁️ Uploading media to cloud...
-            </div>
-          )}
-          {publishing && (
-            <div className={styles.statusMessage} style={{ color: '#0070f3' }}>
-              🚀 Sending to platforms...
-            </div>
-          )}
+          {uploading && <p style={{ color: '#0070f3' }}>☁️ Uploading...</p>}
+          {publishing && <p style={{ color: '#0070f3' }}>🚀 Publishing...</p>}
         </div>
 
-        {/* RIGHT PANEL: Preview */}
         <div className={styles.previewWrapper}>
-          <DynamicPreview
-            selectedPlatforms={Array.from(selectedChannels)}
-            content={content}
-            mediaFiles={files}
-            onPublish={handlePublish}
-            onSaveDraft={handleSaveDraft}
-            onSchedule={handleSchedule}
-          />
+         
         </div>
       </div>
     </div>

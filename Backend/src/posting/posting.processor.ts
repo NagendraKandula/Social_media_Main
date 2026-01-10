@@ -2,12 +2,9 @@ import { Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-
-// ✅ Import Services
 import { FacebookService } from '../social_media_platforms/facebook/facebook.service';
 import { InstagramService } from '../social_media_platforms/instagram/instagram.service';
 import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.service';
-import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
 import { YoutubeService } from '../social_media_platforms/youtube/youtube.service';
 import { ThreadsService } from '../social_media_platforms/threads/threads.service';
 
@@ -20,7 +17,7 @@ export class PostingProcessor {
     private readonly facebookService: FacebookService,
     private readonly instagramService: InstagramService,
     private readonly linkedinService: LinkedinService,
-    private readonly twitterService: TwitterService,
+    //private readonly twitterService: TwitterService,
     private readonly youtubeService: YoutubeService,
     private readonly threadsService: ThreadsService,
   ) {}

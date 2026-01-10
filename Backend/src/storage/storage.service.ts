@@ -6,7 +6,7 @@ import { ConfigService } from '@nestjs/config';
 export class StorageService {
   private storage: Storage;
   private bucket: string;
-
+ 
   constructor(private config: ConfigService) {
     this.storage = new Storage({
       credentials: JSON.parse(this.config.get('GCP_JSON_KEY')!), // Ensure this env var exists

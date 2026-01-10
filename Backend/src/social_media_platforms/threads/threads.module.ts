@@ -10,5 +10,6 @@ import { CloudinaryModule } from '../../cloudinary/cloudinary.module'; // ✅ Im
   imports: [HttpModule, ConfigModule, CloudinaryModule], // ✅ Add to imports
   controllers: [ThreadsController],
   providers: [ThreadsService, PrismaService],
+  exports: [ThreadsService],
 })
 export class ThreadsModule {}
