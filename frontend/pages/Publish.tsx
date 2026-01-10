@@ -1,13 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '../styles/Publish.module.css';
 import ChannelSelector, { Channel } from '../components/ChannelSelector';
 import ContentEditor from '../components/ContentEditor';
-import DynamicPreview from '../components/DynamicPreview';
 import AIAssistant from '../components/AIAssistant';
 import { usePostCreation } from '../hooks/usePostCreation';
+import apiClient from '../lib/axios'; // ✅ Import API Client for fetching pages
 
-// ✅ 1. Define the formats
-type PostFormat = 'VIDEO' | 'REEL'; 
+// ✅ 1. Define Expanded Post Types to match Backend Logic
+type PostType = 'POST' | 'REEL' | 'STORY';
+
+interface FacebookPage {
+  id: string;
+  name: string;
+  pictureUrl?: string;
+}
 
 export default function Publish() {
   const [content, setContent] = useState("");
@@ -15,10 +21,31 @@ export default function Publish() {
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
   const [aiAssistantEnabled, setAiAssistantEnabled] = useState(false);
   
-  // ✅ 2. New State for Youtube Format
-  const [postFormat, setPostFormat] = useState<PostFormat>('VIDEO');
+  // ✅ 2. New State for Post Type & Facebook Page
+  const [postType, setPostType] = useState<PostType>('POST');
+  const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
+  const [selectedPageId, setSelectedPageId] = useState<string>("");
 
   const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
+
+  // ✅ 3. Fetch Facebook Pages when 'facebook' is selected
+  useEffect(() => {
+    if (selectedChannels.has('facebook')) {
+      fetchFacebookPages();
+    }
+  }, [selectedChannels]);
+
+  const fetchFacebookPages = async () => {
+    try {
+      const { data } = await apiClient.get('/facebook/pages');
+      setFacebookPages(data);
+      if (data.length > 0 && !selectedPageId) {
+        setSelectedPageId(data[0].id); // Default to first page
+      }
+    } catch (error) {
+      console.error("Failed to fetch Facebook pages", error);
+    }
+  };
 
   const handlePublish = async () => {
     if (selectedChannels.size === 0) {
@@ -30,8 +57,17 @@ export default function Publish() {
       return;
     }
 
-    // 🛡️ Validation: YouTube Shorts must be < 60s (You can add check here if you want)
-    // if (postFormat === 'REEL' && files[0].size > 50 * 1024 * 1024) { ... }
+    // 🛡️ Validation: Facebook requires a Page ID
+    if (selectedChannels.has('facebook') && !selectedPageId) {
+      alert("Please select a Facebook Page.");
+      return;
+    }
+
+    // 🛡️ Validation: Reels require Video
+    if (postType === 'REEL' && files.length > 0 && !files[0].type.startsWith('video')) {
+      alert("Reels/Shorts require a video file.");
+      return;
+    }
 
     try {
       let mediaData = { publicUrl: "", storagePath: "" };
@@ -41,18 +77,24 @@ export default function Publish() {
         mediaData = await uploadMedia(files[0]);
       }
 
-      // ✅ 3. Determine the correct backend type
-      // If user selected "YouTube Short" -> Send 'REEL'
-      // If user selected "Regular Video" -> Send 'VIDEO'
-      let finalMediaType = 'IMAGE';
+      // ✅ 4. Determine the correct backend MediaType
+      // Backend expects: 'IMAGE' | 'VIDEO' | 'REEL' | 'STORY'
+      let finalMediaType = 'IMAGE'; 
+
       if (files.length > 0) {
-        const fileType = files[0].type;
-        if (fileType.startsWith('video')) {
-            finalMediaType = postFormat === 'REEL' ? 'REEL' : 'VIDEO';
+        const isVideo = files[0].type.startsWith('video');
+
+        if (postType === 'STORY') {
+          finalMediaType = 'STORY';
+        } else if (postType === 'REEL') {
+          finalMediaType = 'REEL'; // Implies Video
+        } else {
+          // 'POST' (Feed)
+          finalMediaType = isVideo ? 'VIDEO' : 'IMAGE';
         }
       }
 
-      // 4. Construct Payload
+      // 5. Construct Payload
       const payload = {
         content: content,
         mediaUrl: mediaData.publicUrl || "",      
@@ -64,9 +106,16 @@ export default function Publish() {
 
         platforms: Array.from(selectedChannels),
         scheduledAt: null, 
+        
+        // ✅ 6. Send Metadata with Facebook Page ID
         contentMetadata: {
           title: content.substring(0, 50), // YouTube requires a title
           text: content,
+          platformOverrides: {
+            facebook: {
+              pageId: selectedPageId // Required by Backend Logic
+            }
+          }
         }
       };
 
@@ -94,21 +143,27 @@ export default function Publish() {
 
         <div className={styles.leftPanel}>
           
-          {/* ✅ 4. THE NEW TOGGLE UI */}
+          {/* ✅ 7. Enhanced Post Type Selector */}
           <div className={styles.formatSelector}>
-            <h3>Post Type</h3>
+            <h3>Post Format</h3>
             <div className={styles.toggleContainer}>
               <button 
-                className={`${styles.toggleBtn} ${postFormat === 'VIDEO' ? styles.active : ''}`}
-                onClick={() => setPostFormat('VIDEO')}
+                className={`${styles.toggleBtn} ${postType === 'POST' ? styles.active : ''}`}
+                onClick={() => setPostType('POST')}
               >
-                📺 Regular Video
+                📝 Feed Post
               </button>
               <button 
-                className={`${styles.toggleBtn} ${postFormat === 'REEL' ? styles.active : ''}`}
-                onClick={() => setPostFormat('REEL')}
+                className={`${styles.toggleBtn} ${postType === 'REEL' ? styles.active : ''}`}
+                onClick={() => setPostType('REEL')}
               >
-                📱 YouTube Short / Reel
+                🎬 Reel / Short
+              </button>
+              <button 
+                className={`${styles.toggleBtn} ${postType === 'STORY' ? styles.active : ''}`}
+                onClick={() => setPostType('STORY')}
+              >
+                📖 Story
               </button>
             </div>
           </div>
@@ -117,6 +172,25 @@ export default function Publish() {
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
           />
+
+          {/* ✅ 8. Facebook Page Selector (Only visible if Facebook is selected) */}
+          {selectedChannels.has('facebook') && (
+            <div className={styles.pageSelector}>
+              <label>Select Facebook Page:</label>
+              <select 
+                value={selectedPageId} 
+                onChange={(e) => setSelectedPageId(e.target.value)}
+                className={styles.dropdown}
+              >
+                {facebookPages.length === 0 && <option value="">Loading pages...</option>}
+                {facebookPages.map(page => (
+                  <option key={page.id} value={page.id}>
+                    {page.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           <ContentEditor
             content={content}
@@ -130,12 +204,12 @@ export default function Publish() {
             setAiAssistantEnabled={setAiAssistantEnabled}
           />
 
-          {uploading && <p style={{ color: '#0070f3' }}>☁️ Uploading...</p>}
-          {publishing && <p style={{ color: '#0070f3' }}>🚀 Publishing...</p>}
+          {uploading && <p style={{ color: '#0070f3' }}>☁️ Uploading media...</p>}
+          {publishing && <p style={{ color: '#0070f3' }}>🚀 Publishing post...</p>}
         </div>
 
         <div className={styles.previewWrapper}>
-         
+         {/* Previews can be added here */}
         </div>
       </div>
     </div>
