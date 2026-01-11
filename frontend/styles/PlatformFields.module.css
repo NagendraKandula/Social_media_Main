@@ -1,82 +1,91 @@
-/* PlatformFields.module.css */
+/* frontend/styles/PlatformFields.module.css */
 
-.platformFields {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  animation: fadeIn 0.3s ease-in-out;
 }
 
-.section {
-  margin-bottom: 24px;
-}
-
-.section:last-child {
-  margin-bottom: 0;
-}
-
-.section h4 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-/* Form controls */
-.platformFields label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  margin: 12px 0 6px;
-}
-
-.platformFields input,
-.platformFields select {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 15px;
-  border: 1px solid #d1d5db;
+.platformCard {
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 8px;
-  background: white;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
 }
 
-.platformFields input:focus,
-.platformFields select:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.platformCard h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: #495057;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.platformFields input::placeholder {
-  color: #9ca3af;
-}
-
-/* Validation errors */
-.validationError {
-  color: #ef4444;
-  font-size: 13px;
-  margin-top: 4px;
+/* Form Elements */
+.platformCard label {
   display: block;
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0.3rem;
+  font-weight: 500;
 }
 
-/* Optional: Add subtle divider between sections */
-.section:not(:last-child) {
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #f3f4f6;
+.platformCard select,
+.platformCard input {
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: white;
+  transition: border-color 0.2s;
 }
 
-/* Responsive */
-@media (max-width: 640px) {
-  .platformFields {
-    padding: 16px;
-  }
+.platformCard select:focus,
+.platformCard input:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+}
 
-  .section h4 {
-    font-size: 15px;
-  }
+/* Toggle Group (Buttons side-by-side) */
+.toggleGroup {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.toggleGroup button {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #dee2e6;
+  background-color: white;
+  color: #495057;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleGroup button:hover {
+  background-color: #f1f3f5;
+}
+
+.toggleGroup button.active {
+  background-color: #e7f5ff;
+  color: #0070f3;
+  border-color: #0070f3;
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -1,101 +1,135 @@
-// components/PlatformFields.tsx
+// frontend/components/PlatformFields.tsx
 import React from "react";
 import styles from "../styles/PlatformFields.module.css";
 import { Channel } from "./ChannelSelector";
-import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 
-type ValidationMap = Record<string, string[]>;
+export interface PlatformState {
+  facebookPageId?: string;
+  facebookPostType?: "feed" | "reel" | "story";
+  instagramPostType?: "post" | "reel" | "story";
+  youtubeTitle?: string;
+  youtubeVisibility?: "public" | "unlisted" | "private";
+  youtubeType?: "video" | "shorts";
+}
 
-export interface PlatformFieldsProps {
-  selectedChannels: Channel[];
-  platformState: Record<string, any>;
-  setPlatformState: React.Dispatch<React.SetStateAction<Record<string, any>>>;
-  effectiveRules: EffectiveEditorRules;
-
-  // ✅ ADD THIS
-  validation: ValidationMap;
+interface Props {
+  selectedChannels: Set<Channel>;
+  platformState: PlatformState;
+  setPlatformState: React.Dispatch<React.SetStateAction<PlatformState>>;
+  facebookPages: { id: string; name: string }[];
 }
 
 export default function PlatformFields({
   selectedChannels,
   platformState,
   setPlatformState,
-  effectiveRules,
-  validation,
-}: PlatformFieldsProps) {
+  facebookPages,
+}: Props) {
 
-
-  const updateField = (key: string, value: any) => {
-    setPlatformState((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
+  const update = (key: keyof PlatformState, value: any) => {
+    setPlatformState((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
-    <div className={styles.platformFields}>
-      {/* ================= YOUTUBE ================= */}
-      {selectedChannels.includes("youtube") && (
-        <div className={styles.section}>
-          <h4>YouTube Settings</h4>
-
-          <label>Title</label>
-          <input
-            type="text"
-            value={platformState.youtubeTitle || ""}
-            onChange={(e) => updateField("youtubeTitle", e.target.value)}
-            placeholder="YouTube video title"
-          />
-
-          <label>Visibility</label>
-          <select
-            value={platformState.youtubeVisibility || "public"}
-            onChange={(e) =>
-              updateField("youtubeVisibility", e.target.value)
-            }
-          >
-            <option value="public">Public</option>
-            <option value="unlisted">Unlisted</option>
-            <option value="private">Private</option>
-          </select>
-        </div>
-      )}
-
-      {/* ================= FACEBOOK ================= */}
-      {selectedChannels.includes("facebook") && (
-        <div className={styles.section}>
+    <div className={styles.container}>
+      {/* 📘 FACEBOOK */}
+      {selectedChannels.has("facebook") && (
+        <div className={styles.platformCard}>
           <h4>Facebook Settings</h4>
-
-          <label>Post Type</label>
-          <select
-            value={platformState.facebookType || "feed"}
-            onChange={(e) =>
-              updateField("facebookType", e.target.value)
-            }
-          >
-            <option value="feed">Feed</option>
-            <option value="story">Story</option>
-            <option value="reel">Reel</option>
-          </select>
+          <div style={{ marginBottom: 10 }}>
+            <label>Select Page:</label>
+            <select
+              value={platformState.facebookPageId || ""}
+              onChange={(e) => update("facebookPageId", e.target.value)}
+              style={{ width: '100%', padding: 8, marginTop: 5 }}
+            >
+              <option value="">-- Choose Page --</option>
+              {facebookPages.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label>Post Type: </label>
+            <select
+              value={platformState.facebookPostType || "feed"}
+              onChange={(e) => update("facebookPostType", e.target.value)}
+              style={{ padding: 5, marginLeft: 10 }}
+            >
+              <option value="feed">Feed (Regular)</option>
+              <option value="reel">Reel (Short Video)</option>
+              <option value="story">Story (24h)</option>
+            </select>
+          </div>
+        </div>
+      )}
+        {/* 📸 INSTAGRAM (New Section) */}
+      {selectedChannels.has("instagram") && (
+        <div className={styles.platformCard}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            {/* You can add an icon here if you like */}
+            <h4 style={{ margin: 0 }}>Instagram Settings</h4>
+          </div>
+          
+          <div>
+            <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>Post Type:</label>
+            <select
+              value={platformState.instagramPostType || "post"}
+              onChange={(e) => update("instagramPostType", e.target.value)}
+              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }}
+            >
+              <option value="post">Feed Post (Image/Video)</option>
+              <option value="reel">Reel (Video)</option>
+              <option value="story">Story (24h)</option>
+            </select>
+            <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+              {platformState.instagramPostType === 'story' && "Stories expire after 24 hours."}
+              {platformState.instagramPostType === 'reel' && "Reels are shared to the Reels tab and Feed."}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* ================= INSTAGRAM ================= */}
-      {selectedChannels.includes("instagram") && (
-        <div className={styles.section}>
-          <h4>Instagram Settings</h4>
+{/* 🐦 TWITTER (New Section) */}
+      {selectedChannels.has("twitter") && (
+        <div className={styles.platformCard}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <h4 style={{ margin: 0 }}>Twitter Settings</h4>
+          </div>
+          <p style={{ fontSize: '14px', color: '#555', margin: 0 }}>
+            Post will be published as a <strong>Standard Tweet</strong>.
+          </p>
+          <p style={{ fontSize: '12px', color: '#888', marginTop: '5px' }}>
+             Supported media: Images (JPG, PNG, GIF) and Video (MP4).
+          </p>
+        </div>
+      )}
 
-          <label>Media Type</label>
-          <select
-            value={platformState.instagramType || "post"}
-            onChange={(e) =>
-              updateField("instagramType", e.target.value)
-            }
-          >
-            <option value="post">Post</option>
-            <option value="reel">Reel</option>
-            <option value="story">Story</option>
-          </select>
+      {/* ▶️ YOUTUBE */}
+      {selectedChannels.has("youtube") && (
+        <div className={styles.platformCard}>
+          <h4>YouTube Settings</h4>
+          <div style={{ marginBottom: 10 }}>
+             <label>Video Title <span style={{color:'red'}}>*</span></label>
+             <input 
+               type="text" 
+               placeholder="Enter video title..."
+               value={platformState.youtubeTitle || ""}
+               onChange={(e) => update("youtubeTitle", e.target.value)}
+               style={{ width: '100%', padding: 8, marginTop: 5 }}
+             />
+          </div>
+          <div>
+            <label>Format: </label>
+            <select
+              value={platformState.youtubeType || "video"}
+              onChange={(e) => update("youtubeType", e.target.value)}
+              style={{ padding: 5, marginLeft: 10 }}
+            >
+              <option value="video">Regular Video</option>
+              <option value="shorts">YouTube Short</option>
+            </select>
+          </div>
         </div>
       )}
     </div>

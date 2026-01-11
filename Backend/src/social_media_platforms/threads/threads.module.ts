@@ -4,11 +4,12 @@ import { ConfigModule } from '@nestjs/config';
 import { ThreadsController } from './threads.controller';
 import { ThreadsService } from './threads.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CloudinaryModule } from '../../cloudinary/cloudinary.module'; // ✅ Import CloudinaryModule
+ // ✅ Import CloudinaryModule
 
 @Module({
-  imports: [HttpModule, ConfigModule, CloudinaryModule], // ✅ Add to imports
+  imports: [HttpModule, ConfigModule], // ✅ Add to imports
   controllers: [ThreadsController],
   providers: [ThreadsService, PrismaService],
+  exports: [ThreadsService],
 })
 export class ThreadsModule {}

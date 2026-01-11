@@ -21,7 +21,7 @@ import { TwitterModule } from '../social_media_platforms/twitter/twitter.module'
 import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.module';
 import { ThreadsStrategy } from './strategies/threads.strategy';
 import { LinkedInStrategy } from './strategies/linkedin.strategy';
-import { TwitterStrategy } from './strategies/twitter.strategy';
+//import { TwitterStrategy } from './strategies/twitter.strategy';
 @Module({
   imports: [
     PrismaModule,
@@ -39,7 +39,7 @@ import { TwitterStrategy } from './strategies/twitter.strategy';
   controllers: [AuthController,SocialAuthController],
   providers: [AuthService, JwtStrategy,
      GoogleStrategy,YoutubeStrategy,
-     FacebookStrategy,JwtRefreshTokenStrategy,ThreadsStrategy,LinkedInStrategy,TwitterStrategy,
+     FacebookStrategy,JwtRefreshTokenStrategy,ThreadsStrategy,LinkedInStrategy,
     TokenService,SocialAuthService,InstagramStrategy,LogoutService], // <-- Add GoogleStrategy
   exports: [AuthService, JwtModule, TokenService, SocialAuthService,LogoutService], 
 })

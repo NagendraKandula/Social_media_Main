@@ -1,85 +1,121 @@
-.publishPage {
-  display: grid;
-  grid-template-columns: 260px 1fr 320px;
-  gap: 20px;
-  padding: 20px;
-  min-height: 100vh;
+/* frontend/styles/Publish.module.css */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
 }
 
-/* PANELS */
-.leftPanel,
-.centerPanel,
-.rightPanel {
-  background: #fff0ec;
-  border-radius: 10px;
-  padding: 16px;
+/* Header Section */
+.headerSection {
+  margin-bottom: 2rem;
+  text-align: center;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: #111827;
+  margin: 0;
+}
+
+/* Main Layout */
+.editorPreviewContainer {
+  display: flex;
+  gap: 28px;
+  margin-top: 1.5rem;
+  align-items: flex-start;
+}
+
+.leftPanel {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  border: 1px solid #e4ecf8;
+  gap: 24px;
+  min-width: 0; /* Prevents overflow issues */
 }
 
-/* CENTER HEADER */
-.header {
+/* ✅ NEW: Action Buttons (Publish Now) */
+.actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
+  justify-content: flex-end; /* Pushes button to the right */
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
 }
 
-.header h2 {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.headerActions {
-  display: flex;
-  gap: 10px;
-}
-
-.headerActions button {
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background: white;
-  cursor: pointer;
-}
-
-.headerActions button:last-child {
-  background: #ff5e45;
+.publishBtn {
+  background-color: #0070f3; /* Brand Blue */
   color: white;
-}
-
-/* PLACEHOLDER */
-.placeholder {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  color: #6b7280;
-  flex: 1;
-}
-
-/* =============================
-   MULTI-PUBLISH CONTEXT
-   ============================= */
-
-.publishContext {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-.contextTitle {
-  font-size: 14px;
+  border: none;
+  padding: 0.8rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
   font-weight: 600;
-  color: #111827;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 112, 243, 0.2);
 }
 
-.contextChannels {
-  margin-top: 4px;
-  font-size: 13.5px;
-  color: #6b7280;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.publishBtn:hover {
+  background-color: #0051a8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(0, 112, 243, 0.3);
+}
+
+.publishBtn:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Right Panel (Optional Preview) */
+.previewWrapper {
+  width: 380px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+  .editorPreviewContainer {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .leftPanel {
+    width: 100%;
+    max-width: 660px;
+  }
+
+  .previewWrapper {
+    width: 100%;
+    max-width: 380px;
+    margin: 0 auto;
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .title {
+    font-size: 1.75rem;
+  }
+  
+  .actions {
+    flex-direction: column;
+  }
+  
+  .publishBtn {
+    width: 100%;
+  }
 }

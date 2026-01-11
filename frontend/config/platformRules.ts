@@ -1,160 +1,67 @@
-/* =========================================================
-   PLATFORM RULES CONFIG
-   Single source of truth for platform capabilities
-   ========================================================= */
+// frontend/config/platformRules.ts
 
-/* ---------- Platform Identifiers ---------- */
 export type Platform =
-  | "twitter"
-  | "threads"
-  | "linkedin"
   | "facebook"
   | "instagram"
-  | "instagram_business"
-  | "youtube";
+  | "linkedin"
+  | "twitter"
+  | "youtube"
+  | "threads"
+  | "pinterest"
+  | "instagram_business";
 
-/* ---------- Media Input & Types ---------- */
-export type MediaInputType = "file" | "url" | "none";
-
-export type MediaType =
-  | "IMAGE"
-  | "VIDEO"
-  | "REEL"
-  | "STORY"
-  | "SHORT";
-
-/* ---------- Rule Shape ---------- */
 export interface PlatformRule {
-  /* Text / Caption */
   text?: {
-    required: boolean;
+    required?: boolean;
     maxLength?: number;
-    disableLinks?: boolean; // ✅ NEW
   };
-
-  /* Media rules */
   media?: {
-    required: boolean;
-    inputType: MediaInputType;
-    mediaTypes?: MediaType[];
-    requiresMediaType?: boolean;
+    required?: boolean;
+    inputType?: "file" | "url";
+    mediaTypes?: string[];
   };
-
-  /* Extra fields */
-  title?: boolean;
-  description?: boolean;
-  requiresPageSelection?: boolean;
-
-  /* UX / API notes */
+  title?: boolean;            // ✅ YouTube needs this
+  description?: boolean;      // ✅ ADDED THIS (Fixes your error)
+  requiresPageSelection?: boolean; 
   notes?: string[];
 }
 
-/* =========================================================
-   PLATFORM DEFINITIONS
-   ========================================================= */
-
 export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
-  /* ---------- Twitter / X ---------- */
-  twitter: {
-    text: {
-      required: true,
-      maxLength: 280,
-    },
-    media: {
-      required: false,
-      inputType: "file",
-      mediaTypes: ["IMAGE", "VIDEO"],
-    },
-  },
-
-  /* ---------- Threads ---------- */
-  threads: {
-    text: {
-      required: false,
-      maxLength: 500,
-    },
-    media: {
-      required: false,
-      inputType: "file",
-      mediaTypes: ["IMAGE", "VIDEO"],
-    },
-  },
-
-  /* ---------- LinkedIn ---------- */
-  linkedin: {
-    text: {
-      required: true,
-      maxLength: 3000,
-    },
-    media: {
-      required: false,
-      inputType: "file",
-      mediaTypes: ["IMAGE", "VIDEO"],
-    },
-  },
-
-  /* ---------- Facebook Pages ---------- */
   facebook: {
-    text: {
-      required: false,
-    },
-    media: {
-      required: true,
-      inputType: "file",
-      mediaTypes: ["IMAGE", "VIDEO", "STORY"],
-      requiresMediaType: true,
-    },
+    text: { maxLength: 63206 },
+    media: { inputType: "file", mediaTypes: ["image/*", "video/*"] },
     requiresPageSelection: true,
   },
-
-  /* ---------- Instagram (via Facebook) ---------- */
   instagram: {
-  text: {
-    required: false,
-    maxLength: 2200,
-    disableLinks: true,
+    text: { maxLength: 2200 },
+    media: { required: true, inputType: "file", mediaTypes: ["image/*", "video/*"] },
   },
-  media: {
-    required: true,
-    inputType: "url", // ✅ CORRECT
-    mediaTypes: ["IMAGE", "VIDEO", "REEL", "STORY"],
-    requiresMediaType: true,
-  },
-  notes: [
-    "Media must be a publicly accessible URL.",
-    "Links in captions are not clickable on Instagram.",
-    "Stories do not support captions.",
-  ],
-},
-
-
-  /* ---------- Instagram Business ---------- */
   instagram_business: {
-    text: {
-    required: false,
-    maxLength: 2200,
-    disableLinks: true,
+    text: { maxLength: 2200 },
+    media: { required: true, inputType: "file", mediaTypes: ["image/*", "video/*"] },
   },
-  media: {
-    required: true,
-    inputType: "url", // ✅ CORRECT
-    mediaTypes: ["IMAGE", "VIDEO", "REEL", "STORY"],
-    requiresMediaType: true,
+  linkedin: {
+    text: { maxLength: 3000 },
+    media: { inputType: "file" },
   },
-  notes: [
-    "Media must be a publicly accessible URL.",
-    "Links in captions are not clickable on Instagram.",
-    "Stories do not support captions.",
-  ],
-},
-  /* ---------- YouTube ---------- */
+  twitter: {
+    text: { maxLength: 280 },
+    media: { inputType: "file" },
+  },
   youtube: {
     title: true,
+    description: true, // ✅ Explicitly marking description as supported
+    text: { required: true, maxLength: 5000 }, 
+    media: { required: true, inputType: "file", mediaTypes: ["video/*"] },
+  },
+  threads: {
+    text: { maxLength: 500 },
+    media: { inputType: "file" },
+  },
+  pinterest: {
+    title: true,
     description: true,
-    media: {
-      required: true,
-      inputType: "file",
-      mediaTypes: ["VIDEO", "SHORT"],
-    },
+    text: { maxLength: 500 },
+    media: { required: true, inputType: "file", mediaTypes: ["image/*"] },
   },
 };

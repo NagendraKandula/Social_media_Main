@@ -1,15 +1,8 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import {
-  Bold,
-  Italic,
-  Underline,
-  Link,
-  Hash,
-  AtSign,
-  Smile,
-} from "lucide-react";
+import { Bold, Italic, Underline, Link, Hash, AtSign, Smile, Send, Save, Clock } from "lucide-react";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import styles from "../styles/ContentEditor.module.css";
+// ✅ Import the rules type
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 
 type ValidationMap = Record<string, string[]>;
@@ -20,21 +13,19 @@ export interface ContentEditorProps {
 
   files: File[];
   onFilesChange: (files: File[]) => void;
-
-  mediaUrl?: string; // ✅ ADD
-  onMediaUrlChange?: (url: string) => void; // ✅ ADD
-
+  
+  // ✅ AI Props
   aiAssistantEnabled: boolean;
   setAiAssistantEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  
+  // ✅ Action Handlers (Restored)
+  onPublish: () => void;
+  onSaveDraft: () => void;
+  onSchedule: () => void;
 
+  // ✅ Validation Rules (Restored)
   effectiveRules: EffectiveEditorRules;
   validation: ValidationMap;
-
-  platformContext?: {
-    instagram?: {
-      mediaType: "IMAGE" | "REEL" | "STORIES";
-    };
-  };
 }
 
 
@@ -44,100 +35,45 @@ export default function ContentEditor({
   onContentChange,
   files,
   onFilesChange,
-  mediaUrl,
-  onMediaUrlChange,
   aiAssistantEnabled,
   setAiAssistantEnabled,
+  onPublish,
+  onSaveDraft,
+  onSchedule,
   effectiveRules,
   validation,
-  platformContext,
 }: ContentEditorProps) {
-
-
-  const [isDragging, setIsDragging] = useState(false);
+  
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-
+  const [isDragging, setIsDragging] = useState(false);
+  
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isInstagramStory =
-    platformContext?.instagram?.mediaType === "STORIES";
-
-  /* ---------- File previews ---------- */
-  const filePreviews = useMemo(
-    () =>
-      files.map((file) => ({
-        file,
-        url: URL.createObjectURL(file),
-        isImage: file.type.startsWith("image/"),
-      })),
-    [files]
-  );
-
+  // Sync content updates from parent
   useEffect(() => {
-    return () =>
-      filePreviews.forEach((p) =>
-        URL.revokeObjectURL(p.url)
-      );
-  }, [filePreviews]);
-
-  /* ---------- Rule cleanup ---------- */
-useEffect(() => {
-  if (effectiveRules.media.inputType === "url") {
-    onFilesChange([]);
-  }
-}, [effectiveRules.media.inputType, onFilesChange]);
-
-
-
-  /* ---------- Sync content ---------- */
-  useEffect(() => {
-    if (
-      editorRef.current &&
-      editorRef.current.innerHTML !== content
-    ) {
-      editorRef.current.innerHTML = content;
+    if (editorRef.current && editorRef.current.innerHTML !== content) {
+      if (editorRef.current.innerText !== new DOMParser().parseFromString(content, 'text/html').body.innerText) {
+         editorRef.current.innerHTML = content;
+      }
     }
   }, [content]);
 
-  /* ---------- Helpers ---------- */
+  // Handle manual typing
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    onContentChange(editorRef.current.innerHTML);
+  };
+
+  // Rich Text Commands
   const applyCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value);
-    onContentChange(editorRef.current?.innerHTML || "");
+    handleInput();
   };
 
-  const handleInput = () => {
-    const text = editorRef.current?.innerText || "";
-
-    if (
-      effectiveRules.text.maxLength &&
-      text.length > effectiveRules.text.maxLength
-    ) {
-      return;
-    }
-
-    onContentChange(editorRef.current?.innerHTML || "");
-  };
-
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    editor.focus();
-    document.execCommand(
-      "insertText",
-      false,
-      emojiData.emoji
-    );
-    onContentChange(editor.innerHTML);
-    setShowEmojiPicker(false);
-  };
-
-  const handleFileUpload = (fileList: FileList | null) => {
-    if (!fileList) return;
-    onFilesChange([...files, ...Array.from(fileList)]);
-  };
+  const filePreviews = useMemo(() => files.map(f => ({
+      file: f, url: URL.createObjectURL(f), isImage: f.type.startsWith('image/')
+  })), [files]);
 
   const handleRemoveFile = (index: number) => {
     onFilesChange(files.filter((_, i) => i !== index));
@@ -148,177 +84,85 @@ useEffect(() => {
     <div className={styles.editorCard}>
       {/* Header */}
       <div className={styles.editorHeader}>
-        <span className={styles.editorTitle}>
-          Content
-        </span>
-
+        <span className={styles.editorTitle}>Content</span>
         <label className={styles.aiToggle}>
           <span>AI Assistant</span>
-          <input
-            type="checkbox"
-            checked={aiAssistantEnabled}
-            onChange={() =>
-              setAiAssistantEnabled(!aiAssistantEnabled)
-            }
+          <input 
+            type="checkbox" 
+            checked={aiAssistantEnabled} 
+            onChange={(e) => setAiAssistantEnabled(e.target.checked)} 
           />
-          <span className={styles.toggleSlider} />
         </label>
       </div>
 
       {/* Toolbar (always visible, but smarter) */}
       <div className={styles.toolbar}>
-        <button onClick={() => applyCommand("bold")}>
-          <Bold size={16} />
-        </button>
-        <button onClick={() => applyCommand("italic")}>
-          <Italic size={16} />
-        </button>
-        <button onClick={() => applyCommand("underline")}>
-          <Underline size={16} />
-        </button>
-
-        <button
-          disabled={effectiveRules.text.disableLinks}
-          title={
-            effectiveRules.text.disableLinks
-              ? "Links are not clickable on Instagram"
-              : "Insert link"
-          }
-          onClick={() =>
-            applyCommand(
-              "createLink",
-              prompt("Enter URL") || ""
-            )
-          }
-        >
-          <Link size={16} />
-        </button>
-
-        <button onClick={() => applyCommand("insertText", "#")}>
-          <Hash size={16} />
-        </button>
-        <button onClick={() => applyCommand("insertText", "@")}>
-          <AtSign size={16} />
-        </button>
-        <button
-          onClick={() =>
-            setShowEmojiPicker(!showEmojiPicker)
-          }
-        >
-          <Smile size={16} />
-        </button>
+          <button onClick={() => applyCommand('bold')} title="Bold"><Bold size={16}/></button>
+          <button onClick={() => applyCommand('italic')} title="Italic"><Italic size={16}/></button>
+          <button onClick={() => applyCommand('underline')} title="Underline"><Underline size={16}/></button>
+          <button onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Emoji"><Smile size={16}/></button>
       </div>
-
+      
       {showEmojiPicker && (
         <div className={styles.emojiPopover}>
-          <EmojiPicker onEmojiClick={handleEmojiClick} />
+          <EmojiPicker onEmojiClick={(e) => {
+             document.execCommand('insertText', false, e.emoji);
+             setShowEmojiPicker(false);
+          }} />
         </div>
       )}
 
-      {/* Text editor */}
-      {!isInstagramStory && (
-        <>
-          <div
-            ref={editorRef}
-            className={styles.editor}
-            contentEditable
-            onInput={handleInput}
-            suppressContentEditableWarning
-          />
-          <div className={styles.counter}>
-            {(editorRef.current?.innerText.length || 0)}
-            {effectiveRules.text.maxLength &&
-              ` / ${effectiveRules.text.maxLength}`}
-          </div>
-        </>
-      )}
+      {/* Editor Area */}
+      <div 
+        className={styles.editor} 
+        contentEditable 
+        ref={editorRef}
+        onInput={handleInput} 
+        suppressContentEditableWarning
+      />
 
-      {/* Story info */}
-      {isInstagramStory && (
-        <div className={styles.infoBox}>
-          ℹ️ Instagram Stories do not support captions.
-        </div>
-      )}
-
-      {/* Validation */}
-      {validation.text && (
-        <div className={styles.error}>
-          {validation.text.map((e, i) => (
-            <p key={i}>{e}</p>
-          ))}
-        </div>
-      )}
-
-      {/* Media (always visible) */}
-      <div className={styles.media}>
-        <span className={styles.sectionLabel}>
-          Media
+      {/* Character Counter & Rules */}
+      <div className={styles.footerInfo}>
+        <span style={{ 
+            color: effectiveRules?.text?.maxLength && (editorRef.current?.innerText.length || 0) > effectiveRules.text.maxLength ? 'red' : 'inherit' 
+        }}>
+           {content.replace(/<[^>]*>/g, '').length} 
+           {effectiveRules?.text?.maxLength ? ` / ${effectiveRules.text.maxLength}` : ''} chars
         </span>
+      </div>
 
-        {effectiveRules.media.inputType === "file" && (
-          <>
-            <div className={styles.mediaGrid}>
-              {filePreviews.map((p, i) => (
+      {/* Media Section */}
+      <div className={styles.media}>
+         <div className={styles.mediaGrid}>
+            {filePreviews.map((p, i) => (
                 <div key={i} className={styles.mediaItem}>
-                  {p.isImage ? (
-                    <img src={p.url} />
-                  ) : (
-                    <video src={p.url} controls />
-                  )}
-                  <button
-                    onClick={() => handleRemoveFile(i)}
-                  >
-                    ×
-                  </button>
+                    {p.isImage ? <img src={p.url} alt="preview" /> : <div className={styles.videoPlaceholder}>🎥</div>}
+                    <button onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))}>×</button>
                 </div>
-              ))}
-            </div>
+            ))}
+         </div>
+         <div className={styles.uploadBox} onClick={() => fileInputRef.current?.click()}>
+            <span>+ Add Media</span>
+            <input 
+                type="file" multiple hidden ref={fileInputRef} 
+                onChange={(e) => e.target.files && onFilesChange([...files, ...Array.from(e.target.files)])}
+            />
+         </div>
+      </div>
 
-            <div
-              className={`${styles.uploadBox} ${
-                isDragging ? styles.dragging : ""
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                handleFileUpload(e.dataTransfer.files);
-              }}
-              onClick={() =>
-                fileInputRef.current?.click()
-              }
-            >
-              Upload media
-              <input
-                ref={fileInputRef}
-                type="file"
-                hidden
-                multiple
-                accept="image/*,video/*"
-                onChange={(e) =>
-                  handleFileUpload(e.target.files)
-                }
-              />
-            </div>
-          </>
-        )}
-
-        {effectiveRules.media.inputType === "url" && (
-  <input
-    className={styles.urlInput}
-    type="url"
-    placeholder="Paste public media URL"
-    value={mediaUrl || ""}
-    onChange={(e) =>
-      onMediaUrlChange?.(e.target.value)
-    }
-  />
-)}
-
+      {/* ✅ Action Buttons (Restored) */}
+      <div className={styles.actionButtons}>
+        <button className={styles.draftBtn} onClick={onSaveDraft}>
+          <Save size={16} /> Draft
+        </button>
+        <button className={styles.scheduleBtn} onClick={onSchedule}>
+          <Clock size={16} /> Schedule
+        </button>
+        {/* Note: The main Publish button is now often handled by the parent page, 
+            but we keep this prop if you want the button inside the editor */}
+        <button className={styles.publishBtn} onClick={onPublish}>
+          <Send size={16} /> Publish
+        </button>
       </div>
     </div>
   );

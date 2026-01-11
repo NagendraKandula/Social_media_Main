@@ -1,79 +1,131 @@
-import React, { useState, useEffect } from "react";
-import styles from "../styles/Publish.module.css";
-import ChannelSelector, { Channel } from "../components/ChannelSelector";
-import ContentEditor from "../components/ContentEditor";
-import { resolveEditorRules } from "../utils/resolveEditorRules";
-import apiClient from "../lib/axios";
+import React, { useState, useEffect, useMemo } from 'react';
+import styles from '../styles/Publish.module.css';
+import ChannelSelector, { Channel } from '../components/ChannelSelector';
+import ContentEditor from '../components/ContentEditor';
+import PlatformFields, { PlatformState } from '../components/PlatformFields';
+import { usePostCreation } from '../hooks/usePostCreation';
+import apiClient from '../lib/axios';
+import { resolveEditorRules } from '../utils/resolveEditorRules';
 
-/* ================= TYPES ================= */
-
-type Provider =
-  | "facebook"
-  | "instagram"
-  | "youtube"
-  | "threads"
-  | "twitter"
-  | "linkedin";
-
-interface SocialAccount {
-  name: string;
-  profilePic?: string;
-}
-
-type InstagramMediaType = "IMAGE" | "REEL" | "STORIES";
-type ConnectedAccounts = Partial<Record<Provider, SocialAccount>>;
-
-/* ================= COMPONENT ================= */
+interface FacebookPage { id: string; name: string; }
 
 export default function Publish() {
-  const [mediaUrl, setMediaUrl] = useState("");
-
-  /* MULTI-PUBLISH STATE */
-  const [selectedChannels, setSelectedChannels] =
-    useState<Set<Channel>>(new Set());
-
-  const [connectedAccounts, setConnectedAccounts] =
-    useState<ConnectedAccounts>({});
-
-  /* INSTAGRAM STATE */
-  const [instagramMediaType, setInstagramMediaType] =
-    useState<InstagramMediaType>("IMAGE");
-
-  /* EDITOR STATE (shared) */
-  const [content, setContent] = useState("");
+  const [content, setContent] = useState(""); 
   const [files, setFiles] = useState<File[]>([]);
+  const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
+  
+  // ✅ Scheduling State
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(""); // ISO String
 
-  /* Convert Set → Array */
-  const selectedChannelList = Array.from(selectedChannels);
+  // Unified State for platform options
+  const [platformState, setPlatformState] = useState<PlatformState>({
+    facebookPostType: 'feed',
+    instagramPostType: 'post',
+    youtubeType: 'video',
+    youtubeVisibility: 'public'
+  });
 
-  /* Platform helpers */
-  const isInstagramSelected =
-    selectedChannelList.includes("instagram");
+  const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
+  const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
 
-  /* Resolve rules */
-  const selectedPlatforms = selectedChannelList as any;
-  const effectiveRules = resolveEditorRules(selectedPlatforms);
+  // 1. Calculate Editor Rules
+  const selectedChannelList = useMemo(() => Array.from(selectedChannels), [selectedChannels]);
+  const effectiveRules = useMemo(() => resolveEditorRules(selectedChannelList as any), [selectedChannelList]);
 
-  /* ================= FETCH CONNECTED ACCOUNTS ================= */
+  // 2. Fetch Facebook Pages
   useEffect(() => {
-    const fetchConnectedAccounts = async () => {
-      try {
-        const res = await apiClient.get(
-          "/auth/social/active-accounts"
-        );
-        setConnectedAccounts(res.data || {});
-      } catch (err) {
-        console.error(
-          "Failed to fetch connected accounts:",
-          err
-        );
+    if (selectedChannels.has('facebook')) {
+      apiClient.get('/facebook/pages')
+        .then(({ data }) => {
+          setFacebookPages(data);
+          if (data.length > 0) {
+             setPlatformState(prev => ({ ...prev, facebookPageId: data[0].id }));
+          }
+        })
+        .catch(err => console.error("FB Pages Error:", err));
+    }
+  }, [selectedChannels]);
+
+  // 3. Main Submit Function (Handles "Publish Now" AND "Schedule")
+  const handleSubmit = async (isScheduled: boolean) => {
+    if (selectedChannels.size === 0) return alert("Select a channel.");
+    if (!content && files.length === 0) return alert("Add content or media.");
+
+    // Validation
+    if (selectedChannels.has('facebook') && !platformState.facebookPageId) {
+      return alert("Please select a Facebook Page.");
+    }
+    if (selectedChannels.has('youtube') && !platformState.youtubeTitle) {
+      return alert("YouTube requires a Title.");
+    }
+
+    // ✅ Scheduling Validation
+    if (isScheduled && !scheduleDate) {
+        return alert("Please select a date and time to schedule.");
+    }
+
+    try {
+      // A. Upload Media
+      let mediaData = { publicUrl: "", storagePath: "" };
+      if (files.length > 0) {
+        mediaData = await uploadMedia(files[0]);
       }
     };
 
-    fetchConnectedAccounts();
-  }, []);
+      // B. Construct Payload
+      const payload = {
+        content: content,
+        mediaUrl: mediaData.publicUrl || "",      
+        storagePath: mediaData.storagePath || "", 
+        mimeType: files[0]?.type || "",
+        mediaType: files[0]?.type.startsWith('video') ? 'VIDEO' : 'IMAGE', 
+        platforms: Array.from(selectedChannels),
+        
+        // ✅ SEND SCHEDULE TIME TO BACKEND
+        scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
+        
+        contentMetadata: {
+          text: content,
+          title: platformState.youtubeTitle, 
+          platformOverrides: {
+            facebook: { 
+              pageId: platformState.facebookPageId,
+              postType: platformState.facebookPostType 
+            },
+            instagram: {
+              postType: platformState.instagramPostType 
+            },
+            youtube: {
+              title: platformState.youtubeTitle,
+              visibility: platformState.youtubeVisibility,
+              postType: platformState.youtubeType 
+            },
+            twitter: {}
+          }
+        }
+      };
 
-  /* ================= RENDER ================= */
+      await createPost(payload);
+      
+      const successMsg = isScheduled 
+        ? `Post Scheduled for ${new Date(scheduleDate).toLocaleString()}! 📅` 
+        : "Post Published Successfully! 🚀";
+      
+      alert(successMsg);
+      
+      // Cleanup
+      setContent('');
+      setFiles([]);
+      setSelectedChannels(new Set());
+      setScheduleDate("");
+      setShowScheduleModal(false);
+
+    } catch (err: any) {
+      console.error("Error:", err);
+      alert(`Error: ${err.message || "Failed"}`);
+    }
+  };
 
   return (
     <div className={styles.publishPage}>
@@ -86,109 +138,73 @@ export default function Publish() {
         />
       </aside>
 
-      {/* CENTER PANEL */}
-      <main className={styles.centerPanel}>
-        {/* Header */}
-        <div className={styles.header}>
-          <h2>Create post</h2>
+      <div className={styles.editorPreviewContainer}>
+        <div className={styles.leftPanel}>
+          
+          <ChannelSelector
+            selectedChannels={selectedChannels}
+            onSelectionChange={setSelectedChannels}
+          />
 
-          <div className={styles.headerActions}>
-            <button>Schedule</button>
-            <button>Tags</button>
-            <button disabled>Publish</button>
-          </div>
-        </div>
+          <PlatformFields 
+             selectedChannels={selectedChannels}
+             platformState={platformState}
+             setPlatformState={setPlatformState}
+             facebookPages={facebookPages}
+          />
 
-        {/* MULTI-PUBLISH CONTEXT */}
-        {selectedChannelList.length > 0 && (
-          <div className={styles.publishContext}>
-            <div className={styles.contextTitle}>
-              Posting to {selectedChannelList.length} channel
-              {selectedChannelList.length > 1 ? "s" : ""}
+          <ContentEditor
+            content={content}
+            onContentChange={setContent}
+            files={files}
+            onFilesChange={setFiles}
+            aiAssistantEnabled={false} 
+            setAiAssistantEnabled={() => {}}
+            effectiveRules={effectiveRules}
+            validation={{}}
+            
+            // ✅ Connect Buttons to Actions
+            onPublish={() => handleSubmit(false)} // Publish Immediately
+            onSchedule={() => setShowScheduleModal(true)} // Open Modal
+            onSaveDraft={() => alert("Draft saved! (Demo)")}
+          />
+
+          {/* ✅ Simple Schedule Modal */}
+          {showScheduleModal && (
+            <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', 
+                alignItems: 'center', justifyContent: 'center', zIndex: 1000
+            }}>
+                <div style={{
+                    backgroundColor: 'white', padding: '2rem', borderRadius: '12px',
+                    width: '350px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+                }}>
+                    <h3>Pick a Date & Time</h3>
+                    <input 
+                        type="datetime-local" 
+                        style={{ width: '100%', padding: '10px', margin: '15px 0', fontSize: '16px' }}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                    />
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                        <button 
+                            onClick={() => setShowScheduleModal(false)}
+                            style={{ padding: '8px 16px', border: '1px solid #ccc', background: 'white', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={() => handleSubmit(true)}
+                            disabled={!scheduleDate || uploading || publishing}
+                            style={{ padding: '8px 16px', background: '#0070f3', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                        >
+                            {publishing ? "Scheduling..." : "Confirm Schedule"}
+                        </button>
+                    </div>
+                </div>
             </div>
+          )}
 
-            <div className={styles.contextChannels}>
-              {selectedChannelList.join(" · ")}
-            </div>
-          </div>
-        )}
-
-        {/* INSTAGRAM MEDIA TYPE */}
-        {isInstagramSelected && (
-          <div className={styles.platformSection}>
-            <div className={styles.sectionHeader}>
-              Instagram post type
-            </div>
-
-            <div className={styles.tabs}>
-              <button
-                type="button"
-                className={
-                  instagramMediaType === "IMAGE"
-                    ? styles.activeTab
-                    : ""
-                }
-                onClick={() =>
-                  setInstagramMediaType("IMAGE")
-                }
-              >
-                Feed
-              </button>
-
-              <button
-                type="button"
-                className={
-                  instagramMediaType === "REEL"
-                    ? styles.activeTab
-                    : ""
-                }
-                onClick={() =>
-                  setInstagramMediaType("REEL")
-                }
-              >
-                Reel
-              </button>
-
-              <button
-                type="button"
-                className={
-                  instagramMediaType === "STORIES"
-                    ? styles.activeTab
-                    : ""
-                }
-                onClick={() =>
-                  setInstagramMediaType("STORIES")
-                }
-              >
-                Story
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* CONTENT EDITOR */}
-        <ContentEditor
-  content={content}
-  onContentChange={setContent}
-  files={files}
-  onFilesChange={setFiles}
-  mediaUrl={mediaUrl}
-  onMediaUrlChange={setMediaUrl}
-  aiAssistantEnabled={false}
-  setAiAssistantEnabled={() => {}}
-  effectiveRules={effectiveRules}
-  validation={{}}
-  platformContext={{
-    instagram: { mediaType: instagramMediaType },
-  }}
-/>
-
-      </main>
-
-      {/* RIGHT PREVIEW */}
-      <aside className={styles.rightPanel}>
-        <div className={styles.placeholder}>
-          Preview will go here
         </div>
       </aside>
     </div>

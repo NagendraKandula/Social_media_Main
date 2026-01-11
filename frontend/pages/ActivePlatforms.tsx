@@ -1,47 +1,18 @@
-import React, { useEffect, useState } from "react";
-import apiClient from "../lib/axios";
-import styles from "../styles/ActivePlatforms.module.css";
-import {
-  FaFacebookF,
-  FaInstagram,
-  FaPlus,
-  FaUnlink,
-  FaSyncAlt,
-  FaYoutube,
-  FaAt,
-  FaTwitter,
-  FaLinkedin,
-} from "react-icons/fa";
-
-/* =========================
-   TYPE DEFINITIONS
-   ========================= */
-
-type Provider =
-  | "facebook"
-  | "instagram"
-  | "youtube"
-  | "threads"
-  | "twitter"
-  | "linkedin";
-
-type Action = "connect" | "reconnect" | "disconnect";
-
-interface SocialAccount {
-  name: string;
-  profilePic?: string;
-}
-
-type AccountsResponse = {
-  [key in Provider]?: SocialAccount;
-};
-
-let cachedAccounts: AccountsResponse | null = null;
-/* =========================
-   COMPONENT
-   ========================= */
-
-
+import React, { useEffect, useState } from 'react';
+import LHeader from './LHeader';
+import apiClient from '../lib/axios';
+import styles from '../styles/ActivePlatforms.module.css';
+import { 
+  FaFacebookF, 
+  FaInstagram, 
+  FaPlus, 
+  FaUnlink, 
+  FaSyncAlt, 
+  FaYoutube, 
+  FaAt, 
+  FaTwitter, 
+  FaLinkedin 
+} from 'react-icons/fa';
 
 const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<AccountsResponse | null>(null);
@@ -83,20 +54,18 @@ const ActivePlatforms = () => {
     window.dispatchEvent(new Event("social-accounts-updated"));
   };
 
-  const handleAction = async (provider: Provider, action: Action) => {
-    if (action === "disconnect") {
-      const confirmed = window.confirm(`Disconnect ${provider}?`);
-      if (!confirmed) return;
-
+  const handleAction = async (provider: string, action: 'connect' | 'disconnect'| 'reconnect') => {
+    if (action === 'disconnect') {
+      if (!confirm(`Disconnect ${provider}?`)) return;
+      await apiClient.delete(`/auth/social/${provider}`);
+      fetchAccounts();
+    } else {
       try {
-        setActionLoading(provider);
-        await apiClient.delete(`/auth/social/${provider}`);
-        await fetchAccounts();
-        notifyHeader(); // ✅ sync header immediately
-      } catch {
-        alert(`Unable to disconnect ${provider}`);
-      } finally {
-        setActionLoading(null);
+        await apiClient.get('/auth/profile');
+      } catch (error) {
+        console.error("Session refresh failed before redirect:", error);
+        alert(`Unable to connect to ${provider.charAt(0).toUpperCase() + provider.slice(1)}. Please try again later.`);
+        return;
       }
       return;
     }
@@ -119,13 +88,23 @@ const ActivePlatforms = () => {
     }
   };
 
-  const platforms: { id: Provider; name: string; icon: JSX.Element }[] = [
-    { id: "facebook", name: "Facebook", icon: <FaFacebookF /> },
-    { id: "instagram", name: "Instagram", icon: <FaInstagram /> },
-    { id: "youtube", name: "YouTube", icon: <FaYoutube /> },
-    { id: "threads", name: "Threads", icon: <FaAt /> },
-    { id: "twitter", name: "X (Twitter)", icon: <FaTwitter /> },
-    { id: "linkedin", name: "LinkedIn", icon: <FaLinkedin /> },
+  const platforms = [
+    { id: 'facebook', name: 'Facebook', icon: <FaFacebookF />, color: styles.facebookIcon },
+    { id: 'instagram', name: 'Instagram', icon: <FaInstagram />, color: styles.instagramIcon },
+    { id: 'youtube', name: 'YouTube', icon: <FaYoutube/>, color: styles.youtubeIcon },
+    { id: 'threads', name: 'Threads', icon: <FaAt />, color: styles.threadsIcon },
+    { 
+      id: 'twitter', 
+      name: 'X (Twitter)', 
+      icon: <FaTwitter />, 
+      color: styles.twitterIcon 
+    },
+    { 
+      id: 'linkedin', 
+      name: 'LinkedIn', 
+      icon: <FaLinkedin />, 
+      color: styles.linkedinIcon 
+    }
   ];
 
   return (
@@ -140,30 +119,30 @@ const ActivePlatforms = () => {
             const connected = accounts?.[p.id];
             const isBusy = actionLoading === p.id;
 
-            return (
-              <div key={p.id} className={styles.card}>
-                {/* HEADER */}
-                <div className={styles.cardHeader}>
-                  <span className={styles.platformIcon}>{p.icon}</span>
-                  <h3 className={styles.platformName}>{p.name}</h3>
-                </div>
-
-                {/* BODY */}
-                <div className={styles.cardBody}>
-                  {connected ? (
-                    <div className={styles.connectedProfile}>
-                      <img
-                        src={connected.profilePic || "/profile.png"}
-                        alt={connected.name}
-                        className={styles.avatar}
-                        onError={(e) =>
-                          (e.currentTarget.src = "/profile.png")
-                        }
-                      />
-                      <div className={styles.profileInfo}>
-                        <p className={styles.userName}>{connected.name}</p>
-                        <span className={styles.statusBadge}>Connected</span>
-                      </div>
+              <div className={styles.cardBody}>
+                {accounts?.[p.id] ? (
+                  <div className={styles.connectedProfile}>
+                    <img 
+                        src={accounts[p.id].profilePic || "/profile.png"} 
+                        className={styles.avatar} 
+                        onError={(e) => (e.currentTarget.src = '/profile.png')}
+                        alt={`${p.name} Profile`}
+                    />
+                    <div className={styles.profileInfo}>
+                      <p className={styles.userName}>{accounts[p.id].name}</p>
+                      
+                      {/* ✅ UPDATE 1: Smart Status Badge */}
+                      {accounts[p.id].needsReconnect ? (
+                        <p 
+                          className={styles.statusBadge} 
+                          style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                        >
+                          Session Expired
+                        </p>
+                      ) : (
+                        <p className={styles.statusBadge}>Connected</p>
+                      )}
+                      
                     </div>
                   ) : (
                     <p className={styles.emptyText}>
@@ -172,39 +151,27 @@ const ActivePlatforms = () => {
                   )}
                 </div>
 
-                {/* FOOTER */}
-                <div className={styles.cardFooter}>
-                  {connected ? (
-                    <>
-                      <button
-                        onClick={() => handleAction(p.id, "reconnect")}
-                        disabled={isBusy}
-                        className={styles.reconnectBtn}
-                      >
-                        <FaSyncAlt />
-                        {isBusy ? "Reconnecting..." : "Reconnect"}
-                      </button>
-
-                      <button
-                        onClick={() => handleAction(p.id, "disconnect")}
-                        disabled={isBusy}
-                        className={styles.disconnectBtn}
-                      >
-                        <FaUnlink />
-                        Disconnect
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => handleAction(p.id, "connect")}
-                      disabled={isBusy}
-                      className={styles.connectBtn}
+              <div className={styles.cardFooter}>
+                {accounts?.[p.id] ? (
+                  <>
+                    <button 
+                      onClick={() => handleAction(p.id, 'reconnect')} 
+                      className={styles.reconnectBtn}
+                      // ✅ UPDATE 2: Visual Alert on Button
+                      style={accounts[p.id].needsReconnect ? { border: '1px solid #ef4444', color: '#ef4444' } : {}}
                     >
-                      <FaPlus />
-                      {isBusy ? "Connecting..." : "Connect"}
+                      <FaSyncAlt /> {accounts[p.id].needsReconnect ? 'Fix Connection' : 'Reconnect'}
                     </button>
-                  )}
-                </div>
+                    
+                    <button onClick={() => handleAction(p.id, 'disconnect')} className={styles.disconnectBtn}>
+                      <FaUnlink /> Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => handleAction(p.id, 'connect')} className={styles.connectBtn}>
+                    <FaPlus /> Connect
+                  </button>
+                )}
               </div>
             );
           })}
