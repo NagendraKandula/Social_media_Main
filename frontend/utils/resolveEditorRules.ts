@@ -1,10 +1,15 @@
-import { PLATFORM_RULES, Platform, PlatformRule } from "../config/platformRules";
+import {
+  PLATFORM_RULES,
+  Platform,
+  PlatformRule,
+} from "../config/platformRules";
 
 export interface EffectiveEditorRules {
   text: {
     enabled: boolean;
     required: boolean;
     maxLength?: number;
+    disableLinks?: boolean; // ✅ ADDED
   };
   media: {
     enabled: boolean;
@@ -22,45 +27,96 @@ export interface EffectiveEditorRules {
 export function resolveEditorRules(
   selectedPlatforms: Platform[]
 ): EffectiveEditorRules {
-  const rules = selectedPlatforms.map((p) => PLATFORM_RULES[p]);
+  /* =====================================================
+     DEFAULT RULES (when no platform is selected)
+     ===================================================== */
+  if (selectedPlatforms.length === 0) {
+    return {
+      text: {
+        enabled: true,
+        required: false,
+        maxLength: 3000,
+        disableLinks: false, // ✅ DEFAULT
+      },
+      media: {
+        enabled: true,
+        required: false,
+        inputType: "url",
+      },
+      title: false,
+      description: false,
+      requiresPageSelection: false,
+      notes: [],
+      conflicts: [],
+    };
+  }
+
+  /* =====================================================
+     PLATFORM-BASED RULE RESOLUTION
+     ===================================================== */
+  const rules: PlatformRule[] = selectedPlatforms
+    .map((p) => PLATFORM_RULES[p])
+    .filter(Boolean);
 
   const conflicts: string[] = [];
   const notes: string[] = [];
 
   /* ---------- TEXT ---------- */
   const textRules = rules.filter((r) => r.text);
-  const textEnabled = textRules.length > 0;
 
-  const textRequired = textRules.some((r) => r.text?.required);
-  const maxLength = textRules
+  const textRequired = textRules.some(
+    (r) => r.text?.required
+  );
+
+  const maxLengthValues = textRules
     .map((r) => r.text?.maxLength)
-    .filter(Boolean) as number[];
+    .filter(
+      (v): v is number => typeof v === "number"
+    );
 
   const strictestLength =
-    maxLength.length > 0 ? Math.min(...maxLength) : undefined;
+    maxLengthValues.length > 0
+      ? Math.min(...maxLengthValues)
+      : undefined;
+
+  // ✅ NEW: disable links if ANY platform disables them
+  const disableLinks = textRules.some(
+    (r) => r.text?.disableLinks === true
+  );
 
   /* ---------- MEDIA ---------- */
   const mediaRules = rules.filter((r) => r.media);
-  const mediaEnabled = mediaRules.length > 0;
-  const mediaRequired = mediaRules.some((r) => r.media?.required);
 
-  const inputTypes = new Set(
-    mediaRules.map((r) => r.media?.inputType).filter(Boolean)
+  const mediaRequired = mediaRules.some(
+    (r) => r.media?.required
   );
 
-  let mediaInputType: "file" | "url" | "conflict" | "none" = "none";
+  const inputTypes = new Set(
+    mediaRules
+      .map((r) => r.media?.inputType)
+      .filter(Boolean)
+  );
 
-if (inputTypes.size === 1) {
-  mediaInputType = Array.from(inputTypes)[0] as "file" | "url";
-} else if (inputTypes.size > 1) {
-  mediaInputType = "conflict";
-  conflicts.push("Selected platforms require different media upload types.");
-}
+  let mediaInputType: "file" | "url" | "conflict" | "none" =
+    "none";
+
+  if (inputTypes.size === 1) {
+    mediaInputType = Array.from(inputTypes)[0] as
+      | "file"
+      | "url";
+  } else if (inputTypes.size > 1) {
+    mediaInputType = "conflict";
+    conflicts.push(
+      "Selected platforms require different media upload types."
+    );
+  }
 
   /* ---------- MEDIA TYPES ---------- */
   const mediaTypes = Array.from(
     new Set(
-      mediaRules.flatMap((r) => r.media?.mediaTypes || [])
+      mediaRules.flatMap(
+        (r) => r.media?.mediaTypes || []
+      )
     )
   );
 
@@ -75,17 +131,24 @@ if (inputTypes.size === 1) {
     if (r.notes) notes.push(...r.notes);
   });
 
+  /* =====================================================
+     FINAL EFFECTIVE RULES
+     ===================================================== */
   return {
     text: {
-      enabled: textEnabled,
+      enabled: true,
       required: textRequired,
       maxLength: strictestLength,
+      disableLinks, // ✅ PASSED TO EDITOR
     },
     media: {
-      enabled: mediaEnabled,
+      enabled: true,
       required: mediaRequired,
       inputType: mediaInputType,
-      mediaTypes: mediaTypes.length ? mediaTypes : undefined,
+      mediaTypes:
+        mediaTypes.length > 0
+          ? mediaTypes
+          : undefined,
     },
     title,
     description,

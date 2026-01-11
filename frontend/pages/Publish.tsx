@@ -20,11 +20,14 @@ interface SocialAccount {
   profilePic?: string;
 }
 
+type InstagramMediaType = "IMAGE" | "REEL" | "STORIES";
 type ConnectedAccounts = Partial<Record<Provider, SocialAccount>>;
 
 /* ================= COMPONENT ================= */
 
 export default function Publish() {
+  const [mediaUrl, setMediaUrl] = useState("");
+
   /* MULTI-PUBLISH STATE */
   const [selectedChannels, setSelectedChannels] =
     useState<Set<Channel>>(new Set());
@@ -32,16 +35,23 @@ export default function Publish() {
   const [connectedAccounts, setConnectedAccounts] =
     useState<ConnectedAccounts>({});
 
+  /* INSTAGRAM STATE */
+  const [instagramMediaType, setInstagramMediaType] =
+    useState<InstagramMediaType>("IMAGE");
+
   /* EDITOR STATE (shared) */
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
 
-  /* Convert Set → Array for rendering */
+  /* Convert Set → Array */
   const selectedChannelList = Array.from(selectedChannels);
 
-  const selectedPlatforms = selectedChannelList as any;
+  /* Platform helpers */
+  const isInstagramSelected =
+    selectedChannelList.includes("instagram");
 
-  
+  /* Resolve rules */
+  const selectedPlatforms = selectedChannelList as any;
   const effectiveRules = resolveEditorRules(selectedPlatforms);
 
   /* ================= FETCH CONNECTED ACCOUNTS ================= */
@@ -103,18 +113,75 @@ export default function Publish() {
           </div>
         )}
 
-        {/* CONTENT EDITOR (STEP 4) */}
-       <ContentEditor
+        {/* INSTAGRAM MEDIA TYPE */}
+        {isInstagramSelected && (
+          <div className={styles.platformSection}>
+            <div className={styles.sectionHeader}>
+              Instagram post type
+            </div>
+
+            <div className={styles.tabs}>
+              <button
+                type="button"
+                className={
+                  instagramMediaType === "IMAGE"
+                    ? styles.activeTab
+                    : ""
+                }
+                onClick={() =>
+                  setInstagramMediaType("IMAGE")
+                }
+              >
+                Feed
+              </button>
+
+              <button
+                type="button"
+                className={
+                  instagramMediaType === "REEL"
+                    ? styles.activeTab
+                    : ""
+                }
+                onClick={() =>
+                  setInstagramMediaType("REEL")
+                }
+              >
+                Reel
+              </button>
+
+              <button
+                type="button"
+                className={
+                  instagramMediaType === "STORIES"
+                    ? styles.activeTab
+                    : ""
+                }
+                onClick={() =>
+                  setInstagramMediaType("STORIES")
+                }
+              >
+                Story
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* CONTENT EDITOR */}
+        <ContentEditor
   content={content}
   onContentChange={setContent}
   files={files}
   onFilesChange={setFiles}
+  mediaUrl={mediaUrl}
+  onMediaUrlChange={setMediaUrl}
   aiAssistantEnabled={false}
   setAiAssistantEnabled={() => {}}
   effectiveRules={effectiveRules}
   validation={{}}
+  platformContext={{
+    instagram: { mediaType: instagramMediaType },
+  }}
 />
-
 
       </main>
 

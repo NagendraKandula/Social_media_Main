@@ -17,13 +17,31 @@ export type Channel =
   | "youtube"
   | "threads";
 
-const ChannelIcon = {
+const ChannelIcon: Record<Channel, JSX.Element> = {
   twitter: <FaTwitter />,
   facebook: <FaFacebook />,
   instagram: <FaInstagram />,
   linkedin: <FaLinkedin />,
   youtube: <FaYoutube />,
   threads: <SiThreads />,
+};
+
+const ALL_CHANNELS: Channel[] = [
+  "twitter",
+  "facebook",
+  "instagram",
+  "linkedin",
+  "youtube",
+  "threads",
+];
+
+const CONNECT_URLS: Record<Channel, string> = {
+  twitter: "/auth/twitter",
+  facebook: "/auth/facebook",
+  instagram: "/auth/instagram",
+  linkedin: "/auth/linkedin",
+  youtube: "/auth/youtube",
+  threads: "/auth/threads",
 };
 
 export interface SocialAccount {
@@ -48,20 +66,27 @@ export default function ChannelSelector({
     onSelectionChange(next);
   };
 
-  const channels = Object.keys(connectedAccounts) as Channel[];
+  const connectedChannels = Object.keys(
+    connectedAccounts
+  ) as Channel[];
+
+  const notConnectedChannels = ALL_CHANNELS.filter(
+    (channel) => !connectedAccounts[channel]
+  );
 
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>Channels</h3>
 
-      {channels.length === 0 && (
+      {/* Connected Channels */}
+      {connectedChannels.length === 0 && (
         <p className={styles.emptyState}>
           No channels connected
         </p>
       )}
 
       <div className={styles.list}>
-        {channels.map((channel) => {
+        {connectedChannels.map((channel) => {
           const account = connectedAccounts[channel];
           if (!account) return null;
 
@@ -76,31 +101,25 @@ export default function ChannelSelector({
               }`}
               onClick={() => toggleChannel(channel)}
               aria-pressed={isSelected}
-              aria-label={`Toggle ${account.name}`}
             >
-              {/* Selection indicator */}
               <span
                 className={`${styles.checkIndicator} ${
                   isSelected ? styles.checkActive : ""
                 }`}
               />
 
-              {/* Avatar */}
               <div className={styles.avatarWrap}>
                 <img
                   src={account.profilePic || "/profile.png"}
                   alt={account.name}
                 />
                 <span
-                  className={`${styles.platformBadge} ${
-                    styles[channel]
-                  }`}
+                  className={`${styles.platformBadge} ${styles[channel]}`}
                 >
                   {ChannelIcon[channel]}
                 </span>
               </div>
 
-              {/* Name */}
               <span className={styles.name}>
                 {account.name}
               </span>
@@ -108,6 +127,45 @@ export default function ChannelSelector({
           );
         })}
       </div>
+
+      {/* Not Connected Channels */}
+      {notConnectedChannels.length > 0 && (
+        <>
+          <h4 className={styles.subTitle}>
+            Not Connected
+          </h4>
+
+          <div className={styles.list}>
+            {notConnectedChannels.map((channel) => (
+              <button
+                key={channel}
+                type="button"
+                className={`${styles.item} ${styles.notConnected}`}
+                onClick={() =>
+                  (window.location.href =
+                    CONNECT_URLS[channel])
+                }
+              >
+                <div className={styles.avatarWrap}>
+                  <div className={styles.placeholderAvatar}>
+                    {ChannelIcon[channel]}
+                  </div>
+                </div>
+
+                <span className={styles.name}>
+                  Connect{" "}
+                  {channel.charAt(0).toUpperCase() +
+                    channel.slice(1)}
+                </span>
+
+                <span className={styles.connectCta}>
+                  Connect
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

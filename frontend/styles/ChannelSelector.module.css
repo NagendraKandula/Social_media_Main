@@ -1,63 +1,130 @@
+/* styles/ChannelSelector.module.css */
+
 .container {
+  width: 100%;
+  padding: 1.5rem 1rem;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 1rem;
 }
 
-/* Header */
 .title {
-  font-size: 16px;
+  font-size: 1.125rem;
   font-weight: 600;
   color: #111827;
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-/* List */
+/* Sub section title (Not Connected) */
+.subTitle {
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.emptyState {
+  color: #6b7280;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 1.5rem 0;
+  margin: 0;
+}
+
 .list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
-/* Row */
 .item {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px 10px 10px;
-  border-radius: 12px;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 0.875rem;
   background: transparent;
   border: none;
-  cursor: pointer;
+  border-radius: 0.5rem;
   text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .item:hover {
-  background: #f5f6fa;
+  background: #f3f4f6;
 }
 
-/* Selected state */
-.selected {
-  background: #eef2ff;
+.item:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
-/* Left selection indicator */
-.checkIndicator {
+.item.selected {
+  background: #eff6ff;
+  font-weight: 500;
+}
+
+.item.selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 4px;
-  height: 100%;
-  border-radius: 4px;
-  background: transparent;
+  background: #3b82f6;
 }
 
-.selected .checkIndicator {
-  background: #6366f1;
+/* Not connected state */
+.notConnected {
+  opacity: 0.85;
+  border: 1px dashed #d1d5db;
 }
 
-/* Avatar */
+.notConnected:hover {
+  opacity: 1;
+  background: #f9fafb;
+}
+
+/* Selection check indicator */
+.checkIndicator {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.checkActive {
+  border-color: #3b82f6;
+  background: #3b82f6;
+}
+
+.checkActive::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Avatar area */
 .avatarWrap {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
 }
 
@@ -66,56 +133,81 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+  border: 1px solid #e5e7eb;
 }
 
-/* Platform badge */
-.platformBadge {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 14px;
-  height: 14px;
+/* Placeholder avatar for not connected */
+.placeholderAvatar {
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  box-shadow: 0 0 0 1px #e5e7eb;
+  font-size: 1.25rem;
+  color: #6b7280;
 }
 
-/* Platform colors */
-.instagram { color: #e1306c; }
-.youtube { color: #ff0000; }
-.linkedin { color: #0a66c2; }
-.twitter { color: #1da1f2; }
-.facebook { color: #1877f2; }
-.threads { color: #000000; }
+.platformBadge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  font-size: 1rem;
+}
 
-/* Name */
+/* Platform-specific badge colors */
+.platformBadge.twitter { background: #1da1f2; color: white; }
+.platformBadge.facebook { background: #1877f2; color: white; }
+.platformBadge.instagram { background: #e1306c; color: white; }
+.platformBadge.linkedin { background: #0a66c2; color: white; }
+.platformBadge.youtube { background: #ff0000; color: white; }
+.platformBadge.threads { background: #000000; color: white; }
+
 .name {
-  flex: 1;
-  font-size: 14.5px;
-  font-weight: 500;
+  font-size: 0.95rem;
   color: #111827;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
 }
 
-.emptyState {
-  font-size: 14px;
-  color: #6b7280;
-  padding: 8px 0;
+/* Connect CTA on right */
+.connectCta {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2563eb;
+  margin-left: auto;
+  white-space: nowrap;
 }
 
-.checkIndicator {
-  width: 4px;
-  height: 100%;
-  border-radius: 4px;
-  background: transparent;
+/* Optional: Add a small “+ Connect more” button at the bottom */
+.connectMore {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: #f3f4f6;
+  border: 1px dashed #9ca3af;
+  border-radius: 0.5rem;
+  color: #4b5563;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
 }
 
-.checkActive {
-  background: #6366f1;
+.connectMore:hover {
+  background: #e5e7eb;
 }
