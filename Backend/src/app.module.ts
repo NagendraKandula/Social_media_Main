@@ -17,6 +17,7 @@ import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.modul
 import { PostingModule } from './posting/posting.module';
 import { ScheduleModule } from '@nestjs/schedule'; // 👈 IMPORT THIS
 import { BullModule } from '@nestjs/bull';
+import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -37,7 +38,9 @@ import { BullModule } from '@nestjs/bull';
     FacebookModule,
     YoutubeAnalyticsModule,
      AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule,
+    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
+    InstagramAnalyticsModule,
+    
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],

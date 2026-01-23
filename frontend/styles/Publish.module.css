@@ -1,121 +1,266 @@
-/* frontend/styles/Publish.module.css */
+/* ===============================
+   Page Wrapper
+================================ */
 
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
+.publishPage {
+  background: #f9fafb;
+  min-height: 100vh;
+  padding: 10px;
+  margin-top: -20px;
 }
 
-/* Header Section */
-.headerSection {
-  margin-bottom: 2rem;
-  text-align: center;
-  max-width: 700px;
-  margin-left: auto;
-  margin-right: auto;
+/* ===============================
+   Main Layout (Left | Divider | Right)
+   👉 FIXED HEIGHT SHELL
+================================ */
+
+.mainLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) 2px minmax(0, 1fr);
+  gap: 24px;
+
+  height: calc(100vh - 160px); /* ✅ FIXED HEIGHT */
+  align-items: stretch;
 }
 
-.title {
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.2;
-  color: #111827;
-  margin: 0;
-}
+/* ===============================
+   Left Column
+================================ */
 
-/* Main Layout */
-.editorPreviewContainer {
+.leftColumn {
   display: flex;
-  gap: 28px;
-  margin-top: 1.5rem;
-  align-items: flex-start;
+  height: 100%;
 }
 
-.leftPanel {
+.leftCard {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+
+  flex: 1;
+  height: 100%;                /* ✅ LOCK HEIGHT */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;            /* ✅ NO GROWTH */
+}
+
+/* ===============================
+   Top Row (Channels + Actions)
+================================ */
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.topActions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+/* ===============================
+   Editor Slot
+================================ */
+
+.editorSlot {
+  flex: 1;                     /* ✅ FIXED AREA */
+  min-height: 260px;
+  overflow: hidden;
+}
+
+/* ===============================
+   Platform Fields Slot
+   👉 RESERVED SPACE (NO LAYOUT SHIFT)
+================================ */
+
+.platformSlot {
+  height: 220px;               /* ✅ ALWAYS RESERVED */
+  overflow-y: auto;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 12px;
+}
+
+/* ===============================
+   Divider
+================================ */
+
+.divider {
+  width: 1px;
+  background: #283041;
+  border-radius: 1px;
+}
+
+/* ===============================
+   Right Column
+================================ */
+
+.rightColumn {
+  display: flex;
+  height: 100%;
+}
+
+.rightCard {
+  width: 100%;
+  max-width: 420px;
+
+  height: 100%;                /* ✅ MATCH LEFT */
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  overflow: hidden;            /* ✅ NO GROWTH */
+}
+
+/* ===============================
+   Right Tabs
+================================ */
+.rightHeader {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+
+.rightHeader button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  background: #f9fafb;
+  color: #6b7280;
+  transition: all 0.2s ease; /* Added for smoother tab switching */
+}
+
+/* 🟢 FIX: Target the button with the active class specifically */
+.rightHeader button.activeTab {
+  background: #3371f8;
+  color: #ffffff;
+  border-color: #3371f8; /* Match border to background */
+}
+
+/* Optional: Add a hover state for non-active buttons */
+.rightHeader button:hover:not(.activeTab) {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* ===============================
+   Right Panel Content
+================================ */
+
+.rightPanel {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  min-width: 0; /* Prevents overflow issues */
+
+  min-height: 0;     /* 🔥 REQUIRED */
+  overflow: hidden; /* 🔒 prevents expansion */
 }
 
-/* ✅ NEW: Action Buttons (Publish Now) */
-.actions {
-  display: flex;
-  justify-content: flex-end; /* Pushes button to the right */
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-}
-
-.publishBtn {
-  background-color: #0070f3; /* Brand Blue */
-  color: white;
-  border: none;
-  padding: 0.8rem 2.5rem;
+.previewPlaceholder {
+  flex: 1;
+  border: 1px dashed #d1d5db;
   border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
+}
+
+/* ===============================
+   Buttons
+================================ */
+
+.secondaryBtn {
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 6px rgba(0, 112, 243, 0.2);
 }
 
-.publishBtn:hover {
-  background-color: #0051a8;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px rgba(0, 112, 243, 0.3);
+.secondaryBtn:hover {
+  background: #f9fafb;
 }
 
-.publishBtn:disabled {
-  background-color: #93c5fd;
+.primaryBtn {
+  padding: 8px 15px;
+  border-radius: 8px;
+  border: none;
+  background: #3371f8;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.primaryBtn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
-/* Right Panel (Optional Preview) */
-.previewWrapper {
-  width: 380px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 2rem;
+/* ===============================
+   Schedule Modal
+================================ */
+
+.scheduleOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
 }
 
-/* Responsive Design */
-@media (max-width: 900px) {
-  .editorPreviewContainer {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .leftPanel {
-    width: 100%;
-    max-width: 660px;
-  }
-
-  .previewWrapper {
-    width: 100%;
-    max-width: 380px;
-    margin: 0 auto;
-    position: static;
-  }
+.scheduleModal {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
+  width: 320px;
 }
 
-@media (max-width: 640px) {
-  .container {
-    padding: 1rem;
-  }
+.scheduleModal h3 {
+  margin-bottom: 12px;
+  font-size: 16px;
+}
 
-  .title {
-    font-size: 1.75rem;
-  }
-  
-  .actions {
-    flex-direction: column;
-  }
-  
-  .publishBtn {
-    width: 100%;
-  }
+.scheduleModal input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modalActions button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.modalActions button:first-child {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+}
+
+.modalActions button:last-child {
+  background: #111827;
+  color: #ffffff;
+  border: none;
 }

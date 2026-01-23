@@ -1,18 +1,27 @@
+import { MediaItem } from "../../types";
+
 interface Props {
   content: string;
-  mediaUrl?: string;
-  mediaType?: string;
+  files: MediaItem[];
 }
 
-export default function InstagramPreview({
-  content,
-  mediaUrl,
-  mediaType,
-}: Props) {
+export default function InstagramPreview({ content, files }: Props) {
+  const firstMedia = files[0];
+
+  const postType =
+    firstMedia?.type === "video" ? "REEL" : "POST";
+
   return (
     <div>
-      <strong>{mediaType || "POST"}</strong>
-      {mediaUrl && <div>📷 {mediaUrl}</div>}
+      <strong>{postType}</strong>
+
+      {firstMedia && (
+        <div>
+          {firstMedia.type === "video" ? "🎥" : "📷"}{" "}
+          {typeof firstMedia.url === "string" ? firstMedia.url : ""}
+        </div>
+      )}
+
       <p>{content}</p>
     </div>
   );

@@ -1,20 +1,21 @@
+import { MediaItem } from "../../types";
+
 interface Props {
   content: string;
-  mediaUrl?: string;
-  mediaType?: string;
+  files: MediaItem[];
 }
 
-export default function FacebookPreview({
-  content,
-  mediaUrl,
-  mediaType,
-}: Props) {
+export default function FacebookPreview({ content, files }: Props) {
+  const firstMedia = files[0];
+
   return (
     <div>
       <p>{content}</p>
-      {mediaUrl && (
+
+      {firstMedia && (
         <small>
-          {mediaType === "VIDEO" ? "🎥" : "🖼"} {mediaUrl}
+          {firstMedia.type === "video" ? "🎥" : "🖼"}{" "}
+          {typeof firstMedia.url === "string" ? firstMedia.url : ""}
         </small>
       )}
     </div>

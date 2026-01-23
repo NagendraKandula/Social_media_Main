@@ -1,4 +1,6 @@
 import { Channel } from "../ChannelSelector";
+import { MediaItem } from "../../types";
+
 import ThreadsPreview from "./ThreadsPreview";
 import TwitterPreview from "./TwitterPreview";
 import LinkedInPreview from "./LinkedInPreview";
@@ -9,8 +11,8 @@ import YouTubePreview from "./YouTubePreview";
 interface Props {
   channel: Channel;
   content: string;
-  files: File[];
-  platformState: Record<string, any>;
+  files: MediaItem[];          // ✅ FIXED
+  platformState: Record<string, any>; // still usable for YouTube title etc.
 }
 
 export default function PreviewResolver({
@@ -27,33 +29,20 @@ export default function PreviewResolver({
       return <TwitterPreview content={content} files={files} />;
 
     case "linkedin":
-      return <LinkedInPreview content={content} mediaUrl={platformState.mediaUrl} />;
+      return <LinkedInPreview content={content} files={files} />;
 
     case "instagram":
-      return (
-        <InstagramPreview
-          content={content}
-          mediaUrl={platformState.mediaUrl}
-          mediaType={platformState.mediaType}
-        />
-      );
+      return <InstagramPreview content={content} files={files} />;
 
     case "facebook":
-      return (
-        <FacebookPreview
-          content={content}
-          mediaUrl={platformState.mediaUrl}
-          mediaType={platformState.mediaType}
-        />
-      );
+      return <FacebookPreview content={content} files={files} />;
 
     case "youtube":
       return (
         <YouTubePreview
-          title={platformState.title}
+          title={platformState?.title}
           description={content}
-          mediaUrl={platformState.mediaUrl}
-          mediaType={platformState.mediaType}
+          files={files}
         />
       );
 

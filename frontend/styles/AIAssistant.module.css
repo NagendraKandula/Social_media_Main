@@ -1,261 +1,176 @@
-/* AIAssistant.module.css */
-
+/* ===============================
+   AI Assistant Panel
+================================ */
 .aiAssistant {
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  min-height: 0;
+  background: #ffffff;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* ===== Header ===== */
 .header {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 20px;
+  flex-shrink: 0;
+
 }
 
 .headerIcon {
-  color: #8b5cf6; /* purple-500 — AI sparkle theme */
+  color: #6366f1;
 }
 
 .title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: #111827;
   margin: 0;
 }
 
-/* ===== Input Group ===== */
-.inputGroup label {
-  display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-  margin-bottom: 8px;
+/* ===============================
+   Prompt Input (Enhanced Height)
+================================ */
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .promptWrapper {
-  position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  min-height: 100px; /* Fixed taller height */
+}
+
+.promptWrapper:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.12);
 }
 
 .uploadButton {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: none;
+  border: none;
   cursor: pointer;
-  margin-right: 8px;
-  color: #6b7280;
-  transition: all 0.2s;
-}
-
-.uploadButton:hover {
-  background: #e5e7eb;
-  color: #1f2937;
+  color: #6366f1;
+  padding-top: 2px;
+  flex-shrink: 0;
 }
 
 .promptInput {
   flex: 1;
-  padding: 10px 12px 10px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 15px;
+  border: none;
   outline: none;
-  transition: border-color 0.2s;
-}
-
-.promptInput:focus {
-  border-color: #8b5cf6;
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-}
-
-/* Image Preview */
-.imagePreviewContainer {
-  position: relative;
-  width: 80px;
-  height: 80px;
-  margin-top: 12px;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.imagePreview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.removeImageButton {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #ef4444;
-  color: white;
-  border: 2px solid white;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #111827;
+  background: transparent;
+  resize: none;
   padding: 0;
+  font-family: inherit;
 }
 
-/* ===== Button Grid ===== */
+/* ===============================
+   Action Buttons (Reduced Size)
+================================ */
 .buttonGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin: 20px 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px; /* Reduced gap */
+  flex-shrink: 0;
+  margin-top: 5px;
 }
 
 .generateButton {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 14px 8px;
-  border-radius: 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
-  font-size: 13px;
+  gap: 10px;
+  padding: 10px 10px; /* Reduced padding */
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px; /* Smaller font */
   font-weight: 500;
+  color: #111827;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .generateButton:hover:not(:disabled) {
-  background: #f3f4f6;
-  border-color: #d1d5db;
-  color: #1f2937;
-}
-
-.generateButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.generateButton svg {
-  color: #8b5cf6;
-}
-
-/* Loader animation */
-.loaderIcon {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* ===== Output ===== */
-.outputContainer {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #f3f4f6;
-}
-
-.loader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px;
   background: #f9fafb;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #4b5563;
+  border-color: #9ca3af;
+}
+
+/* ===============================
+   Generated Results (Fixed & Scrollable)
+================================ */
+.outputContainer {
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 12px;
+  height: 280px; /* Fixed height */
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  overflow: hidden;
+  margin-top: 5px;
 }
 
 .outputHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 5px;
+  flex-shrink: 0;
 }
 
 .outputHeader h4 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
   margin: 0;
 }
 
 .copyButton {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #f3f4f6;
+  background: none;
   border: none;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: #4b5563;
   cursor: pointer;
-  transition: background 0.2s;
+  color: #6b7280;
+  padding: 4px;
+  border-radius: 4px;
 }
 
 .copyButton:hover {
   background: #e5e7eb;
+  color: #111827;
 }
 
 .generatedText {
-  background: #f9fafb;
-  border-radius: 8px;
-  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #111827;
+  flex: 1;
+  overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  font-size: 15px;
-  line-height: 1.5;
-  color: #1f2937;
-  margin: 0;
-  min-height: 40px;
+  padding-right: 4px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .buttonGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .promptWrapper {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .uploadButton {
-    align-self: flex-start;
-    margin-right: 0;
-  }
+/* Custom Scrollbar */
+.generatedText::-webkit-scrollbar {
+  width: 5px;
 }
-
-@media (max-width: 480px) {
-  .aiAssistant {
-    padding: 16px;
-  }
-
-  .buttonGrid {
-    gap: 10px;
-  }
-
-  .generateButton {
-    padding: 12px 6px;
-    font-size: 12px;
-  }
+.generatedText::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 10px;
 }

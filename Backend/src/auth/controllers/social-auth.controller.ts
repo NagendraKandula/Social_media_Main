@@ -112,7 +112,7 @@ export class SocialAuthController {
     const state = encodeURIComponent(JSON.stringify({ userId }));
     
     const clientId = process.env.THREADS_APP_ID;
-    const redirectUri = process.env.THREADS_REDIRECT_URI; 
+    const redirectUri = process.env.THREADS_REDIRECT_URL; 
     const scope = 'threads_basic,threads_content_publish';
 
     // Manual URL Building

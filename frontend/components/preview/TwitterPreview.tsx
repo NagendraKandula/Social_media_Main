@@ -1,13 +1,34 @@
+import { MediaItem } from "../../types";
+
 interface Props {
   content: string;
-  files: File[];
+  files: MediaItem[];
 }
 
 export default function TwitterPreview({ content, files }: Props) {
+  const media = files.slice(0, 4);
+
   return (
     <div>
-      <p>{content || "What's happening?"}</p>
-      {files.length > 0 && <small>🖼 {files[0].name}</small>}
+      <p>{content}</p>
+
+      <div>
+        {media.map((item) =>
+          item.type === "image" ? (
+            <img
+              key={item.id}
+              src={item.url as string}
+              alt="preview"
+            />
+          ) : (
+            <video
+              key={item.id}
+              src={item.url as string}
+              muted
+            />
+          )
+        )}
+      </div>
     </div>
   );
 }

@@ -1,20 +1,28 @@
+import { MediaItem } from "../../types";
+
 interface Props {
   title?: string;
   description?: string;
-  mediaUrl?: string;
-  mediaType?: string;
+  files: MediaItem[];
 }
 
 export default function YouTubePreview({
   title,
   description,
-  mediaUrl,
+  files,
 }: Props) {
+  const video = files.find((f) => f.type === "video");
+
   return (
     <div>
-      <h4>{title || "Video Title"}</h4>
+      <strong>{title || "YouTube Video"}</strong>
       <p>{description}</p>
-      {mediaUrl && <small>🎬 {mediaUrl}</small>}
+
+      {video && (
+        <div>
+          🎥 {typeof video.url === "string" ? video.url : ""}
+        </div>
+      )}
     </div>
   );
 }

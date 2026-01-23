@@ -1,13 +1,23 @@
+import { MediaItem } from "../../types";
+
 interface Props {
   content: string;
-  mediaUrl?: string;
+  files: MediaItem[];
 }
 
-export default function LinkedInPreview({ content, mediaUrl }: Props) {
+export default function LinkedInPreview({ content, files }: Props) {
+  const firstMedia = files[0];
+
   return (
     <div>
       <p>{content || "Share your thoughts…"}</p>
-      {mediaUrl && <small>🔗 {mediaUrl}</small>}
+
+      {firstMedia && (
+        <div>
+          {firstMedia.type === "video" ? "🎥" : "🖼"}{" "}
+          {typeof firstMedia.url === "string" ? firstMedia.url : ""}
+        </div>
+      )}
     </div>
   );
 }

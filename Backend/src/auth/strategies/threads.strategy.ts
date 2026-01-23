@@ -11,7 +11,7 @@ export class ThreadsStrategy extends PassportStrategy(Strategy, 'threads') {
       tokenURL: 'https://graph.threads.net/oauth/access_token',
       clientID: configService.get<string>('THREADS_APP_ID')!,
       clientSecret: configService.get<string>('THREADS_APP_SECRET')!,
-      callbackURL: configService.get<string>('THREADS_REDIRECT_URI')!,
+      callbackURL: configService.get<string>('THREADS_REDIRECT_URL')!,
       scope: ['threads_basic', 'threads_content_publish'],
       state: false, // 👈 KEY CHANGE: Disable auto-state so we can handle it manually
     });

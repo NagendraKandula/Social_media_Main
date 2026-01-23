@@ -1,171 +1,95 @@
-import React from "react";
+import React from 'react';
 import {
-  FaTwitter,
-  FaFacebook,
+  FaFacebookF,
   FaInstagram,
-  FaLinkedin,
   FaYoutube,
-} from "react-icons/fa";
-import { SiThreads } from "react-icons/si";
-import styles from "../styles/ChannelSelector.module.css";
+  FaAt,
+  FaTwitter,
+  FaLinkedin,
+} from 'react-icons/fa';
+import styles from '../styles/ChannelSelector.module.css';
 
 export type Channel =
-  | "twitter"
-  | "facebook"
-  | "instagram"
-  | "linkedin"
-  | "youtube"
-  | "threads";
+  | 'facebook'
+  | 'instagram'
+  | 'youtube'
+  | 'threads'
+  | 'twitter'
+  | 'linkedin';
 
-const ChannelIcon: Record<Channel, JSX.Element> = {
-  twitter: <FaTwitter />,
-  facebook: <FaFacebook />,
-  instagram: <FaInstagram />,
-  linkedin: <FaLinkedin />,
-  youtube: <FaYoutube />,
-  threads: <SiThreads />,
-};
-
-const ALL_CHANNELS: Channel[] = [
-  "twitter",
-  "facebook",
-  "instagram",
-  "linkedin",
-  "youtube",
-  "threads",
-];
-
-const CONNECT_URLS: Record<Channel, string> = {
-  twitter: "/auth/twitter",
-  facebook: "/auth/facebook",
-  instagram: "/auth/instagram",
-  linkedin: "/auth/linkedin",
-  youtube: "/auth/youtube",
-  threads: "/auth/threads",
-};
-
-export interface SocialAccount {
+interface Account {
   name: string;
   profilePic?: string;
+  needsReconnect?: boolean;
 }
 
-interface ChannelSelectorProps {
+interface Props {
+  accounts: Partial<Record<Channel, Account>>;
   selectedChannels: Set<Channel>;
-  onSelectionChange: (channels: Set<Channel>) => void;
-  connectedAccounts: Partial<Record<Channel, SocialAccount>>;
+  onSelectionChange: (s: Set<Channel>) => void;
 }
+
+const icons: Record<Channel, JSX.Element> = {
+  facebook: <FaFacebookF />,
+  instagram: <FaInstagram />,
+  youtube: <FaYoutube />,
+  threads: <FaAt />,
+  twitter: <FaTwitter />,
+  linkedin: <FaLinkedin />,
+};
 
 export default function ChannelSelector({
+  accounts,
   selectedChannels,
   onSelectionChange,
-  connectedAccounts,
-}: ChannelSelectorProps) {
-  const toggleChannel = (channel: Channel) => {
+}: Props) {
+  const toggle = (channel: Channel) => {
     const next = new Set(selectedChannels);
     next.has(channel) ? next.delete(channel) : next.add(channel);
     onSelectionChange(next);
   };
 
-  const connectedChannels = Object.keys(
-    connectedAccounts
-  ) as Channel[];
-
-  const notConnectedChannels = ALL_CHANNELS.filter(
-    (channel) => !connectedAccounts[channel]
-  );
-
   return (
     <div className={styles.container}>
-      <h3 className={styles.title}>Channels</h3>
+      <h3 className={styles.title}>Select Channels</h3>
 
-      {/* Connected Channels */}
-      {connectedChannels.length === 0 && (
-        <p className={styles.emptyState}>
-          No channels connected
-        </p>
-      )}
-
-      <div className={styles.list}>
-        {connectedChannels.map((channel) => {
-          const account = connectedAccounts[channel];
+      <div className={styles.avatarRow}>
+        {(Object.keys(icons) as Channel[]).map((channel) => {
+          const account = accounts[channel];
           if (!account) return null;
 
           const isSelected = selectedChannels.has(channel);
+          const disabled = account.needsReconnect;
 
           return (
             <button
               key={channel}
               type="button"
-              className={`${styles.item} ${
-                isSelected ? styles.selected : ""
-              }`}
-              onClick={() => toggleChannel(channel)}
+              className={[
+                styles.avatarBtn,
+                isSelected && styles.selected,
+                disabled && styles.disabled,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => !disabled && toggle(channel)}
+              title={account.name}
               aria-pressed={isSelected}
             >
-              <span
-                className={`${styles.checkIndicator} ${
-                  isSelected ? styles.checkActive : ""
-                }`}
+              <img
+                src={account.profilePic || '/profile.png'}
+                alt={account.name}
+                onError={(e) => {
+                  e.currentTarget.src = '/profile.png';
+                }}
               />
-
-              <div className={styles.avatarWrap}>
-                <img
-                  src={account.profilePic || "/profile.png"}
-                  alt={account.name}
-                />
-                <span
-                  className={`${styles.platformBadge} ${styles[channel]}`}
-                >
-                  {ChannelIcon[channel]}
-                </span>
-              </div>
-
-              <span className={styles.name}>
-                {account.name}
+              <span className={styles.platformBadge}>
+                {icons[channel]}
               </span>
             </button>
           );
         })}
       </div>
-
-      {/* Not Connected Channels */}
-      {notConnectedChannels.length > 0 && (
-        <>
-          <h4 className={styles.subTitle}>
-            Not Connected
-          </h4>
-
-          <div className={styles.list}>
-            {notConnectedChannels.map((channel) => (
-              <button
-                key={channel}
-                type="button"
-                className={`${styles.item} ${styles.notConnected}`}
-                onClick={() =>
-                  (window.location.href =
-                    CONNECT_URLS[channel])
-                }
-              >
-                <div className={styles.avatarWrap}>
-                  <div className={styles.placeholderAvatar}>
-                    {ChannelIcon[channel]}
-                  </div>
-                </div>
-
-                <span className={styles.name}>
-                  Connect{" "}
-                  {channel.charAt(0).toUpperCase() +
-                    channel.slice(1)}
-                </span>
-
-                <span className={styles.connectCta}>
-                  Connect
-                </span>
-              </button>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   );
 }
