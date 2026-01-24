@@ -42,13 +42,13 @@ const Landing: React.FC = () => {
 
     if (youtube === "connected") {
       setYoutubeConnected(true);
-      setActivePlatform(null); // close popup
+      setActivePlatform(null);
       setActiveTab("Create");
     }
 
     if (twitter === "connected") {
       setTwitterConnected(true);
-      setActivePlatform(null); // close popup
+      setActivePlatform(null);
       setActiveTab("Create");
     }
 
@@ -80,33 +80,45 @@ const Landing: React.FC = () => {
     }
   };
 
-  /* ================= PLATFORM POPUPS (OVERLAY) ================= */
+  /* ================= PLATFORM POPUPS ================= */
 
   const renderPlatformPopup = () => {
     switch (activePlatform) {
       case "twitter":
         return (
-          <TwitterConnect onClose={() => setActivePlatform(null)} />
+          twitterConnected ? (
+            <TwitterPost />
+          ) : (
+            <TwitterConnect onClose={() => setActivePlatform(null)} />
+          )
         );
 
       case "youtube":
-        return youtubeConnected ? (
-          <YouTubePost />
-        ) : (
-          <YouTubeConnect />
+        return (
+          youtubeConnected ? (
+            <YouTubePost />
+          ) : (
+            <YouTubeConnect onClose={() => setActivePlatform(null)} />
+          )
         );
 
       case "instagram":
-        return <InstagramConnect />;
+        return (
+          <InstagramConnect onClose={() => setActivePlatform(null)} />
+        );
 
       case "facebook":
         return <FacebookPost />;
 
       case "linkedin":
-        return <LinkedInConnect />;
+        return (
+          <LinkedInConnect onClose={() => setActivePlatform(null)} />
+        );
 
       case "threads":
-        return <ThreadsConnect />;
+        return (
+          <ThreadsConnect onClose={() => setActivePlatform(null)} />
+        );
 
       default:
         return null;
@@ -127,12 +139,14 @@ const Landing: React.FC = () => {
         activeTab={activeTab}
         setActiveTab={(tab: string) => {
           setActiveTab(tab);
-          setActivePlatform(null); // close popup on tab switch
+          setActivePlatform(null);
         }}
       />
 
       {/* ===== PAGE CONTENT ===== */}
-      <main className={styles.content}>{renderTabContent()}</main>
+      <main className={styles.content}>
+        {renderTabContent()}
+      </main>
 
       {/* ===== PLATFORM POPUPS ===== */}
       {activePlatform && renderPlatformPopup()}
