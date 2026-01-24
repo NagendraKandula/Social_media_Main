@@ -51,7 +51,7 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
     }
     setLoading(true);
     // 🚀 Secure Redirect to Backend
-    window.location.href = `${BACKEND_URL}/auth/twitter`;
+    window.location.href = `${backendUrl}/auth/twitter`;
   };
 
   return (
