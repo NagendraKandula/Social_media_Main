@@ -1,29 +1,20 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import {
-  Bold,
-  Italic,
-  Underline,
-  Link,
-  Hash,
-  AtSign,
-  Smile,
-  Send,
-  Save,
-  Clock,
-} from "lucide-react";
-import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
+import { Bold, Italic, Underline, Smile, Link as LinkIcon } from "lucide-react";
+import EmojiPicker from "emoji-picker-react";
 import styles from "../styles/ContentEditor.module.css";
+import { EffectiveEditorRules } from "../utils/resolveEditorRules";
+
+type ValidationMap = Record<string, string[]>;
 
 export interface ContentEditorProps {
   content: string;
   onContentChange: (value: string) => void;
+
   files: File[];
   onFilesChange: (files: File[]) => void;
-  onPublish: () => void;
-  onSaveDraft: () => void;
-  onSchedule: () => void;
-  aiAssistantEnabled: boolean;
-  setAiAssistantEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+
+  effectiveRules: EffectiveEditorRules;
+  validation: ValidationMap;
 }
 
 export default function ContentEditor({
@@ -31,22 +22,60 @@ export default function ContentEditor({
   onContentChange,
   files,
   onFilesChange,
-  onPublish,
-  onSaveDraft,
-  onSchedule,
-  aiAssistantEnabled, // This prop will now be used
-  setAiAssistantEnabled, // This prop will now be used
+  effectiveRules,
 }: ContentEditorProps) {
-  // ❌ MISTAKE: This internal state was overriding the parent's state. It has been removed.
-  // const [aiEnabled, setAiEnabled] = useState(false);
-
-  const [isDragging, setIsDragging] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ✅ File previews
+  /* ---------- Sync external content ---------- */
+  useEffect(() => {
+    if (!editorRef.current) return;
+
+    const currentText = editorRef.current.innerText;
+    const incomingText = new DOMParser()
+      .parseFromString(content, "text/html")
+      .body.innerText;
+
+    if (currentText !== incomingText) {
+      editorRef.current.innerHTML = content;
+    }
+  }, [content]);
+
+  /* ---------- Helpers ---------- */
+  const focusEditor = () => editorRef.current?.focus();
+
+  const getPlainTextLength = () =>
+    editorRef.current?.innerText.length || 0;
+
+  /* ---------- Input ---------- */
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    onContentChange(editorRef.current.innerHTML);
+  };
+
+  /* ---------- Rich Text ---------- */
+  const applyCommand = (command: string, value?: string) => {
+    focusEditor();
+    document.execCommand(command, false, value);
+    handleInput();
+  };
+
+  const insertLink = () => {
+    focusEditor();
+    const url = prompt("Enter URL");
+    if (!url) return;
+    document.execCommand("createLink", false, url);
+    handleInput();
+  };
+
+  const insertText = (text: string) => {
+    focusEditor();
+    document.execCommand("insertText", false, text);
+    handleInput();
+  };
+
+  /* ---------- Media ---------- */
   const filePreviews = useMemo(
     () =>
       files.map((file) => ({
@@ -57,248 +86,89 @@ export default function ContentEditor({
     [files]
   );
 
-  useEffect(() => {
-    return () => {
-      filePreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
-    };
-  }, [filePreviews]);
-
-  // Update innerHTML only when content changes externally
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== content) {
-      editorRef.current.innerHTML = content;
-    }
-  }, [content]);
-
-  const handleFileUpload = (fileList: FileList | null) => {
-    if (fileList) {
-      const uploadedFiles = Array.from(fileList);
-      onFilesChange([...files, ...uploadedFiles]);
-    }
-  };
-
-  const handleRemoveFile = (index: number) => {
-    const newFiles = files.filter((_, i) => i !== index);
-    onFilesChange(newFiles);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => setIsDragging(false);
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    handleFileUpload(e.dataTransfer.files);
-  };
-
-  const triggerFileInput = () => fileInputRef.current?.click();
-
-  // Rich text commands
-  const applyCommand = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    onContentChange(editorRef.current?.innerHTML || "");
-  };
-
-  // Emoji insertion
-  const handleEmojiClick = (emojiData: EmojiClickData) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    editor.focus();
-
-    const selection = window.getSelection();
-    if (!selection || !selection.rangeCount) return;
-
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-
-    const emojiNode = document.createTextNode(emojiData.emoji);
-    range.insertNode(emojiNode);
-
-    // Move cursor after emoji
-    range.setStartAfter(emojiNode);
-    range.collapse(true);
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    onContentChange(editor.innerHTML);
-    setShowEmojiPicker(false);
-  };
-
-  const handleInput = () => {
-    onContentChange(editorRef.current?.innerHTML || "");
-  };
+  /* ---------- Counts ---------- */
+  const charCount = getPlainTextLength();
+  const maxLength = effectiveRules?.text?.maxLength;
+  const overLimit = maxLength && charCount > maxLength;
 
   return (
-    <div className={styles.contentEditor}>
-      {/* Top Bar */}
-      <div className={styles.topBar}>
-        <h2 className={styles.editorTitle}>Create & Edit Content</h2>
-        <div className={styles.aiToggle}>
-          <span className={styles.toggleLabel}>AI Assistant</span>
-          <label className={styles.switch}>
-            <input
-              type="checkbox"
-              // ✅ FIX: Use the prop from the parent component
-              checked={aiAssistantEnabled}
-              // ✅ FIX: Call the state updater function from the parent
-              onChange={() => setAiAssistantEnabled(!aiAssistantEnabled)}
-            />
-            <span className={styles.slider}></span>
-          </label>
+    <div className={styles.editorCard}>
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarLeft}>
+          <button onClick={() => applyCommand("bold")}><Bold size={16} /></button>
+          <button onClick={() => applyCommand("italic")}><Italic size={16} /></button>
+          <button onClick={() => applyCommand("underline")}><Underline size={16} /></button>
+          <button onClick={insertLink}><LinkIcon size={16} /></button>
+          <button onClick={() => insertText("#")}>#</button>
+          <button onClick={() => insertText("@")}>@</button>
+          <button onClick={() => setShowEmojiPicker(v => !v)}>
+            <Smile size={16} />
+          </button>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className={styles.toolbar}>
-        <button
-          className={styles.toolBtn}
-          title="Bold"
-          onClick={() => applyCommand("bold")}
-        >
-          <Bold className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Italic"
-          onClick={() => applyCommand("italic")}
-        >
-          <Italic className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Underline"
-          onClick={() => applyCommand("underline")}
-        >
-          <Underline className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Insert Link"
-          onClick={() => {
-            const url = prompt("Enter URL:");
-            if (url) applyCommand("createLink", url);
-          }}
-        >
-          <Link className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Hashtag"
-          onClick={() => applyCommand("insertText", "#hashtag ")}
-        >
-          <Hash className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Mention"
-          onClick={() => applyCommand("insertText", "@username ")}
-        >
-          <AtSign className={styles.toolIcon} />
-        </button>
-        <button
-          className={styles.toolBtn}
-          title="Emoji"
-          onClick={() => setShowEmojiPicker((prev) => !prev)}
-        >
-          <Smile className={styles.toolIcon} />
-        </button>
-      </div>
-
-      {/* Emoji Picker */}
       {showEmojiPicker && (
-        <div className={styles.emojiPicker}>
-          <EmojiPicker onEmojiClick={handleEmojiClick} />
+        <div className={styles.emojiPopover}>
+          <EmojiPicker
+            onEmojiClick={(e) => {
+              insertText(e.emoji);
+              setShowEmojiPicker(false);
+            }}
+          />
         </div>
       )}
 
-      {/* Editable Area */}
+      {/* Editor */}
       <div
-        ref={editorRef}
-        className={`${styles.editorTextarea} ${!content ? styles.empty : ""}`}
+        className={styles.editor}
         contentEditable
-        suppressContentEditableWarning
+        ref={editorRef}
         onInput={handleInput}
-      ></div>
+        suppressContentEditableWarning
+        data-placeholder="Write your post..."
+      />
 
-      <div className={styles.editorFooter}>
-        <span className={styles.charCount}>
-          {editorRef.current?.innerText.length || 0} characters
-        </span>
-        <span className={styles.reachInfo}>Estimated reach: 3,000</span>
-      </div>
-
-      {/* Media Section */}
-      <div className={styles.mediaSection}>
-        <label className={styles.mediaLabel}>Media</label>
+      {/* Media previews */}
+      {filePreviews.length > 0 && (
         <div className={styles.mediaGrid}>
-          {filePreviews.map((preview, index) => (
-            <div key={index} className={styles.mediaItem}>
-              {preview.isImage ? (
-                <img
-                  src={preview.url}
-                  alt={preview.file.name}
-                  className={styles.mediaPreview}
-                />
-              ) : (
-                <div className={styles.videoPlaceholder}>🎥 Video</div>
-              )}
+          {filePreviews.map((p, i) => (
+            <div key={i} className={styles.mediaItem}>
+              {p.isImage ? <img src={p.url} alt="preview" /> : <div>🎥</div>}
               <button
-                onClick={() => handleRemoveFile(index)}
-                className={styles.removeBtn}
-                aria-label="Remove file"
+                onClick={() =>
+                  onFilesChange(files.filter((_, idx) => idx !== i))
+                }
               >
-                ✕
+                ×
               </button>
-              <p className={styles.fileName}>{preview.file.name}</p>
-              <p className={styles.fileSize}>
-                {(preview.file.size / (1024 * 1024)).toFixed(1)} MB
-              </p>
             </div>
           ))}
         </div>
+      )}
 
+      {/* Footer (upload + count together) */}
+      <div className={styles.footerInfo}>
         <div
-          className={`${styles.uploadArea} ${isDragging ? styles.dragging : ""}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={triggerFileInput}
+          className={styles.uploadBox}
+          onClick={() => fileInputRef.current?.click()}
         >
-          <span>+ Add More Files</span>
+          + Add media
           <input
-            ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
             multiple
-            className={styles.uploadInput}
-            onChange={(e) => handleFileUpload(e.target.files)}
+            hidden
+            ref={fileInputRef}
+            onChange={(e) =>
+              e.target.files &&
+              onFilesChange([...files, ...Array.from(e.target.files)])
+            }
           />
         </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className={styles.actionButtons}>
-        <button
-          className={`${styles.actionBtn} ${styles.publishBtn}`}
-          onClick={onPublish}
-        >
-          <Send size={16} />
-          Publish
-        </button>
-        <button className={styles.actionBtn} onClick={onSaveDraft}>
-          <Save size={16} />
-          Save Draft
-        </button>
-        <button className={styles.actionBtn} onClick={onSchedule}>
-          <Clock size={16} />
-          Schedule
-        </button>
+        <span className={overLimit ? styles.overLimit : undefined}>
+          {charCount}{maxLength ? ` / ${maxLength}` : ""} chars
+        </span>
       </div>
     </div>
   );

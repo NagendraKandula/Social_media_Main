@@ -1,24 +1,26 @@
+// Backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "postgresql" // or your provider
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id        Int                  @id @default(autoincrement())
-  fullName  String
-  email     String               @unique
-  password  String
-  createdAt DateTime             @default(now())
-  otp       String?
-  otpExpiry DateTime?
-
-  // Relations
+  id             Int             @id @default(autoincrement())
+  fullName       String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  otp            String?
+  otpExpiry      DateTime?
   refreshTokens  RefreshToken[]
   socialAccounts SocialAccount[]
+  posts          Post[]
+  media          Media[]
 }
 
 model RefreshToken {
@@ -27,23 +29,99 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-
-  user   User @relation(fields: [userId], references: [id],onDelete: Cascade)
-  userId Int
-  
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
 }
 
 model SocialAccount {
-  id          Int      @id @default(autoincrement())
-  provider    String   // e.g. "twitter", "facebook", "linkedin"
-  providerId  String   // user ID from provider
-  accessToken String   // short-lived access token
-  refreshToken String? // optional (some providers don’t give this)
-  expiresAt   DateTime? // when accessToken expires
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           Int       @id @default(autoincrement())
+  provider     String    // e.g. "twitter", "facebook", "threads"
+  providerId   String    // user ID from provider
+  accessToken  String
+  refreshToken String?
+  expiresAt    DateTime?
+  platformUsername String?  // Stores @username or channel ID
+  platformName     String?  // Stores Display Name (e.g. "John Doe")
+  profilePic       String?  // Stores URL to the profile image
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   user   User @relation(fields: [userId], references: [id])
   userId Int
+
+  // ✅ CONSTRAINT 1: Prevent Account Theft
+  // No two users can claim the same external social account
   @@unique([provider, providerId])
+
+  // ✅ CONSTRAINT 2: Prevent Duplicates
+  // A single user cannot link the same platform twice
+  @@unique([userId, provider])
+}
+model Post {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  content         String?   // Basic text fallback
+  
+  // ✅ 1. FUTURE-PROOF METADATA (JSON)
+  contentMetadata Json?     
+  
+  // ✅ 2. RELATION TO MEDIA TABLE
+  media           Media?    @relation(fields: [mediaId], references: [id])
+  mediaId         Int?
+
+  // Scheduling
+  isScheduled     Boolean   @default(false)
+  scheduledAt     DateTime?
+  status          PostStatus @default(DRAFT)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User           @relation(fields: [userId], references: [id])
+  platforms       PostPlatform[]
+}
+
+model PostPlatform {
+  id           Int        @id @default(autoincrement())
+  postId       Int
+  platform     String     // "facebook", "linkedin", "twitter"
+  
+  status       PostStatus @default(PENDING) 
+  externalId   String?    // ID from the social network
+  errorMessage String?
+
+  post         Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+// ✅ 3. THE MISSING MEDIA TABLE
+model Media {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  
+  fileUrl     String   // The Public URL (e.g. storage.googleapis.com/...)
+  storagePath String   // The GCS internal path (for deletion)
+  mimeType    String   // image/jpeg, video/mp4
+  type        MediaType // IMAGE, VIDEO, REEL
+  
+  createdAt   DateTime @default(now())
+  
+  posts       Post[]
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  PARTIAL
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  REEL
+  STORY
 }

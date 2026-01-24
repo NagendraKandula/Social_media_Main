@@ -6,49 +6,43 @@
   height: 100vh;
 }
 
-/* Fixed Header */
+/* ===== MAIN HEADER ===== */
 .header {
-  /* No need for flex: 0 0 auto here if it's the only direct child of container before main-wrapper */
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: white; /* Ensure it covers content when scrolling */
+  z-index: 1000;
+  background: white;
+  height: 70px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
 }
 
-/* Main Area: Sidebar + Content */
-.main {
+/* ===== SUB HEADER (TABS) ===== */
+.subHeader {
+  position: sticky;
+  top: 70px; /* exact header height */
+  z-index: 900;
+  height: 40px;
+  background: #ff5e45;
   display: flex;
-  flex: 1;
-  /* This is the key change: Allow the content to scroll within the main container */
-  /* Remove overflow: hidden; from .container and add it here or on a content wrapper */
-  overflow: hidden; 
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-/* Fixed Sidebar */
-.sidebar {
-  flex: 0 0 260px;
-  height: 100%; /* Will take full height of .main */
-  overflow-y: auto;
-  /* The padding-top here is okay, but it doesn't solve the header overlap */
-}
-
-/* Scrollable Content Area */
+/* ===== SCROLLABLE CONTENT ===== */
 .content {
   flex: 1;
-  padding: 40px;
-  /* This is where the scrollbar should appear */
   overflow-y: auto;
+  padding: 40px;
   background: #fcfcfd;
 }
 
-/* A helper class to apply a margin-top to the first child of the main content area */
-/* You would apply this class to the content inside your Publish component, for example */
+/* Optional helper */
 .firstContentElement {
-  margin-top: 40px; /* Or whatever the height of your header is */
+  margin-top: 16px;
 }
 
-/* Placeholder Content */
+/* Placeholder (optional) */
 .placeholder {
   max-width: 800px;
   margin: 0 auto;
@@ -68,12 +62,8 @@
   line-height: 1.6;
 }
 
-/* Responsive: Collapse sidebar on mobile */
+/* ===== MOBILE ===== */
 @media (max-width: 768px) {
-  .sidebar {
-    flex: 0 0 80px;
-  }
-
   .content {
     padding: 20px;
   }

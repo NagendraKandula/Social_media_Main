@@ -13,11 +13,26 @@ import { InstagramModule } from './social_media_platforms/instagram/instagram.mo
 import { TwitterModule } from './social_media_platforms/twitter/twitter.module';
 import { ThreadsModule } from './social_media_platforms/threads/threads.module';
 import { InstagramBusinessModule } from './social_media_platforms/instagram-business/instagram-business.module';
-
+import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.module';
+import { PostingModule } from './posting/posting.module';
+import { ScheduleModule } from '@nestjs/schedule'; // 👈 IMPORT THIS
+import { BullModule } from '@nestjs/bull';
+import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true, // Makes the ConfigModule available globally
+    }),
+    // 1. Enable Scheduling (Cron Jobs)
+    ScheduleModule.forRoot(),
+    // 2. Connect to Redis for Queues
+    BullModule.forRoot({
+      redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT!) || 6379,
+        password: process.env.REDIS_PASSWORD,
+        ...(process.env.REDIS_TLS === 'true' ? { tls: {} } : {}),
+      },
     }),
     PrismaModule,
     AuthModule,
@@ -25,7 +40,9 @@ import { InstagramBusinessModule } from './social_media_platforms/instagram-busi
     FacebookModule,
     YoutubeAnalyticsModule,
      AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,
+    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
+    InstagramAnalyticsModule,
+    
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],

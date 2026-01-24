@@ -80,7 +80,7 @@ export class FacebookService {
     pageId: string,
     content: string,
     mediaUrl: string,
-    mediaType: 'IMAGE' | 'VIDEO' | 'STORY',
+    mediaType: 'IMAGE' | 'VIDEO' | 'STORY'|'REEL',
   ) {
     const userAccessToken = await this.getFacebookToken(userId);
     if (!userAccessToken) {
@@ -118,7 +118,10 @@ export class FacebookService {
         return this.postPhoto(pageId, pageAccessToken, content, mediaUrl);
       } else if (mediaType === 'VIDEO') {
         return this.postRegularVideo(pageId, pageAccessToken, content, mediaUrl);
-      } else if (mediaType === 'STORY') {
+      }else if (mediaType === 'REEL') {
+        return this.postFacebookReel(pageId, pageAccessToken, content , mediaUrl);
+      }
+      else if (mediaType === 'STORY') {
         const isVideo = ['.mp4', '.mov', '.avi'].some(ext => mediaUrl.toLowerCase().endsWith(ext));
         if (isVideo) {
           return this.postVideoStory(pageId, pageAccessToken, mediaUrl);
@@ -321,6 +324,77 @@ private async postVideoStory(
     throw new InternalServerErrorException(
       `Failed to post video story: ${errorMsg}`,
     );
+  }
+}
+async checkVideoStatus(videoId: string, pageAccessToken: string) {
+  const response = await axios.get(
+    `https://graph.facebook.com/v24.0/${videoId}`,
+    {
+      params: {
+        fields: 'status',
+        access_token: pageAccessToken,
+      },
+    },
+  );
+
+  // Status can be: ready, processing, expired, or error
+  return response.data.status;
+}
+
+private async postFacebookReel(
+  pageId: string,
+  pageAccessToken: string,
+  content: string,
+  mediaUrl: string,
+) {
+  try {
+    // PHASE 1: Initialize
+    const initResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${pageId}/video_reels`,
+      {
+        upload_phase: 'start',
+        access_token: pageAccessToken,
+      }
+    );
+    const { video_id, upload_url } = initResponse.data;
+
+    // PHASE 2: Upload (Note the use of rupload.facebook.com via the provided upload_url)
+    await axios.post(
+      upload_url, 
+      null,
+      {
+        headers: {
+          'Authorization': `OAuth ${pageAccessToken}`,
+          'file_url': mediaUrl, // For hosted files
+        },
+      }
+    );
+
+    // PHASE 3: Publish
+    const finishResponse = await axios.post(
+      `https://graph.facebook.com/v24.0/${pageId}/video_reels`,
+      null,
+      {
+        params: {
+          access_token: pageAccessToken,
+          video_id: video_id,
+          upload_phase: 'finish',
+          video_state: 'PUBLISHED',
+          description: content,
+        },
+      }
+    );
+     const status = await this.checkVideoStatus(video_id, pageAccessToken);
+    return {
+      success: true,
+      postId: video_id,
+      message: status.video_status === 'ready' 
+      ? 'Reel is live!' 
+      : 'Reel is being processed and will be live shortly.',
+    };
+  } catch (error) {
+    console.error('Reel Upload Error:', error.response?.data || error.message);
+    throw new InternalServerErrorException('Failed to publish Facebook Reel.');
   }
 }
 }
