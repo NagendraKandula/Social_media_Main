@@ -1,143 +1,78 @@
-/* styles/DynamicPreview.module.css */
+/* DynamicPreview.module.css */
 
 .previewContainer {
-  width: 100%;
-  max-width: 380px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.25rem;
-  background: linear-gradient(to bottom, #60a5fa, #f59e0b); /* Light background to contrast phone */
-  border-radius: 1rem;
+  gap: 20px;
+}
+
+.previewCard {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  margin: 0 auto; /* Center instead of negative margin */
+  border: 1px solid #e5e7eb;
+  transition: box-shadow 0.2s;
+}
+
+.previewCard:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .previewHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.previewTitle {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.platformCount {
-  background-color: #e5e7eb;
-  padding: 0.25rem 0.75rem;
-  border-radius: 1.5rem;
-  font-size: 0.85rem;
+  padding: 12px 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #4b5563;
+  color: #374151;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.phoneWrapper {
+/* Platform-specific header colors (subtle branding) */
+.previewCard[data-platform="twitter"] .previewHeader { background: #f7f9fa; }
+.previewCard[data-platform="facebook"] .previewHeader { background: #f0f2f5; }
+.previewCard[data-platform="instagram"] .previewHeader { background: #fafafa; }
+.previewCard[data-platform="linkedin"] .previewHeader { background: #f7f9fc; }
+.previewCard[data-platform="youtube"] .previewHeader { background: #f9f9f9; }
+.previewCard[data-platform="threads"] .previewHeader { background: #f7f7f7; }
+
+/* Empty state */
+.empty {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding: 0.5rem 0;
-}
-
-.phone {
-  width: 220px;
-  height: 460px;
-  border-radius: 2.5rem;
-  border: 14px solid #1e293b; /* Darker, more realistic frame */
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  position: relative;
-  background: #000; /* Simulate bezel */
-}
-
-/* Simulate notch (optional but realistic) */
-.phone::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30%;
-  height: 4px;
-  background: #000;
-  z-index: 10;
-  border-radius: 0 0 4px 4px;
-}
-
-.screen {
-  height: 100%;
-  background-color: #fff;
-  padding: 16px 12px 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* Realistic post content styling */
-.postContent {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.previewText {
-  font-size: 15px;
-  line-height: 1.4;
-  color: #111827;
-  word-break: break-word;
-  white-space: pre-wrap; /* Preserve line breaks from textarea */
-}
-
-/* Media Grid */
-.previewMediaGrid {
-  display: grid;
-  gap: 8px;
-  width: 100%;
-}
-
-/* Single media item */
-.previewMediaWrapper {
-  width: 100%;
-  overflow: hidden;
-  border-radius: 10px;
-  background: #f3f4f6;
-  aspect-ratio: 1 / 1; /* Square for Instagram-like, adjust per platform later */
-}
-
-.previewMedia {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-/* Video fallback if needed */
-.previewMediaWrapper video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* Welcome message (when empty) */
-.welcomeMessage {
-  font-size: 1.2rem;
-  color: #9ca3af;
+  height: 200px;
+  background: #f9fafb;
+  border-radius: 12px;
+  color: #6b7280;
+  font-size: 16px;
   text-align: center;
-  font-weight: 500;
-  padding: 20px;
+  padding: 0 20px;
+  border: 1px dashed #d1d5db;
 }
 
-/* Scrollbar styling (optional) */
-.screen::-webkit-scrollbar {
-  width: 6px;
+/* Ensure preview content fills card */
+.previewCard > div:last-child {
+  padding: 16px;
 }
-.screen::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
+
+/* Responsive */
+@media (max-width: 640px) {
+  .previewContainer {
+    gap: 16px;
+  }
+
+  .previewCard {
+    border-radius: 10px;
+  }
+
+  .previewHeader {
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+}
+
+/* Optional: Add subtle divider between multi-preview cards */
+.previewCard:not(:last-child) {
+  margin-bottom: 8px;
 }

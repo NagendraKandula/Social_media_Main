@@ -1,129 +1,132 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import styles from "../styles/InstagramConnect.module.css";
-import { FaInstagram, FaCheckCircle } from "react-icons/fa"; // Added FaCheckCircle
+import { FaInstagram, FaFacebookF, FaCheckCircle } from "react-icons/fa";
 import apiClient from "../lib/axios";
 
-const InstagramConnect = () => {
+interface InstagramConnectProps {
+  onClose: () => void;
+}
+
+const InstagramConnect: React.FC<InstagramConnectProps> = ({ onClose }) => {
   const router = useRouter();
+  const popupRef = useRef<HTMLDivElement>(null);
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  /* ✅ CLOSE ON OUTSIDE CLICK */
   useEffect(() => {
-    // 1. Check for success signal from Backend
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  /* 🔒 EXISTING REDIRECT LOGIC — UNCHANGED */
+  useEffect(() => {
     if (router.query.instagram === "connected") {
       setSuccess(true);
-      // Optional: Clear URL params to clean up address bar
-      router.replace("/InstagramConnect", undefined, { shallow: true });
+      setError(null);
+      router.replace(router.pathname, undefined, { shallow: true });
     }
 
-    // 2. Check for error signal from Backend
     if (router.query.error) {
-      setError("Failed to connect to Instagram. Please try again.");
+      setError("Failed to connect Instagram. Please try again.");
     }
   }, [router.query]);
 
-  const handleConnect =  async () => {
-    // ✅ CRITICAL: Redirect to YOUR Backend, not Instagram directly.
-    // The backend will generate the secure 'state' (User ID) and redirect to Instagram.
+  // 🔒 BACKEND LOGIC — UNCHANGED
+  const handleConnect = async () => {
     try {
-      await apiClient.get('/auth/profile');
-    
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-    window.location.href = `${backendUrl}/auth/instagram`;
-    }
-    catch (error) {
-      console.error("Connection error:", error);
-      if (error.response?.status === 401) {
-      router.push("/login");
-    } else {
-      setError("Unable to initiate connection. Please check your connection.");
-    }
-    }
+      setLoading(true);
+      await apiClient.get("/auth/profile");
 
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      window.location.href = `${backendUrl}/auth/instagram`;
+    } catch (err: any) {
+      setLoading(false);
+      if (err?.response?.status === 401) {
+        router.push("/login");
+      } else {
+        setError("Unable to initiate connection.");
+      }
+    }
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.card}>
-        <div className={styles.header}>
-          <FaInstagram className={styles.instagramIcon} />
-          <h1>Connect Your Instagram</h1>
-          <p className={styles.subtitle}>
-            Unlock scheduling, analytics, and AI-powered tools to grow your
-            presence.
-          </p>
+    <div ref={popupRef} className={styles.instagramPopover}>
+      {/* TITLE */}
+      <h3 className={styles.popupTitle}>
+        Choose the type of account you’d like to connect
+      </h3>
+
+      {success && (
+        <div className={styles.success}>
+          <FaCheckCircle />
+          Instagram connected successfully
         </div>
+      )}
 
-        {/* ✅ Success Message */}
-        {success && (
-          <div className={styles.successMessage} style={{ color: 'green', textAlign: 'center', margin: '10px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <FaCheckCircle /> 
-            <span>Instagram Connected Successfully!</span>
-          </div>
-        )}
+      {error && <p className={styles.error}>{error}</p>}
 
-        {/* ❌ Error Message */}
-        {error && <p className={styles.error} style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
-
-        <div className={styles.benefits}>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>📅</div>
-            <div>
-              <h3>Schedule Posts</h3>
-              <p>Plan your content calendar weeks in advance.</p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>📊</div>
-            <div>
-              <h3>Track Performance</h3>
-              <p>See which posts drive the most engagement and growth.</p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>✨</div>
-            <div>
-              <h3>AI Caption & Hashtag Generator</h3>
-              <p>Never struggle with captions again. Let AI help!</p>
-            </div>
-          </div>
-        </div>
-
-        <div className={styles.trustSection}>
-          <p>🔒 Secure connection via Instagram’s official API</p>
-          <p>🚫 We never post without your explicit approval</p>
-        </div>
-
-        {/* ✅ Updated Button Logic */}
-        {!success && (
-          <button 
-            onClick={handleConnect} 
-            className={styles.connectButton}
-            style={{ cursor: 'pointer', border: 'none' }} // Ensure it looks like the previous link
-          >
+      {/* CARDS */}
+      <div className={styles.cardRow}>
+        {/* Professional */}
+        <div className={styles.optionCard}>
+          <div className={styles.optionHeader}>
             <FaInstagram />
-            Connect to Instagram
-          </button>
-        )}
-        
-        {success && (
-           <button 
-             className={styles.connectButton} 
-             disabled 
-             style={{ opacity: 0.7, cursor: 'not-allowed' }}
-           >
-             Connected
-           </button>
-        )}
+          </div>
 
-        <div className={styles.footerNote}>
-          <p>
-            By connecting, you agree to our <a href="#">Terms</a> and{" "}
-            <a href="#">Privacy Policy</a>.
+          <h4>Professional Account</h4>
+          <p className={styles.subtitle}>
+            Connect your Instagram professional account directly.
           </p>
+
+          <button
+            onClick={handleConnect}
+            disabled={loading || success}
+            className={styles.primaryBtn}
+          >
+            {loading ? "Connecting..." : "Connect account"}
+          </button>
+        </div>
+
+        {/* Via Facebook */}
+        <div className={`${styles.optionCard} ${styles.recommended}`}>
+          <div className={styles.optionHeader}>
+            <FaFacebookF />
+            <span className={styles.badge}>Recommended</span>
+          </div>
+
+          <h4>Instagram via Facebook</h4>
+          <p className={styles.subtitle}>
+            Connect Instagram using your Facebook Page to unlock analytics and
+            publishing.
+          </p>
+
+          <button
+            onClick={handleConnect}
+            disabled={loading || success}
+            className={styles.secondaryBtn}
+          >
+            {loading ? "Connecting..." : "Connect account"}
+          </button>
         </div>
       </div>
+
+      <p className={styles.footer}>
+        🔒 Secure connection using Instagram’s official API
+      </p>
     </div>
   );
 };

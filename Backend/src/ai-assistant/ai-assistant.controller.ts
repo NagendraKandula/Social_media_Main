@@ -2,40 +2,39 @@ import {
   Controller,
   Post,
   UseInterceptors,
-  UploadedFile,
+  UploadedFiles, // Changed to plural
   Body,
   BadRequestException,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor } from '@nestjs/platform-express'; // Changed to plural
 import { AiAssistantService } from './ai-assistant.service';
 import { GenerateContentDto } from './dto/generate-content.dto';
-import { Express } from 'express'; // Make sure to import Express
 
 @Controller('ai-assistant')
 export class AiAssistantController {
   constructor(private readonly aiAssistantService: AiAssistantService) {}
 
   @Post('generate')
-  @UseInterceptors(FileInterceptor('image')) // 'image' must match the field name from the frontend
+  @UseInterceptors(FilesInterceptor('images')) // Field name 'images' must match frontend
   async generateContent(
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFiles() files: Express.Multer.File[], // Handles the array of images
     @Body() generateContentDto: GenerateContentDto,
   ) {
     const { prompt, type } = generateContentDto;
 
-    if (!prompt && !file) {
-      throw new BadRequestException('Prompt is required.');
+    if (!prompt && (!files || files.length === 0)) {
+      throw new BadRequestException('Prompt or images are required.');
     }
 
     try {
       const result = await this.aiAssistantService.generateContent(
         prompt,
         type,
-        file,
+        files,
       );
       return { success: true, data: result };
     } catch (error) {
-      throw new BadRequestException(`Error generating content: ${error.message}`);
+      throw new BadRequestException(`AI Error: ${error.message}`);
     }
   }
 }

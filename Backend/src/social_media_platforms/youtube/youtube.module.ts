@@ -7,5 +7,6 @@ import { AuthModule } from '../../auth/auth.module';
     imports: [PrismaModule,AuthModule],
     controllers: [YoutubeController],
     providers: [YoutubeService],
+    exports: [YoutubeService],
 })
 export class YoutubeModule {}
