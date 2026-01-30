@@ -7,7 +7,6 @@ import { SchedulerService } from '../scheduler/scheduler.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { BullModule } from '@nestjs/bull';
 import { FacebookModule } from '../social_media_platforms/facebook/facebook.module';
-//import { InstagramModule } from '../social_media_platforms/instagram/instagram.module';
 import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.module';
 import { TwitterModule } from '../social_media_platforms/twitter/twitter.module';
 import { YoutubeModule } from '../social_media_platforms/youtube/youtube.module';
@@ -20,11 +19,11 @@ import { InstagramBusinessModule } from '../social_media_platforms/instagram-bus
       name: 'social-posting',
     }),
     FacebookModule,
+    InstagramBusinessModule,
     LinkedinModule,
     TwitterModule,
     YoutubeModule,
-    ThreadsModule,
-    InstagramBusinessModule,
+    ThreadsModule
   ],
   controllers: [PostingController],
   providers: [

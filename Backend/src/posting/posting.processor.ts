@@ -10,12 +10,12 @@ import { InstagramBusinessService } from '../social_media_platforms/instagram-bu
 import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.service';
 import { YoutubeService } from '../social_media_platforms/youtube/youtube.service';
 import { ThreadsService } from '../social_media_platforms/threads/threads.service';
+import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
 
 @Processor('social-posting')
 export class PostingProcessor {
   private readonly logger = new Logger(PostingProcessor.name);
 
-  
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
@@ -24,6 +24,7 @@ export class PostingProcessor {
     private readonly linkedinService: LinkedinService,
     private readonly youtubeService: YoutubeService,
     private readonly threadsService: ThreadsService,
+    private readonly twitterService: TwitterService,
   ) {}
 
   @Process('publish-post')
@@ -49,7 +50,7 @@ export class PostingProcessor {
       try {
         // Uncomment if using private bucket
         mediaUrl = await this.storageService.getSignedReadUrl(post.media.storagePath);
-        //this.logger.log(`🔑 Signed URL Generated: ${mediaUrl}`);
+        this.logger.log(`🔑 Signed URL Generated: ${mediaUrl}`);
       } catch (e) {
         this.logger.warn(`Could not sign URL: ${e.message}`);
       }
@@ -77,7 +78,7 @@ export class PostingProcessor {
             );
             externalId = result.postId || 'fb_id';
         } 
-        else if (platformEntry.platform === 'instagram') {
+       else if (platformEntry.platform === 'instagram') {
             if (!mediaUrl) throw new Error('Media URL is required for Instagram');
             const account = await this.getAccount(post.userId, 'instagram');
             const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
@@ -109,7 +110,7 @@ export class PostingProcessor {
                 contentText
             );
             externalId = result.id;
-        } 
+        }
         else if (platformEntry.platform === 'linkedin') {
             const account = await this.getAccount(post.userId, 'linkedin');
             const result = await this.linkedinService.postToLinkedIn(
@@ -118,7 +119,7 @@ export class PostingProcessor {
             );
             externalId = result.postId;
         } 
-        else if (platformEntry.platform === 'threads') {
+       else if (platformEntry.platform === 'threads') {
             const account = await this.getAccount(post.userId, 'threads');
             
             // ✅ Determine type safely from Post Media
@@ -135,6 +136,7 @@ export class PostingProcessor {
             );
             externalId = result.postId;
         }
+        
         else if (platformEntry.platform === 'youtube') {
             if (!mediaUrl) throw new Error('Video file is required for YouTube');
             const title = (post.contentMetadata as any)?.title || 'New Video';
@@ -143,7 +145,19 @@ export class PostingProcessor {
             );
             externalId = result.videoId ?? 'unknown_id';
         }
+        else if (platformEntry.platform === 'twitter') {
+            const account = await this.getAccount(post.userId, 'twitter');
+            this.logger.log(`🐦 Posting to Twitter...`);
 
+            // ✅ Pass storagePath (not the signed URL) because the updated 
+            // TwitterService handles the GCS download/signing internally.
+            const result = await this.twitterService.postTweetWithUserToken(
+                contentText,
+                post.media?.storagePath, 
+                account.accessToken
+            );
+            externalId = result.tweetId;
+        }
         // ✅ Success Update
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },

@@ -9,8 +9,8 @@ export class ThreadsService {
   private readonly LONG_LIVED_TOKEN_URL = 'https://graph.threads.net/access_token';
   private readonly CLIENT_ID = process.env.THREADS_APP_ID;
   private readonly CLIENT_SECRET = process.env.THREADS_APP_SECRET;
-  private readonly REDIRECT_URI =
-    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/auth/threads/callback';
+  private readonly REDIRECT_URL =
+    'https://aleigha-unchinked-dilan.ngrok-free.dev/auth/threads/callback';
 
   constructor(private readonly http: HttpService) {}
 
@@ -25,7 +25,7 @@ export class ThreadsService {
             client_id: this.CLIENT_ID,
             client_secret: this.CLIENT_SECRET,
             grant_type: 'authorization_code',
-            redirect_uri: this.REDIRECT_URI,
+            redirect_uri: this.REDIRECT_URL,
             code,
           },
         }),

@@ -1,82 +1,76 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config'; // Import ConfigService
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ConfigService } from '@nestjs/config';
+import { Groq } from 'groq-sdk'; // Ensure groq-sdk is installed via npm
 import { Express } from 'express';
 
 @Injectable()
 export class AiAssistantService {
-  private genAI: GoogleGenerativeAI;
+  private groq: Groq;
+  private readonly MODEL_ID = 'meta-llama/llama-4-maverick-17b-128e-instruct';
 
-  // Inject ConfigService into the constructor
   constructor(private configService: ConfigService) {
-    // Use the ConfigService to get the API key
-    const apiKey = this.configService.get<string>('GOOGLE_API_KEY');
+    const apiKey = this.configService.get<string>('GROQ_API_KEY');
     if (!apiKey) {
-      throw new Error('GOOGLE_API_KEY is not set in the environment variables.');
+      throw new Error('GROQ_API_KEY is not set in environment variables.');
     }
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.groq = new Groq({ apiKey });
   }
 
-  // Converts buffer to a format Google's model can understand
-  private fileToGenerativePart(file: Express.Multer.File) {
-    return {
-      inlineData: {
-        data: file.buffer.toString('base64'),
-        mimeType: file.mimetype,
-      },
-    };
-  }
-
-  // Constructs the final prompt based on the generation type
-  private getEnhancedPrompt(type: string, userPrompt: string, hasImage: boolean): string {
-    // --- PROMPTS HAVE BEEN MODIFIED FOR SINGLE, DIRECT OUTPUT ---
-    const topic = hasImage 
-      ? `based on the provided image` 
-      : `for the topic: "${userPrompt}"`;
-    
-    const context = hasImage && userPrompt 
-      ? ` Use the following text as additional context: "${userPrompt}".` 
+  private getEnhancedPrompt(type: string, userPrompt: string, imageCount: number): string {
+    const multiInstruction = imageCount > 1 
+      ? `I have provided ${imageCount} images. Provide a unique and separate result for EACH image, numbered 1 to ${imageCount}. `
       : '';
+    const context = userPrompt ? `Context: "${userPrompt}". ` : '';
+
     switch (type) {
       case 'Generate Hashtags':
-    return `Generate 10-15 relevant and trending hashtags for the topic: "${userPrompt}". Return only the hashtags as a single string, each starting with #, without any extra text or labels.`;
-
-  case 'Generate Description':
-    return `Write one short, engaging, and readable social media description (2-3 sentences) for the topic: "${userPrompt}". Focus on the key points, and do NOT include hashtags or any extra text.`;
-
-  case 'Generate Caption':
-    return `Create one short, catchy, and attention-grabbing social media caption (1 sentence, up to 15 words) for the topic: "${userPrompt}". Only return the caption text, no explanations or extra text.`;
-
-  case 'Generate Content':
-    return `Create a single piece of social media content for the topic: "${userPrompt}". Start with a short, engaging caption (1 sentence), then on a new line provide 10-15 relevant hashtags. Return only the caption and hashtags, with no extra text or labels.`;
-
+        return `${multiInstruction}${context}Generate 10-15 trending hashtags for EACH image individually. Return only the hashtags.`;
+      case 'Generate Description':
+        return `${multiInstruction}${context}Write a unique 2-sentence description for EACH image based on its visual content.`;
+      case 'Generate Caption':
+        return `${multiInstruction}${context}Create one catchy 1-sentence caption for EACH image.`;
+      case 'Generate Content':
+        return `${multiInstruction}${context}For EACH image, provide a caption followed by relevant hashtags.`;
       default:
-        return userPrompt; // Fallback to the original prompt
+        return userPrompt;
     }
   }
+
   async generateContent(
     prompt: string,
     type: string,
-    image?: Express.Multer.File,
+    images?: Express.Multer.File[],
   ): Promise<string> {
-    const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const hasImage = !!image;
-    const enhancedPrompt = this.getEnhancedPrompt(type, prompt,hasImage);
+    const imageCount = images ? images.length : 0;
+    const enhancedPrompt = this.getEnhancedPrompt(type, prompt, imageCount);
+    
+    // Correct content structure for Groq Multimodal
+    const messageContent: any[] = [{ type: 'text', text: enhancedPrompt }];
+
+    if (images && images.length > 0) {
+      // Limit to 5 images as per Llama Maverick constraints
+      images.slice(0, 5).forEach((image) => {
+        const base64Image = image.buffer.toString('base64');
+        messageContent.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:${image.mimetype};base64,${base64Image}`,
+          },
+        });
+      });
+    }
 
     try {
-      if (image) {
-        // Multimodal generation (Image + Text)
-        const imagePart = this.fileToGenerativePart(image);
-        const result = await model.generateContent([enhancedPrompt, imagePart]);
-        return result.response.text();
-      } else {
-        // Text-only generation
-        const result = await model.generateContent(enhancedPrompt);
-        return result.response.text();
-      }
+      const chatCompletion = await this.groq.chat.completions.create({
+        messages: [{ role: 'user', content: messageContent }],
+        model: this.MODEL_ID,
+        temperature: 0.7,
+      });
+
+      return chatCompletion.choices[0]?.message?.content || 'No content generated.';
     } catch (error) {
-      console.error('AI content generation failed:', error);
-      throw new Error('Failed to get a response from the AI model.');
+      console.error('Groq AI generation failed:', error);
+      throw new Error(`AI generation failed: ${error.message}`);
     }
   }
 }
