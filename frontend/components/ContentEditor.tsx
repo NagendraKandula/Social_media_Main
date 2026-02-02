@@ -12,7 +12,6 @@ export interface ContentEditorProps {
 
   files: File[];
   onFilesChange: (files: File[]) => void;
-
   effectiveRules: EffectiveEditorRules;
   validation: ValidationMap;
 }
