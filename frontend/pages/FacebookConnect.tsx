@@ -31,8 +31,6 @@ const FacebookConnect: React.FC<FacebookConnectProps> = ({ onClose }) => {
   // 🔒 BACKEND LOGIC — UNCHANGED
   const handleConnectFacebook = async () => {
     setLoading(true);
-    setError('');
-
     try {
       await apiClient.get("/auth/profile");
 
@@ -49,22 +47,12 @@ const FacebookConnect: React.FC<FacebookConnectProps> = ({ onClose }) => {
         window.location.href = "/login";
         return;
       }
-    } catch (err: any) {
-      console.error('Instagram analytics error:', err);
-      setError(
-        err?.response?.data?.message ||
-          'Failed to load Instagram analytics. Please connect Instagram.'
-      );
-    } finally {
+      console.error("Connection error:", error);
+      alert("Unable to connect to Facebook. Please try again later.");
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [viewMode]);
-
-  // ---------- UI ----------
   return (
     <div ref={popupRef} className={styles.facebookPopover}>
       {/* TITLE */}
@@ -111,17 +99,4 @@ const FacebookConnect: React.FC<FacebookConnectProps> = ({ onClose }) => {
   );
 };
 
-// ---------- SMALL HELPER ----------
-const Stat = ({ title, value }: { title: string; value: number }) => (
-  <div className={styles.statCard}>
-    <h3>{title}</h3>
-    <p>{value.toLocaleString()}</p>
-  </div>
-);
-
-// ---------- AUTH ----------
-export const getServerSideProps: GetServerSideProps = withAuth(async () => {
-  return { props: {} };
-});
-
-export default InstagramAnalytics;
+export default FacebookConnect;
