@@ -11,5 +11,6 @@ import { PrismaModule } from '../../prisma/prisma.module';
   ],
   controllers: [InstagramBusinessController],
   providers: [InstagramBusinessService],
+  exports: [InstagramBusinessService],
 })
 export class InstagramBusinessModule {}

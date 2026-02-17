@@ -5,17 +5,18 @@ import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
 import { TwitterController } from './twitter.controller';
 import { TwitterService } from './twitter.service';
-import { CloudinaryModule } from '../../cloudinary/cloudinary.module';
+
 import { PrismaModule } from '../../prisma/prisma.module';
+import { StorageService } from '../../storage/storage.service';
 @Module({
   imports: [
     HttpModule,
     ConfigModule, 
-    CloudinaryModule,
+    
     PrismaModule,// Ensure ConfigModule is imported
   ],
   controllers: [TwitterController],
-  providers: [TwitterService],
+  providers: [TwitterService,StorageService],
   exports: [TwitterService],
 })
 export class TwitterModule {}

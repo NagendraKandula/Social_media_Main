@@ -1,140 +1,83 @@
-.container {
+/* ===== POPUP CONTAINER ===== */
+.linkedinPopover {
+  position: absolute;
+  top: 60px;
+  width: 350px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.18);
+  padding: 10px 20px 10px;
+  z-index: 1000;
+}
+
+/* ===== TITLE ===== */
+.popupTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 18px;
+}
+
+/* ===== CARD ===== */
+.optionCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+/* ===== CARD HEADER ===== */
+.optionHeader {
   display: flex;
-  justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 100px);
-  padding: 40px 20px;
-  background: linear-gradient(135deg, #129ca3, #3eebda, #20b4b9);
-  background-size: 400% 400%;
-  animation: gradientShift 8s ease infinite; /* Lets global background show through */
+  gap: 8px;
+  font-size: 18px;
+  color: #0a66c2; /* LinkedIn Blue */
+  margin-bottom: 6px;
 }
 
-.card {
-   background: white;
-  border-radius: 20px;
-  padding: 40px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-  max-width: 700px;
-  width: 100%;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
-  border: 1px solid #ffe0e0;
-  margin-top: 50px;
-}
-
-.headerSection {
-  margin-bottom: 2rem;
-}
-
-.mainIcon {
-  width: 70px;
-  height: 70px;
-  margin-bottom: 1rem;
-}
-
-.title {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin-bottom: 0.5rem;
+/* ===== CARD CONTENT ===== */
+.optionCard h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 6px 0 4px;
+  color: #111827;
 }
 
 .subtitle {
-  font-size: 0.95rem;
-  color: #666;
-  line-height: 1.5;
-}
-
-/* Features List Styles */
-.featuresList {
-  width: 100%;
-  text-align: left;
-  margin-bottom: 2rem;
-}
-
-.featureItem {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 1.2rem;
-  padding: 0.5rem;
-}
-
-.featureIcon {
-  font-size: 1.4rem;
-  margin-right: 1rem;
-  background: #f0f7ff;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.featureText h3 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.2rem;
-}
-
-.featureText p {
-  font-size: 0.85rem;
-  color: #777;
+  font-size: 13px;
+  color: #4b5563;
+  margin-bottom: 16px;
   line-height: 1.4;
-  margin: 0;
 }
 
-/* Security Notes */
-.securityNote {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.85rem;
-  color: #007d4f; /* Green for secure */
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
-.lockIcon {
-  margin-right: 6px;
-}
-
-.approvalNote {
-  font-size: 0.8rem;
-  color: #666;
-  margin-bottom: 1.5rem;
-}
-
-/* Connect Button */
-.connectButton {
-  background-color: #0077b5; /* LinkedIn Blue */
-  color: white;
-  border: none;
-  padding: 14px 0;
+/* ===== BUTTON ===== */
+.primaryBtn {
   width: 100%;
-  font-size: 1.1rem;
+  background: #0a66c2;
+  border: none;
+  padding: 10px;
+  border-radius: 999px;
   font-weight: 600;
-  border-radius: 12px;
+  font-size: 14px;
+  color: white;
   cursor: pointer;
-  transition: transform 0.2s, background-color 0.2s;
+  transition: background 0.2s ease;
 }
 
-.connectButton:hover {
-  background-color: #005e93;
-  transform: translateY(-2px);
+.primaryBtn:hover {
+  background: #004182;
 }
 
-/* Footer Terms */
-.termsText {
-  margin-top: 1.5rem;
-  font-size: 0.75rem;
-  color: #999;
+.primaryBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
-.termsText span {
-  color: #0077b5;
-  cursor: pointer;
-  text-decoration: underline;
+/* ===== FOOTER ===== */
+.footer {
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 14px;
+  text-align: center;
 }

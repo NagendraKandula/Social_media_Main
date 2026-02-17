@@ -1,235 +1,334 @@
-/* --- Bold & Vibrant Signup Page CSS --- */
-.pageGifBg {
+/* =========================
+   BASE PAGE
+========================= */
+
+.authPage {
   min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-  background: white;
-}
-
-.centeredContent {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem 0;
-}
-
-.loginCard {
-  background: white;
-  border-radius: 18px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
-  width: 470px;
-  max-width: 90vw;
-  padding: 2rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-.loginTitle {
-  font-family: 'Inter', Arial, sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 1.3rem;
-  text-align: center;
-  letter-spacing: -0.01em;
-}
-
-.loginForm {
   display: flex;
   flex-direction: column;
-  gap: 1.3rem;
+  background: #ffffff;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
 }
+
+/* =========================
+   HEADER
+========================= */
+
+.authHeader {
+  height: 70px;
+  padding: 0 30px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.logo {
+  font-size: 30px;
+  font-weight: 500;
+  font-family: "Georgia", serif;
+  color: #000;
+}
+
+.logo span {
+  color: #ff5e45;
+}
+
+/* =========================
+   MAIN LAYOUT
+========================= */
+
+.authMain {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  padding: 64px 80px;
+}
+
+/* =========================
+   LEFT – FORM SECTION
+========================= */
+
+.formSection {
+  max-width: 450px;
+  width: 100%;
+  margin-left: 70px;
+  margin-top: -24px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 28px;
+}
+
+/* =========================
+   FORM FIELDS
+========================= */
 
 .formGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  margin-bottom: 18px;
 }
 
-.inputLabel {
-  color: #1f2937;
-  font-family: 'Inter', Arial, sans-serif;
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-left: 20px;
-}
-
-.input {
-  width: 90%;
-  height: 3.2rem;
-  border-radius: 1rem;
-  border: 1.5px solid #e2e8f0;
-  font-size: 1rem;
-  color: #1f2937;
-  padding: 0 1rem;
-  font-family: 'Inter', Arial, sans-serif;
-  font-weight: 600;
-  margin: 0 auto;
+.formGroup label {
   display: block;
-  box-sizing: border-box;
-  transition: border 0.2s, box-shadow 0.2s;
+  font-size: 13px;
+  color: #374151;
+  margin-bottom: 6px;
 }
 
-.input:focus {
-  outline: none;
-  border-color: #f472b6;
-  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.25);
+.formGroup input {
+  width: 100%;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 0 12px;
+  font-size: 14px;
+  color: #111827;
+  background: white;
 }
+
+.formGroup input::placeholder {
+  color: #9ca3af;
+}
+
+.formGroup input:focus {
+  outline: none;
+  border-color: #ff5e45;
+}
+
+/* =========================
+   PASSWORD FIELD
+========================= */
 
 .passwordWrapper {
   position: relative;
-  width: 90%;
-  margin: 0 auto;
 }
 
-.passwordWrapper .input {
-  width: 100%;
-}
-
-.toggleEye {
+.eyeToggle {
   position: absolute;
+  right: 12px;
   top: 50%;
-  right: 1rem;
   transform: translateY(-50%);
-  cursor: pointer;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  color: #ec4899;
-}
-
-.button, .googleButton {
-  width: 70%;
-  height: 3.2rem;
-  border-radius: 1rem;
-  font-size: 1.1rem;
-  font-family: 'Inter', Arial, sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  margin: 0.1rem auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  transition: all 0.25s ease;
-}
-
-.button {
-  background: linear-gradient(135deg, #ec4899, #8b5cf6);
-  color: white;
+  background: none;
   border: none;
-  font-weight: 700;
-}
-
-.button:hover, .button:active {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
-}
-
-.googleButton {
-  background: white;
-  color: #1f2937;
-  border: 1.5px solid #e5e7eb;
-  gap: 0.7em;
-}
-
-.googleButton:hover {
-  background: #f9fafb;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin: 0.3rem 0;
+  font-size: 13px;
+  cursor: pointer;
   color: #6b7280;
-  font-weight: 600;
 }
 
-.dividerLine {
-  flex-grow: 1;
-  height: 1.5px;
-  background: #e5e7eb;
+/* =========================
+   PASSWORD STRENGTH
+========================= */
+.passwordMeter {
+  margin: -8px 0 16px 0;
 }
 
-.passwordStrengthContainer {
-  width: 90%;
-  margin: -5px auto 15px auto;
-}
-
-.strengthIndicator.strength-weak {
-  width: 33%;
-  background-color: #f87171; /* soft red */
-}
-.strengthIndicator.strength-medium {
-  width: 66%;
-  background-color: #fbbf24; /* warm amber */
-}
-.strengthIndicator.strength-strong {
+.meterBar {
   width: 100%;
-  background-color: #34d399; /* soft green */
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 8px;
 }
 
-.strengthText-weak { color: #ef4444; }
-.strengthText-medium { color: #d97706; }
-.strengthText-strong { color: #0d9488; /* deeper teal-green */ }
+.meterFill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
 
-.validationList li.valid {
-  color: #0d9488;
+/* Strength levels */
+.strength-weak {
+  width: 33%;
+  background: #f87171;
+}
+
+.strength-medium {
+  width: 66%;
+  background: #fbbf24;
+}
+
+.strength-strong {
+  width: 100%;
+  background: #02b573;
+}
+
+.meterText {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+/* Rules */
+.ruleList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.ruleList li {
+  margin-bottom: 4px;
+}
+
+.ruleList li.valid {
+  color: #10b981;
   text-decoration: line-through;
 }
 
-.errorMessage, .successMessage {
-  text-align: center;
-  margin-top: 10px;
-  font-weight: 600;
-  font-family: 'Inter', Arial, sans-serif;
-}
-.errorMessage {
-  color: #ef4444;
-}
-.successMessage {
-  color: #10b981;
-}
+/* =========================
+   PRIMARY BUTTON
+========================= */
 
-.signupLink {
-  text-align: center;
-  font-size: 1rem;
+.primaryBtn {
+  width: 100%;
+  height: 44px;
+  background: #ff5e45;
+  border-radius: 999px;
+  border: none;
+  font-size: 15px;
   font-weight: 600;
-  color: #4b5563;
-  margin-top: 0.2rem;
-}
-
-.link {
-  color: #ec4899;
-  text-decoration: underline;
-  font-weight: 700;
+  color: white;
+  margin-bottom: 14px;
   cursor: pointer;
 }
 
-.link:hover {
-  color: #db2777;
-  text-decoration: none;
+.primaryBtn:hover {
+  background: #ff7860;
 }
 
-/* Responsive */
-@media (max-width: 500px) {
-  .loginCard {
-    width: 95vw;
-    padding: 1.5rem;
+/* =========================
+   MESSAGE
+========================= */
+
+.errorMessage {
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.successMessage {
+  color: #10b981;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* =========================
+   DIVIDER
+========================= */
+
+.divider {
+  text-align: center;
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 16px 0;
+}
+
+/* =========================
+   GOOGLE BUTTON
+========================= */
+
+.googleBtn {
+  width: 100%;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #111827;
+  text-decoration: none;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.googleBtn:hover {
+  background: #f9fafb;
+}
+
+/* =========================
+   SWITCH AUTH
+========================= */
+
+.switchAuth {
+  font-size: 14px;
+  color: #374151;
+}
+
+.switchAuth a {
+  color: #4f46e5;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* =========================
+   RIGHT – ILLUSTRATION
+========================= */
+
+.illustrationSection {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid #e5e7eb;
+}
+
+.illustrationSection img {
+  width: 100%;
+  max-width: 420px;
+  height: 70%;
+  object-fit: contain;
+}
+
+/* =========================
+   FOOTER
+========================= */
+
+.authFooter {
+  height: 50px;
+  background: whitesmoke;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  font-size: 13px;
+  color: #111827;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+  .authMain {
+    grid-template-columns: 1fr;
+    padding: 40px 24px;
   }
 
-  .button, .googleButton {
-    width: 85%;
+  .illustrationSection {
+    display: none;
   }
 
-  .googleButtonText {
-    font-size: 0.95rem;
+  .formSection {
+    margin-left: 0;
+  }
+
+  .authHeader {
+    padding: 0 24px;
   }
 }

@@ -2,28 +2,20 @@
 import React, { useMemo, useEffect } from "react";
 import styles from "../styles/DynamicPreview.module.css";
 import DOMPurify from "dompurify";
-import FacebookPreview from "./FacebookPreview";
-import TwitterPreview from "./TwitterPreview";
-import InstagramPreview from "./InstagramPreview";
-import LinkedInPreview from "./LinkedInPreview";
-import PinterestPreview from "./PinterestPreview";
-import ThreadsPreview from "./ThreadsPreview";
-import YouTubePreview from "./YouTubePreview";
+import { MediaItem } from "../types";
 
-
-interface MediaItem {
-  id: string;
-  type: "image" | "video";
-  url: string;
-}
+// Platform Previews
+import FacebookPreview from "./preview/FacebookPreview";
+import TwitterPreview from "./preview/TwitterPreview";
+import InstagramPreview from "./preview/InstagramPreview";
+import LinkedInPreview from "./preview/LinkedInPreview";
+import ThreadsPreview from "./preview/ThreadsPreview";
+import YouTubePreview from "./preview/YouTubePreview";
 
 interface DynamicPreviewProps {
   selectedPlatforms: string[];
   content: string;
   mediaFiles: File[];
-  onPublish: () => void;
-  onSaveDraft: () => void;
-  onSchedule: () => void;
 }
 
 export default function DynamicPreview({
@@ -31,43 +23,56 @@ export default function DynamicPreview({
   content,
   mediaFiles,
 }: DynamicPreviewProps) {
+
   const mediaPreviews: MediaItem[] = useMemo(() => {
     return mediaFiles.map((file, index) => ({
-      id: `file-${index}`,
+      id: `file-${index}-${file.name}`,
       url: URL.createObjectURL(file),
       type: file.type.startsWith("image/") ? "image" : "video",
+      name: file.name,
+      size: file.size,
     }));
   }, [mediaFiles]);
 
   useEffect(() => {
     return () => {
-      mediaPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
+      mediaPreviews.forEach((preview) =>
+        URL.revokeObjectURL(preview.url as string)
+      );
     };
   }, [mediaPreviews]);
 
+  const primaryPlatform = selectedPlatforms[0];
   const hasContent = content.trim() !== "" || mediaPreviews.length > 0;
 
-  const primaryPlatform = selectedPlatforms[0];
-
-  const renderPreview = () => {
+  const renderPlatformPreview = () => {
     switch (primaryPlatform) {
       case "facebook":
-        return <FacebookPreview content={content} mediaItems={mediaPreviews} />;
+        return <FacebookPreview content={content} files={mediaPreviews} />;
+
       case "twitter":
-        return <TwitterPreview content={content} mediaItems={mediaPreviews} />;
+        return <TwitterPreview content={content} files={mediaPreviews} />;
+
       case "instagram":
-        return <InstagramPreview content={content} mediaItems={mediaPreviews} />;
+        return <InstagramPreview content={content} files={mediaPreviews} />;
+
       case "linkedin":
-        return <LinkedInPreview content={content} mediaItems={mediaPreviews} />;
-      case "pinterest":
-        return <PinterestPreview content={content} mediaItems={mediaPreviews} />;
+        return <LinkedInPreview content={content} files={mediaPreviews} />;
+
       case "threads":
-        return <ThreadsPreview content={content} mediaItems={mediaPreviews} />;
+        return <ThreadsPreview content={content} files={mediaPreviews} />;
+
       case "youtube":
-        return <YouTubePreview content={content} mediaItems={mediaPreviews} />;
+        return (
+          <YouTubePreview
+            description={content}
+            files={mediaPreviews}
+          />
+        );
+
       default:
         return (
-          <>
+          <div className={styles.defaultPreview}>
             {content && (
               <div
                 className={styles.previewText}
@@ -76,28 +81,7 @@ export default function DynamicPreview({
                 }}
               />
             )}
-            {mediaPreviews.length > 0 && (
-              <div className={styles.previewMediaGrid}>
-                {mediaPreviews.map((preview, index) => (
-                  <div key={index} className={styles.previewMediaWrapper}>
-                    {preview.type === "image" ? (
-                      <img
-                        src={preview.url}
-                        alt={`preview-${index}`}
-                        className={styles.previewMedia}
-                      />
-                    ) : (
-                      <video
-                        src={preview.url}
-                        controls
-                        className={styles.previewMedia}
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          </div>
         );
     }
   };
@@ -116,9 +100,14 @@ export default function DynamicPreview({
         <div className={styles.phone}>
           <div className={styles.screen}>
             {hasContent ? (
-              <div className={styles.postContent}>{renderPreview()}</div>
+              <div className={styles.postContent}>
+                {renderPlatformPreview()}
+              </div>
             ) : (
-              <div className={styles.welcomeMessage}>Hi, welcome!</div>
+              <div className={styles.welcomeMessage}>
+                <p>Preview will appear here</p>
+                <span>Select a platform to see how your post looks.</span>
+              </div>
             )}
           </div>
         </div>

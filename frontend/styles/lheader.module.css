@@ -1,52 +1,72 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px 40px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  position: fixed;
+  position: sticky;
   top: 0;
+  z-index: 1000;          /* highest */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  background: white;
   width: 100%;
-  height: 100px;
-  z-index: 100;
+  height: 70px;
+  border-bottom: 1px solid #e5e7eb; /* optional but recommended */
+  overflow: visible; 
 }
 
+
+/* Logo */
 .logo {
   font-size: 30px;
-  font-weight: bold;
-  color: black;
-  margin-top: 10px;
-  margin-left: 50px;
+  font-weight: 500;
+  font-family: "Georgia", serif;
+  color: #000;
+  line-height: 1;
 }
 
+.dot {
+  color: #ff5e45;
+}
+
+/* Channels (platform icons) */
 .channels {
   display: flex;
-  gap: 20px;
-  margin-right: 140px;
+  align-items: center;
+  justify-self: center;
+  gap: 35px;
 }
 
+
+
+/* Platform icon wrapper */
+.instagramWrapper {
+  position: relative;
+  overflow: visible;
+}
+
+/* Platform icons */
 .channelIcon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 45px;
   border-radius: 30%;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
-  font-size: 18px;
-  transition: all 0.2s ease;
-  border: 0.3px solid #d1d5db;
+  font-size: 17px;
   background: none;
-  margin-top: 20px;
   color: #374151;
+  transition: background 0.2s ease, transform 0.2s ease;
 }
+
 
 .channelIcon:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(217, 231, 252, 0.1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
 }
 
-.channelIcon[data-platform="instagram"] { color: #e4405f; }
+/* Platform brand colors */
+.channelIcon[data-platform="instagram"] { color: #ab1530; }
 .channelIcon[data-platform="twitter"]   { color: #1da1f2; }
 .channelIcon[data-platform="youtube"]   { color: #ff0000; }
 .channelIcon[data-platform="linkedin"]  { color: #0077b5; }
@@ -54,123 +74,113 @@
 .channelIcon[data-platform="facebook"]  { color: #1877f2; }
 .channelIcon[data-platform="threads"]   { color: #000000; }
 
-.channelIcon[data-platform="threads"]:hover,
-.channelIcon[data-platform="youtube"]:hover {
-  background: rgba(59, 130, 246, 0.15);
+
+/* Connected state */
+.connected {
+  border: 1.5px solid #22c55e;
+  background: #e7fbe9;
 }
 
+
+/* Right actions */
 .actions {
   display: flex;
-  gap: 20px;
   align-items: center;
-  margin-top: 20px;
-  margin-right: 50px;
-  position: relative; /* Needed for dropdown positioning */
+  gap: 12px;
+  position: relative;
 }
 
-.newPostButton {
-  padding: 10px 20px;
-  background-color: #3b82f6;
-  color: white;
-  font-weight: 500;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 15px;
-}
-
-.newPostButton:hover {
-  background-color: #2563eb;
-}
-
-.help {
+/* Notification icon */
+.notification {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  font-size: 1.4rem;
-  color: #6b7280;
-  transition: all 0.2s ease;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: none;
   border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #178bfe;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.help:hover {
-  color: #3b82f6;
-  background: rgba(59, 130, 246, 0.08);
+.notification:hover {
+  color: #1f66ff;
+  background: rgba(17, 24, 39, 0.06);
 }
 
-.profileContainer {
-  position: relative; /* For dropdown positioning */
-}
-
-.profilePic {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #d1d5db;
+.settings {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: bold;
-  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: none;
   border: none;
-  font-size: 16px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #595f6c;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.settings:hover {
+  color: #111827;
+  background: rgba(17, 24, 39, 0.06);
+}
+
+/* Profile */
+.profileContainer {
+  position: relative;
+}
+
+.profilePic {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #1dbbff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid white;
+  font-size: 14px;
 }
 
 .profileInitial {
-  color: #111;
+  color: #111827;
 }
 
-/* Dropdown menu */
+/* Dropdown */
 .profileDropdown {
   position: absolute;
-  top: 50px; /* Below profile icon */
+  top: 44px;
   right: 0;
   background: white;
-  border: 1px solid #d1d5db;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  width: 150px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  width: 160px;
   z-index: 200;
   display: flex;
   flex-direction: column;
-  padding: 10px 0;
+  padding: 5px 0;
 }
 
 .profileDropdown button {
   background: none;
   border: none;
-  padding: 10px 20px;
+  padding: 8px 10px;
   text-align: left;
   cursor: pointer;
   font-size: 14px;
-  color: #111;
-  transition: background 0.2s ease;
+  color: #111827;
 }
 
 .profileDropdown button:hover {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
-}
-.connected {
-  color: #1877F2 !important; /* Facebook Blue */
-  position: relative;
-}
-
-/* Green dot indicator */
-.connected::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  width: 8px;
-  height: 8px;
-  background-color: #10b981;
-  border-radius: 50%;
-  border: 1.5px solid white;
+  background: rgba(59, 130, 246, 0.08);
+  color: #2563eb;
 }

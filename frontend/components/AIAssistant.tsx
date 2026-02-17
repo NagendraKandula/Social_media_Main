@@ -1,5 +1,16 @@
 import React, { useState, useRef } from 'react';
-import { Sparkles, Hash, FileText, Type, MessageSquarePlus, Copy, Loader, PlusCircle, X } from 'lucide-react';
+import { 
+  Sparkles, 
+  Hash, 
+  FileText, 
+  Type, 
+  MessageSquarePlus, 
+  Copy, 
+  Loader, 
+  PlusCircle, 
+  X, 
+  Trash2 
+} from 'lucide-react';
 import styles from '../styles/AIAssistant.module.css';
 import axios from '../lib/axios';
 
@@ -8,8 +19,7 @@ const AIAssistant = () => {
   const [generatedContent, setGeneratedContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeButton, setActiveButton] = useState('');
-  const [copySuccess, setCopySuccess] = useState('');
-  const [images, setImages] = useState<File[]>([]); // ✅ Array for multi-image carousel
+  const [images, setImages] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleGenerate = async (genType: string) => {
@@ -26,7 +36,6 @@ const AIAssistant = () => {
     formData.append('prompt', promptValue);
     formData.append('type', genType);
     
-    // ✅ Append all images to the same 'images' key for backend processing
     images.forEach((file) => {
       formData.append('images', file); 
     });
@@ -51,7 +60,7 @@ const AIAssistant = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const selectedFiles = Array.from(e.target.files);
-      setImages((prev) => [...prev, ...selectedFiles].slice(0, 5)); // Limit to 5 for Llama Maverick
+      setImages((prev) => [...prev, ...selectedFiles].slice(0, 5));
     }
   };
 
@@ -59,11 +68,15 @@ const AIAssistant = () => {
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const clearResult = () => {
+    setGeneratedContent('');
+  };
+
   const buttons = [
-    { label: 'Generate Hashtags', icon: <Hash size={18} /> },
-    { label: 'Generate Description', icon: <FileText size={18} /> },
-    { label: 'Generate Caption', icon: <Type size={18} /> },
-    { label: 'Generate Content', icon: <MessageSquarePlus size={18} /> },
+    { label: 'Generate Hashtags', icon: <Hash size={16} /> },
+    { label: 'Generate Description', icon: <FileText size={16} /> },
+    { label: 'Generate Caption', icon: <Type size={16} /> },
+    { label: 'Generate Content', icon: <MessageSquarePlus size={16} /> },
   ];
 
   return (
@@ -75,33 +88,42 @@ const AIAssistant = () => {
 
       <div className={styles.inputGroup}>
         <div className={styles.promptWrapper}>
-          <button className={styles.uploadButton} onClick={() => fileInputRef.current?.click()}>
+          <button 
+            className={styles.uploadButton} 
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+          >
             <PlusCircle size={20} />
           </button>
-          <input
-            type="text"
+          
+          <textarea
             value={promptValue}
             onChange={(e) => setPromptValue(e.target.value)}
             placeholder="Topic for the carousel..."
             className={styles.promptInput}
+            rows={3}
           />
+          
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileChange}
             accept="image/*"
-            multiple // ✅ Allow multiple selection
+            multiple
             style={{ display: 'none' }}
           />
         </div>
 
-        {/* ✅ Carousel Preview */}
         {images.length > 0 && (
-          <div className={styles.carouselContainer} style={{ display: 'flex', gap: '8px', overflowX: 'auto', padding: '10px 0' }}>
+          <div className={styles.carouselContainer}>
             {images.map((file, idx) => (
               <div key={idx} style={{ position: 'relative', flex: '0 0 60px', height: '60px' }}>
-                <img src={URL.createObjectURL(file)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                <button onClick={() => removeImage(idx)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer' }}>
+                <img 
+                    src={URL.createObjectURL(file)} 
+                    alt="preview" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} 
+                />
+                <button onClick={() => removeImage(idx)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <X size={10} />
                 </button>
               </div>
@@ -112,8 +134,13 @@ const AIAssistant = () => {
 
       <div className={styles.buttonGrid}>
         {buttons.map(({ label, icon }) => (
-          <button key={label} onClick={() => handleGenerate(label)} className={styles.generateButton} disabled={isLoading}>
-            {isLoading && activeButton === label ? <Loader size={18} className={styles.loaderIcon} /> : icon}
+          <button 
+            key={label} 
+            onClick={() => handleGenerate(label)} 
+            className={styles.generateButton} 
+            disabled={isLoading}
+          >
+            {isLoading && activeButton === label ? <Loader size={16} className={styles.loaderIcon} /> : icon}
             <span>{label.replace('Generate ', '')}</span>
           </button>
         ))}
@@ -123,13 +150,32 @@ const AIAssistant = () => {
         <div className={styles.outputContainer}>
           <div className={styles.outputHeader}>
             <h4>Generated Results</h4>
-            <button onClick={() => navigator.clipboard.writeText(generatedContent)} className={styles.copyButton}><Copy size={16} /></button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                onClick={() => navigator.clipboard.writeText(generatedContent)} 
+                className={styles.copyButton}
+                title="Copy text"
+              >
+                <Copy size={16} />
+              </button>
+              
+              <button 
+                onClick={clearResult} 
+                className={styles.copyButton} 
+                style={{ color: '#ef4444' }}
+                title="Clear result"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           </div>
-          <p style={{ whiteSpace: 'pre-wrap' }} className={styles.generatedText}>{generatedContent}</p>
+          <div className={styles.generatedText}>
+            {generatedContent}
+          </div>
         </div>
       )}
     </div>
   );
 };
 
-export default AIAssistant; // ✅ Ensure Default Export
+export default AIAssistant;

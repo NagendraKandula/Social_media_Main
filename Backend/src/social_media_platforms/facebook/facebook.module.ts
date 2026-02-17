@@ -10,5 +10,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   ],
   controllers: [FacebookController],
   providers: [FacebookService],
+  exports: [FacebookService],
 })
 export class FacebookModule {}

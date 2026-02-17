@@ -83,7 +83,7 @@ export class SocialAuthController {
                    `client_id=${process.env.FACEBOOK_APP_ID}` +
                    `&redirect_uri=${encodeURIComponent(process.env.FACEBOOK_CALLBACK_URL!)}` +
                    `&state=${state}${forcePrompt}` +
-                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management,instagram_manage_insights,instagram_manage_comments,pages_manage_metadata,pages_manage_ads')}`;
+                   `&scope=${encodeURIComponent('email,pages_manage_posts,pages_read_engagement,pages_show_list,pages_read_user_content,instagram_basic,instagram_content_publish,business_management,instagram_manage_insights,instagram_manage_comments,pages_manage_metadata')}`;
      return res.redirect(oauthUrl);
   }
 
@@ -112,7 +112,7 @@ export class SocialAuthController {
     const state = encodeURIComponent(JSON.stringify({ userId }));
     
     const clientId = process.env.THREADS_APP_ID;
-    const redirectUri = process.env.THREADS_REDIRECT_URI; 
+    const redirectUri = process.env.THREADS_REDIRECT_URL; 
     const scope = 'threads_basic,threads_content_publish';
 
     // Manual URL Building

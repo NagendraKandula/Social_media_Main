@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../lib/axios'; //
-import styles from '../styles/Analytics.module.css'; //
+import styles from '../styles/Instagram-analytics.module.css'; //
 import { withAuth } from '../utils/withAuth'; //
 import { GetServerSideProps } from 'next';
 

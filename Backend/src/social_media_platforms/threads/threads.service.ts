@@ -1,4 +1,3 @@
-
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
@@ -7,11 +6,11 @@ import { firstValueFrom } from 'rxjs';
 export class ThreadsService {
   private readonly GRAPH_API_URL = 'https://graph.threads.net/v1.0';
   private readonly TOKEN_URL = 'https://graph.threads.net/oauth/access_token';
-  private readonly LONG_LIVED_TOKEN_URL = 'https://graph.threads.net/access_token'; // ✅ Added URL
+  private readonly LONG_LIVED_TOKEN_URL = 'https://graph.threads.net/access_token';
   private readonly CLIENT_ID = process.env.THREADS_APP_ID;
   private readonly CLIENT_SECRET = process.env.THREADS_APP_SECRET;
-  private readonly REDIRECT_URI =
-    'https://unsecretive-unlearned-alexzander.ngrok-free.dev/auth/threads/callback';
+  private readonly REDIRECT_URL =
+    'https://aleigha-unchinked-dilan.ngrok-free.dev/auth/threads/callback';
 
   constructor(private readonly http: HttpService) {}
 
@@ -26,7 +25,7 @@ export class ThreadsService {
             client_id: this.CLIENT_ID,
             client_secret: this.CLIENT_SECRET,
             grant_type: 'authorization_code',
-            redirect_uri: this.REDIRECT_URI,
+            redirect_uri: this.REDIRECT_URL,
             code,
           },
         }),
@@ -103,7 +102,13 @@ export class ThreadsService {
   }
 
   // ✅ Post text / image / video to Threads
-  async postToThreads(accessToken: string, content: string, mediaUrl?: string) {
+  // 🔽 UPDATED SIGNATURE: Added mediaType parameter
+  async postToThreads(
+    accessToken: string, 
+    content: string, 
+    mediaUrl?: string, 
+    mediaType?: 'IMAGE' | 'VIDEO'
+  ) {
     try {
       const meRes = await firstValueFrom(
         this.http.get(`${this.GRAPH_API_URL}/me?fields=id,username`, {
@@ -121,22 +126,26 @@ export class ThreadsService {
 
       if (!mediaUrl) {
         createBody['media_type'] = 'TEXT';
-      } else if (
-        mediaUrl.toLowerCase().endsWith('.jpg') ||
-        mediaUrl.toLowerCase().endsWith('.jpeg') ||
-        mediaUrl.toLowerCase().endsWith('.png')
-      ) {
-        createBody['media_type'] = 'IMAGE'; 
-        createBody['image_url'] = mediaUrl;
-        isMediaPost = true;
-      } else if (mediaUrl.toLowerCase().endsWith('.mp4')) {
-        createBody['media_type'] = 'VIDEO';
-        createBody['video_url'] = mediaUrl;
-        isMediaPost = true;
       } else {
-        throw new InternalServerErrorException(
-          'Unsupported media type (only .jpg, .png, .mp4)',
-        );
+        // 🔽 UPDATED LOGIC: Use explicit type OR Regex that ignores query params
+        const isImage = mediaType === 'IMAGE' || /\.(jpg|jpeg|png)(\?|$)/i.test(mediaUrl);
+        const isVideo = mediaType === 'VIDEO' || /\.(mp4)(\?|$)/i.test(mediaUrl);
+
+        if (isImage) {
+          createBody['media_type'] = 'IMAGE'; 
+          createBody['image_url'] = mediaUrl;
+          isMediaPost = true;
+        } else if (isVideo) {
+          createBody['media_type'] = 'VIDEO';
+          createBody['video_url'] = mediaUrl;
+          isMediaPost = true;
+        } else {
+          // Log the URL for debugging if it still fails
+          console.error('❌ URL Validation Failed:', mediaUrl);
+          throw new InternalServerErrorException(
+            'Unsupported media type (only .jpg, .png, .mp4)',
+          );
+        }
       }
 
       const containerRes = await firstValueFrom(

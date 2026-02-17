@@ -1,57 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../lib/axios';
-import styles from '../styles/Analytics.module.css';
-import { withAuth } from '../utils/withAuth';
-import { GetServerSideProps } from 'next';
-import Link from 'next/link';
+import React, { useState, useEffect, useRef } from "react";
+import styles from "../styles/FacebookConnect.module.css";
+import { FaFacebookF, FaCheckCircle } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
-// ---------- TYPES ----------
-interface ProfileData {
-  id: string;
-  username: string;
-  followers_count: number;
-  media_count: number;
+interface FacebookConnectProps {
+  onClose: () => void;
 }
 
-interface Metric {
-  name: string;
-  title?: string;
-  total_value: { value: number };
-}
-
-interface PostTotals {
-  totalLikes: number;
-  totalComments: number;
-  totalImpressions: number;
-  totalReach: number;
-  totalSaved: number;
-  totalVideoViews: number;
-}
-
-// ---------- COMPONENT ----------
-const InstagramAnalytics: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'account' | 'posts'>('account');
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [accountMetrics, setAccountMetrics] = useState<Metric[]>([]);
-  const [postTotals, setPostTotals] = useState<PostTotals | null>(null);
+const FacebookConnect: React.FC<FacebookConnectProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
 
-  const fetchAnalytics = async () => {
+  /* ✅ CLOSE ON OUTSIDE CLICK */
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(e.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () =>
+      document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  // 🔒 BACKEND LOGIC — UNCHANGED
+  const handleConnectFacebook = async () => {
     setLoading(true);
     setError('');
 
     try {
-      if (viewMode === 'account') {
-        const res = await apiClient.get('/instagram-analytics/account');
-        setProfile(res.data.profile);
-        setAccountMetrics(res.data.metrics ?? []);
-        setPostTotals(null);
-      } else {
-        const res = await apiClient.get('/instagram-analytics/posts-summary');
-        setPostTotals(res.data);
-        setProfile(null);
-        setAccountMetrics([]);
+      await apiClient.get("/auth/profile");
+
+      const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+      const redirectUri = encodeURIComponent(
+        `${frontendUrl}/Landing?facebook=connected`
+      );
+
+      window.location.href = `${backendUrl}/auth/facebook?redirect=${redirectUri}`;
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        window.location.href = "/login";
+        return;
       }
     } catch (err: any) {
       console.error('Instagram analytics error:', err);
@@ -70,73 +66,47 @@ const InstagramAnalytics: React.FC = () => {
 
   // ---------- UI ----------
   return (
-    <div className={styles.analyticsContainer}>
-      {/* PLATFORM SWITCH */}
-      <nav className={styles.toggle}>
-        <Link href="/Analytics">
-          <button>YouTube</button>
-        </Link>
+    <div ref={popupRef} className={styles.facebookPopover}>
+      {/* TITLE */}
+      <h3 className={styles.popupTitle}>
+        Connect a Facebook business account
+      </h3>
 
-        <select
-          className={styles.active}
-          value={viewMode}
-          onChange={(e) => setViewMode(e.target.value as 'account' | 'posts')}
-        >
-          <option value="account">Instagram: Account Level</option>
-          <option value="posts">Instagram: Post Level</option>
-        </select>
-
-        <button disabled>Facebook</button>
-        <button disabled>LinkedIn</button>
-        <button disabled>Twitter</button>
-      </nav>
-
-      <h1 className={styles.header}>
-        {viewMode === 'account'
-          ? '📸 Instagram Account Analytics'
-          : '📊 Instagram Post Totals'}
-      </h1>
-
-      {loading && <p className={styles.message}>Loading analytics…</p>}
-      {error && <p className={styles.errorMessage}>{error}</p>}
-
-      {!loading && !error && (
-        <div className={styles.statsGrid}>
-          {/* ACCOUNT LEVEL */}
-          {viewMode === 'account' && profile && (
-            <>
-              <div className={styles.statCard}>
-                <h3>Followers</h3>
-                <p>{profile.followers_count.toLocaleString()}</p>
-              </div>
-
-              <div className={styles.statCard}>
-                <h3>Total Media</h3>
-                <p>{profile.media_count.toLocaleString()}</p>
-              </div>
-
-              {accountMetrics.map((m) => (
-                <div key={m.name} className={styles.statCard}>
-                  <h3>{m.title || m.name.replace(/_/g, ' ')}</h3>
-                  <p>{m.total_value?.value?.toLocaleString() ?? 0}</p>
-                </div>
-              ))}
-            </>
-          )}
-
-          {/* POST LEVEL TOTALS */}
-          {viewMode === 'posts' && postTotals && (
-            <>
-              <Stat title="Total Likes" value={postTotals.totalLikes} />
-              <Stat title="Total Comments" value={postTotals.totalComments} />
-              <Stat title="Total Reach" value={postTotals.totalReach} />
-              <Stat title="Total Impressions" value={postTotals.totalImpressions} />
-              <Stat title="Total Saved" value={postTotals.totalSaved} />
-              <Stat title="Video Views / Plays" value={postTotals.totalVideoViews} />
-            </>
-          )}
+      {success && (
+        <div className={styles.success}>
+          <FaCheckCircle />
+          Facebook connected successfully
         </div>
       )}
+
+      {/* CARD */}
+      <div className={styles.optionCard}>
+        <div className={styles.optionHeader}>
+          <FaFacebookF />
+        </div>
+
+        <h4>Facebook Page</h4>
+        <p className={styles.subtitle}>
+          Connect a Facebook Page associated with a business account to manage
+          posts, insights, and engagement.
+        </p>
+
+        <p className={styles.note}>
+          ⚠️ Only Facebook <strong>Business Pages</strong> are supported.
+        </p>
+
+        <button
+          className={styles.primaryBtn}
+          onClick={handleConnectFacebook}
+          disabled={loading}
+        >
+          {loading ? "Connecting..." : "Connect Facebook"}
+        </button>
+      </div>
+
+      <p className={styles.footer}>
+        🔒 Secure connection using Facebook’s official Graph API
+      </p>
     </div>
   );
 };

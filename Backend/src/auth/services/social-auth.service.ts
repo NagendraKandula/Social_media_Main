@@ -371,7 +371,6 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
         secure: process.env.NODE_ENV !== 'development',
         sameSite: 'none',
       });
-      
       return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
     } catch (error) {
       console.error('LinkedIn Login DB Error:', error);

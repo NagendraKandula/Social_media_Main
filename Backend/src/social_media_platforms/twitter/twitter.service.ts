@@ -7,25 +7,25 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { TwitterApi, EUploadMimeType } from 'twitter-api-v2';
-import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { StorageService } from '../../storage/storage.service'; // ✅ Using StorageService
 
 @Injectable()
 export class TwitterService {
   private readonly TWITTER_CLIENT_ID: string;
   private readonly TWITTER_CLIENT_SECRET: string;
   private readonly TWITTER_CALLBACK_URL: string;
-  // REMOVED: TWITTER_AUTH_URL and TWITTER_TOKEN_URL are handled by the library now
 
   constructor(
     private readonly httpService: HttpService,
     private readonly config: ConfigService,
-    private readonly cloudinaryService: CloudinaryService,
+    private readonly storageService: StorageService,
   ) {
     this.TWITTER_CLIENT_ID = this.config.get<string>('TWITTER_CLIENT_ID')!;
     this.TWITTER_CLIENT_SECRET = this.config.get<string>('TWITTER_CLIENT_SECRET')!;
     this.TWITTER_CALLBACK_URL = this.config.get<string>('TWITTER_CALLBACK_URL')!;
   }
 
+  // ... (Auth generation methods remain the same) ...
   generateAuthUrl(userId?: number) {
     let state: string;
     if (userId) {
@@ -48,7 +48,6 @@ export class TwitterService {
       'media.write',
     ].join(' ');
 
-    // Manual URL construction is still fine, or you could use client.generateOAuth2AuthLink()
     const url = new URL('https://twitter.com/i/oauth2/authorize');
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', this.TWITTER_CLIENT_ID);
@@ -71,8 +70,6 @@ export class TwitterService {
       throw new BadRequestException('Missing code verifier');
 
     try {
-      // ✅ FIX: Use TwitterApi instance to exchange tokens
-      // This automatically handles headers and avoids Cloudflare blocks
       const client = new TwitterApi({
         clientId: this.TWITTER_CLIENT_ID,
         clientSecret: this.TWITTER_CLIENT_SECRET,
@@ -84,7 +81,6 @@ export class TwitterService {
         redirectUri: this.TWITTER_CALLBACK_URL,
       });
 
-      // Return in the format your Controller expects
       return {
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -112,33 +108,55 @@ export class TwitterService {
     }
   }
 
+  // ✅ UPDATED METHOD
   async postTweetWithUserToken(
     text: string,
-    file: Express.Multer.File,
+    mediaPath: string | undefined,
     userOAuth2Token: string,
   ) {
     try {
       const userClient = new TwitterApi(userOAuth2Token);
-
       let mediaId: string | undefined;
-      let cloudinaryUrl: string | undefined;
 
-      if (file) {
-        cloudinaryUrl = await this.cloudinaryService.uploadFile(file);
-
-        let mediaType: EUploadMimeType;
-        // Simple mime type check
-        if (file.mimetype.includes('jpeg') || file.mimetype.includes('jpg')) mediaType = EUploadMimeType.Jpeg;
-        else if (file.mimetype.includes('png')) mediaType = EUploadMimeType.Png;
-        else if (file.mimetype.includes('gif')) mediaType = EUploadMimeType.Gif;
-        else if (file.mimetype.includes('mp4')) mediaType = EUploadMimeType.Mp4;
-        else throw new BadRequestException(`Unsupported media type: ${file.mimetype}`);
-
-        mediaId = await userClient.v2.uploadMedia(file.buffer, {
-          media_type: mediaType,
+      // ---------------------------------------------------------
+      // 1️⃣ MEDIA UPLOAD (Uses API v1.1)
+      // ---------------------------------------------------------
+      if (mediaPath) {
+        // 1. Download file from Google Storage
+        const signedUrl = await this.storageService.getSignedReadUrl(mediaPath);
+        const response = await this.httpService.axiosRef.get(signedUrl, {
+          responseType: 'arraybuffer',
         });
+        
+        const buffer = Buffer.from(response.data);
+        const mimeType = response.headers['content-type'];
+
+        // 2. Determine Twitter Media Type
+        let mediaTypeEnum: EUploadMimeType;
+        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) mediaTypeEnum = EUploadMimeType.Jpeg;
+        else if (mimeType.includes('png')) mediaTypeEnum = EUploadMimeType.Png;
+        else if (mimeType.includes('gif')) mediaTypeEnum = EUploadMimeType.Gif;
+        else if (mimeType.includes('mp4')) mediaTypeEnum = EUploadMimeType.Mp4;
+        else throw new BadRequestException(`Unsupported media type: ${mimeType}`);
+
+        // 3. Upload using v1 API (Standard for Media)
+        try {
+            // 👇 THIS IS THE KEY CHANGE: .v1.uploadMedia
+            mediaId = await userClient.v1.uploadMedia(buffer, {
+              mimeType: mediaTypeEnum,
+            });
+        } catch (uploadError: any) {
+            console.error("Twitter Media Upload Error:", uploadError);
+            if (uploadError.code === 403) {
+                throw new Error("Twitter Free Tier does not support Media Uploads. Please upgrade to Basic Tier or post text only.");
+            }
+            throw uploadError;
+        }
       }
 
+      // ---------------------------------------------------------
+      // 2️⃣ POST TWEET (Uses API v2)
+      // ---------------------------------------------------------
       const tweet = await userClient.v2.tweet({
         text,
         media: mediaId ? { media_ids: [mediaId] } : undefined,
@@ -147,10 +165,14 @@ export class TwitterService {
       return {
         success: true,
         tweetId: tweet.data.id,
-        cloudinaryUrl,
+        mediaPath, 
       };
+
     } catch (err: any) {
       console.error('Twitter Service Error:', err);
+      if (err.message && err.message.includes('Free Tier')) {
+          throw new BadRequestException(err.message);
+      }
       if (err.code === 401) {
         throw new InternalServerErrorException('Twitter token is invalid or expired. Please reconnect your account.');
       }
