@@ -38,16 +38,10 @@ import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instag
     AuthModule,
     YoutubeModule,
     FacebookModule,
-<<<<<<< HEAD
-    AiAssistantModule,
-    InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,InstagramAnalyticsModule
-=======
-    YoutubeAnalyticsModule,
      AiAssistantModule,
     InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
     InstagramAnalyticsModule,
     
->>>>>>> main
   ],
   controllers: [AuthController],
   providers: [AuthService, PrismaService],
