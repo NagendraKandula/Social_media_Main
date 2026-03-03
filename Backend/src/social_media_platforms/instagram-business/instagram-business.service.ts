@@ -12,30 +12,61 @@ export class InstagramBusinessService {
   async publishContent(
     userId: string,
     accessToken: string,
-    mediaType: 'IMAGE' | 'REELS' | 'STORIES',
-    mediaUrl: string,
+    mediaType: 'IMAGE' |'VIDEO'| 'REELS' | 'STORIES'| 'CAROUSEL',
+    mediaSource : string | string[], // Accept either a single URL or an array for carousel
     caption?: string,
   ) {
     try {
       this.logger.log(`🚀 Starting publish for ${mediaType} on user ${userId}`);
+      let masterCreationId: string;
 
+       // ==========================================
+      // 🔄 CAROUSEL LOGIC
+      // ==========================================
+      // ==========================================
+      // 🔄 FAST CAROUSEL LOGIC (Fully Optimized)
+      // ==========================================
+      if (mediaType === 'CAROUSEL') {
+        const urls = mediaSource as string[]; 
+
+        // Optional but recommended validation
+
+        this.logger.log(`🖼 Creating ${urls.length} child containers concurrently...`);
+        const childContainerIds = await Promise.all(
+          urls.map((url) => this.createCarouselItemContainer(userId, accessToken, url))
+        );
+        
+        this.logger.log(`⏳ Waiting for all child containers to process concurrently...`);
+        await Promise.all(
+          childContainerIds.map((id) => this.waitForContainerProcessing(id, accessToken))
+        );
+        
+        this.logger.log(`📦 Creating Master Carousel Container...`);
+        masterCreationId = await this.createMasterCarouselContainer(userId, accessToken, childContainerIds, caption);
+
+        // ✅ THE CRITICAL FIX: Wait for the master container to finish bundling
+        this.logger.log(`⏳ Waiting for master carousel container to process...`);
+        await this.waitForContainerProcessing(masterCreationId, accessToken);
+      }
+
+      else{
       // 1️⃣ Create Media Container
-      const creationId = await this.createMediaContainer(
+      masterCreationId = await this.createMediaContainer(
         userId,
         accessToken,
         mediaType,
-        mediaUrl,
+        mediaSource as string, // Type assertion for single media
         caption,
       );
 
       // 2️⃣ Wait for Processing (Crucial for Videos/Reels)
-      await this.waitForContainerProcessing(creationId, accessToken);
-
+      await this.waitForContainerProcessing(masterCreationId, accessToken);
+    }
       // 3️⃣ Finalize & Publish
       const result = await this.publishMediaContainer(
         userId,
         accessToken,
-        creationId,
+        masterCreationId,
       );
 
       this.logger.log(`✅ Successfully published ${mediaType}: ${result.id}`);
@@ -47,12 +78,45 @@ export class InstagramBusinessService {
       );
     }
   }
+   // --- CAROUSEL SPECIFIC HELPERS ---
 
+  private async createCarouselItemContainer(userId: string, accessToken: string, mediaUrl: string): Promise<string> {
+    const url = `https://graph.instagram.com/v24.0/${userId}/media`;
+    const isVideo = mediaUrl.match(/\.(mp4|mov|avi|mkv|webm)$/i); // Auto-detect video
+    
+    let params: any = { 
+      access_token: accessToken,
+      is_carousel_item: true // ⚠️ Required by Meta for carousel children
+    };
+
+    if (isVideo) {
+      params.media_type = 'VIDEO';
+      params.video_url = mediaUrl;
+    } else {
+      params.image_url = mediaUrl;
+    }
+
+    const response = await firstValueFrom(this.httpService.post(url, null, { params }));
+    return response.data.id;
+  }
+private async createMasterCarouselContainer(userId: string, accessToken: string, childrenIds: string[], caption?: string): Promise<string> {
+    const url = `https://graph.instagram.com/v24.0/${userId}/media`;
+    let params: any = {
+      access_token: accessToken,
+      media_type: 'CAROUSEL',
+      children: childrenIds.join(',') // ⚠️ Meta requires a comma-separated string of IDs
+    };
+    
+    if (caption) params.caption = caption;
+
+    const response = await firstValueFrom(this.httpService.post(url, null, { params }));
+    return response.data.id;
+  }
   // 🛠️ Step 1: Create Container
   private async createMediaContainer(
     userId: string,
     accessToken: string,
-    mediaType: 'IMAGE' | 'REELS' | 'STORIES',
+    mediaType: 'IMAGE' | 'REELS' | 'STORIES'|'VIDEO',
     mediaUrl: string,
     caption?: string,
   ): Promise<string> {
@@ -66,7 +130,11 @@ export class InstagramBusinessService {
     if (mediaType === 'IMAGE') {
       params.image_url = mediaUrl;
       if (caption) params.caption = caption;
-    } 
+    } else if (mediaType === 'VIDEO') {
+      params.media_type = 'VIDEO';
+      params.video_url = mediaUrl;
+      if (caption) params.caption = caption;
+    }
     
     // 2. Reels (Video)
     else if (mediaType === 'REELS') {
