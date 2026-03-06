@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 // No FormData or AxiosRequestConfig needed for this flow
 
 interface FacebookPage {
@@ -17,7 +18,9 @@ interface FacebookPage {
     };
   };
 }
-
+interface FacebookAttachedMedia {
+  media_fbid: string;
+}
 interface FacebookPostResponse {
   id: string;
   post_id?: string;
@@ -25,14 +28,17 @@ interface FacebookPostResponse {
 
 @Injectable()
 export class FacebookService {
-  private readonly FACEBOOK_GRAPH_API_URL = 'https://graph.facebook.com/v19.0';
-  // We don't need the 'graph-video' URL for this method
-  private readonly FACEBOOK_GRAPH_VIDEO_API_URL ='https://graph-video.facebook.com/v19.0';
-  /**
-   * NEW: Helper function to get all pages for the frontend dropdown
-   * 
-   */
-  constructor(private readonly prisma: PrismaService) {}
+private readonly FACEBOOK_GRAPH_API_URL: string;
+
+  // Inject ConfigService into your constructor
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService, 
+  ) {
+    // Read the URL from your .env file
+    this.FACEBOOK_GRAPH_API_URL = this.configService.get<string>('FACEBOOK_GRAPH_API_URL')!;
+  }
+  
  private async getFacebookToken(userId: number): Promise<string> {
     const account = await this.prisma.socialAccount.findFirst({
       where: {
@@ -79,7 +85,7 @@ export class FacebookService {
     userId: number,
     pageId: string,
     content: string,
-    mediaUrl: string,
+    mediaUrls: string | string[],
     mediaType: 'IMAGE' | 'VIDEO' | 'STORY'|'REEL',
   ) {
     const userAccessToken = await this.getFacebookToken(userId);
@@ -115,19 +121,28 @@ export class FacebookService {
 
       // Step 3: Determine post type and call the appropriate function
       if (mediaType === 'IMAGE') {
-        return this.postPhoto(pageId, pageAccessToken, content, mediaUrl);
-      } else if (mediaType === 'VIDEO') {
-        return this.postRegularVideo(pageId, pageAccessToken, content, mediaUrl);
-      }else if (mediaType === 'REEL') {
-        return this.postFacebookReel(pageId, pageAccessToken, content , mediaUrl);
-      }
-      else if (mediaType === 'STORY') {
-        const isVideo = ['.mp4', '.mov', '.avi'].some(ext => mediaUrl.toLowerCase().endsWith(ext));
-        if (isVideo) {
-          return this.postVideoStory(pageId, pageAccessToken, mediaUrl);
+        if(Array.isArray(mediaUrls) && mediaUrls.length > 1){
+          return this.postMultiplePhotos(pageId, pageAccessToken, content, mediaUrls);
         }
         else{
-          return this.postPhotoStory(pageId, pageAccessToken, mediaUrl);
+          const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
+        return this.postPhoto(pageId, pageAccessToken, content, singleUrl);}
+
+      } else if (mediaType === 'VIDEO') {
+        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
+        return this.postRegularVideo(pageId, pageAccessToken, content, singleUrl);
+      }else if (mediaType === 'REEL') {
+        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
+        return this.postFacebookReel(pageId, pageAccessToken, content , singleUrl);
+      }
+      else if (mediaType === 'STORY') {
+        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
+        const isVideo = ['.mp4', '.mov', '.avi'].some(ext => singleUrl.toLowerCase().endsWith(ext));
+        if (isVideo) {
+          return this.postVideoStory(pageId, pageAccessToken, singleUrl);
+        }
+        else{
+          return this.postPhotoStory(pageId, pageAccessToken, singleUrl);
         }
       }
       else {
@@ -262,7 +277,7 @@ private async postVideoStory(
     //
     console.log('📤 Step 1: Starting video story session...');
     const startResponse = await axios.post(
-      `https://graph.facebook.com/v24.0/${pageId}/video_stories`,
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/video_stories`,
       null,
       {
         params: {
@@ -296,7 +311,7 @@ private async postVideoStory(
     console.log('✅ Step 2 Complete: Upload response:', uploadResponse.data);
     console.log('📤 Step 3: Finishing video story...');
     const finishResponse = await axios.post(
-      `https://graph.facebook.com/v24.0/${pageId}/video_stories`,
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/video_stories`,
       null,
       {
         params: {
@@ -328,7 +343,7 @@ private async postVideoStory(
 }
 async checkVideoStatus(videoId: string, pageAccessToken: string) {
   const response = await axios.get(
-    `https://graph.facebook.com/v24.0/${videoId}`,
+    `${this.FACEBOOK_GRAPH_API_URL}/${videoId}`,
     {
       params: {
         fields: 'status',
@@ -340,7 +355,58 @@ async checkVideoStatus(videoId: string, pageAccessToken: string) {
   // Status can be: ready, processing, expired, or error
   return response.data.status;
 }
-
+private async postMultiplePhotos(
+    pageId: string,
+    pageAccessToken: string,
+    content: string,
+    mediaUrls: string[],
+  ) {
+    try {
+     const uploadPromises = mediaUrls.map((url) => {
+        return axios.post(
+          `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photos`,
+          null,
+          {
+            params: {
+              url: url,
+              published: false, // Prevents immediate posting
+              access_token: pageAccessToken,
+            },
+          },
+        );
+      });
+      // 2. Wait for ALL of them to finish in parallel
+      const uploadResponses = await Promise.all(uploadPromises);
+      // 3. Map the responses into the format Facebook expects.
+      // Promise.all preserves the exact order of the original array!
+      const attachedMedia: FacebookAttachedMedia[] = uploadResponses.map(
+        (response) => ({
+          media_fbid: response.data.id,
+        })
+      );
+      // 4. Publish the feed post with all attached photo IDs
+      const feedRes = await axios.post(
+        `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/feed`,
+        {
+          message: content,
+          attached_media: attachedMedia,
+        },
+        {
+          params: { access_token: pageAccessToken },
+        },
+      );
+      return {
+        success: true,
+        postId: feedRes.data.id,
+        message: `Successfully posted ${mediaUrls.length} photos in parallel!`,
+      };
+    } catch (error: any) {
+      console.error('Error posting multiple photos:', error.response?.data);
+      throw new BadRequestException(
+        error.response?.data?.error?.message || 'Failed to post multiple photos.',
+      );
+    }
+  }
 private async postFacebookReel(
   pageId: string,
   pageAccessToken: string,
@@ -350,7 +416,7 @@ private async postFacebookReel(
   try {
     // PHASE 1: Initialize
     const initResponse = await axios.post(
-      `https://graph.facebook.com/v24.0/${pageId}/video_reels`,
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/video_reels`,
       {
         upload_phase: 'start',
         access_token: pageAccessToken,
@@ -372,7 +438,7 @@ private async postFacebookReel(
 
     // PHASE 3: Publish
     const finishResponse = await axios.post(
-      `https://graph.facebook.com/v24.0/${pageId}/video_reels`,
+      `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/video_reels`,
       null,
       {
         params: {

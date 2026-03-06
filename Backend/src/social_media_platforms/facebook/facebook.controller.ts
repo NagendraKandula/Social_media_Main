@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 interface CreatePostBody {
   content: string;
   pageId: string; // The dynamic page ID from the frontend
-  mediaUrl: string; // The public URL of the image or video
+  mediaUrls: string | string[]; // The public URL of the image or video
   mediaType: 'IMAGE' | 'VIDEO' | 'STORY' | 'REEL'; // Specify what we're posting
 }
 
@@ -43,9 +43,9 @@ export class FacebookController {
   async createPost(@Body() body: CreatePostBody, @Req() req: any) {
    const userId = req.user.id;
 
-    const { content, pageId, mediaUrl, mediaType } = body;
+    const { content, pageId, mediaUrls, mediaType } = body;
 
-    if (!mediaUrl) {
+    if (!mediaUrls || (Array.isArray(mediaUrls) && mediaUrls.length === 0)) {
       throw new BadRequestException('Media URL is required.');
     }
     if (!pageId) {
@@ -58,7 +58,7 @@ export class FacebookController {
       userId,
       pageId,
       content,
-      mediaUrl,
+      mediaUrls,
       mediaType,
     );
   }
