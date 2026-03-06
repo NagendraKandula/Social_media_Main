@@ -1,11 +1,10 @@
-import { useState, ChangeEvent, FormEvent, useEffect } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import apiClient from '../lib/axios';
 import styles from '../styles/FacebookPost.module.css';
 import { GetServerSideProps } from 'next';
 import { withAuth } from '../utils/withAuth';
-import Image from 'next/image'; // Import Next.js Image component
+import Image from 'next/image';
 
-// UPDATED: Interface to include the picture URL
 interface FacebookPage {
   id: string;
   name: string;
@@ -14,16 +13,14 @@ interface FacebookPage {
 
 const FacebookPostPage = () => {
   const [content, setContent] = useState('');
-  const [mediaUrl, setMediaUrl] = useState('');
-  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO' | 'STORY' | 'REEL'>('IMAGE');
   
-  // State for pages
+  // UPDATED: Use an array of strings to handle multiple URLs
+  const [mediaUrls, setMediaUrls] = useState<string[]>(['']);
+  
+  const [mediaType, setMediaType] = useState<'IMAGE' | 'VIDEO' | 'STORY' | 'REEL'>('IMAGE');
   const [pages, setPages] = useState<FacebookPage[]>([]);
   const [selectedPageId, setSelectedPageId] = useState('');
-  
-  // NEW: State to manage the custom dropdown
   const [isPageDropdownOpen, setIsPageDropdownOpen] = useState(false);
-
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +32,7 @@ const FacebookPostPage = () => {
         const response = await apiClient.get('/facebook/pages');
         if (response.data && response.data.length > 0) {
           setPages(response.data);
-          setSelectedPageId(response.data[0].id); // Default to the first page
+          setSelectedPageId(response.data[0].id);
         } else {
           setError('No Facebook pages found. Please connect a page.');
         }
@@ -48,10 +45,30 @@ const FacebookPostPage = () => {
     fetchPages();
   }, []);
 
+  // NEW: Handlers for multiple URLs
+  const handleMediaUrlChange = (index: number, value: string) => {
+    const newUrls = [...mediaUrls];
+    newUrls[index] = value;
+    setMediaUrls(newUrls);
+  };
+
+  const addMediaUrl = () => {
+    setMediaUrls([...mediaUrls, '']);
+  };
+
+  const removeMediaUrl = (index: number) => {
+    const newUrls = mediaUrls.filter((_, i) => i !== index);
+    setMediaUrls(newUrls);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!mediaUrl) {
-      setError('Please provide a media URL.');
+    
+    // Filter out any empty inputs before validating/submitting
+    const validUrls = mediaUrls.filter(url => url.trim() !== '');
+
+    if (validUrls.length === 0) {
+      setError('Please provide at least one media URL.');
       return;
     }
     if (!selectedPageId) {
@@ -60,26 +77,26 @@ const FacebookPostPage = () => {
     }
 
     setIsLoading(true);
-    // ... (rest of the submit logic is the same)
-    setMessage(''); // Clear previous messages
-    setError('');   // Clear previous errors
+    setMessage(''); 
+    setError('');   
 
+    // UPDATED: Sending the valid array of URLs
     const body = {
       content,
-      mediaUrl,
+      mediaUrls: validUrls, // Ensure your backend is looking for 'mediaUrls' (array) instead of 'mediaUrl' (string)
       mediaType,
       pageId: selectedPageId,
     };
 
     try {
-        await apiClient.get('/auth/profile');
+      await apiClient.get('/auth/profile');
       const response = await apiClient.post('/facebook/post', body, {
         headers: { 'Content-Type': 'application/json' },
       });
-      // ... (rest of try/catch is the same)
+      
       setMessage(response.data.message || 'Successfully posted to Facebook!');
       setContent('');
-      setMediaUrl('');
+      setMediaUrls(['']); // Reset back to a single empty input
     } catch (err: any) {
       if (err.response?.status === 401) {
          window.location.href = '/login';
@@ -91,7 +108,6 @@ const FacebookPostPage = () => {
     }
   };
   
-  // NEW: Helper to get the currently selected page object
   const selectedPage = pages.find((p) => p.id === selectedPageId);
 
   return (
@@ -99,14 +115,14 @@ const FacebookPostPage = () => {
       <div className={styles.formWrapper}>
         <h1 className={styles.title}>Create a Facebook Post</h1>
         <p className={styles.subtitle}>
-          Post a photo or video to your Facebook Page using a public URL
+          Post photos or videos to your Facebook Page using public URLs
         </p>
         <form onSubmit={handleSubmit}>
           
-          {/* NEW: Custom Page Selector Dropdown */}
           <div className={styles.formGroup}>
             <label htmlFor="page-select">Post to Page:</label>
             <div className={styles.pageSelector}>
+              {/* ... Page Selector logic remains the exact same ... */}
               <button
                 type="button"
                 className={styles.pageSelectorButton}
@@ -154,19 +170,40 @@ const FacebookPostPage = () => {
             </div>
           </div>
 
-          {/* ... (Media URL, Media Type, and Textarea inputs remain the same) ... */}
-
+          {/* UPDATED: Dynamic Media URL Inputs */}
           <div className={styles.formGroup}>
-            <label htmlFor="media-url">Media URL:</label>
-            <input
-              type="text"
-              id="media-url"
-              className={styles.input}
-              value={mediaUrl}
-              onChange={(e) => setMediaUrl(e.target.value)}
-              placeholder="https://example.com/my-image.jpg"
+            <label>Media URLs:</label>
+            {mediaUrls.map((url, index) => (
+              <div key={index} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  className={styles.input}
+                  value={url}
+                  onChange={(e) => handleMediaUrlChange(index, e.target.value)}
+                  placeholder="https://example.com/my-image.jpg"
+                  disabled={isLoading}
+                  style={{ flexGrow: 1, marginBottom: 0 }} 
+                />
+                {mediaUrls.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeMediaUrl(index)}
+                    disabled={isLoading}
+                    style={{ padding: '0 12px', cursor: 'pointer', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '4px' }}
+                  >
+                    X
+                  </button>
+                )}
+              </div>
+            ))}
+            <button 
+              type="button" 
+              onClick={addMediaUrl} 
               disabled={isLoading}
-            />
+              style={{ marginTop: '8px', padding: '8px', cursor: 'pointer', background: '#e3f2fd', border: 'none', borderRadius: '4px', color: '#1565c0' }}
+            >
+              + Add Another URL
+            </button>
           </div>
 
           <div className={styles.formGroup}>
@@ -182,9 +219,9 @@ const FacebookPostPage = () => {
               <option value="VIDEO">Video</option>
               <option value="REEL">Reel</option>
               <option value="STORY">Story</option>
-              
             </select>
           </div>
+          
           <textarea
             className={styles.textarea}
             value={content}
@@ -206,9 +243,3 @@ const FacebookPostPage = () => {
 };
 
 export default FacebookPostPage;
-
-export const getServerSideProps: GetServerSideProps = withAuth(async (context) => {
-  return {
-    props: {},
-  };
-});
