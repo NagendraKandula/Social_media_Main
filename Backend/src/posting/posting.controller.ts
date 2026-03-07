@@ -10,7 +10,7 @@ export class PostingController {
     private readonly postingService: PostingService,
     private readonly storageService: StorageService
   ) {}
-
+ 
   // 1. Get Pre-Signed URL for Upload
   @Get('presigned-url')
   @UseGuards(JwtAuthGuard)
