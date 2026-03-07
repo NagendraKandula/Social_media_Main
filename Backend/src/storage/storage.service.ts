@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { ConfigService } from '@nestjs/config';
-
+ 
 @Injectable()
 export class StorageService {
   private storage: Storage;

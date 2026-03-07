@@ -18,6 +18,7 @@ export const usePostCreation = () => {
           contentType: file.type 
         }
       });
+     
 
       const { uploadUrl, publicUrl, storagePath } = data;
 
@@ -28,6 +29,22 @@ export const usePostCreation = () => {
 
       return { publicUrl, storagePath };
     } catch (error) {
+      console.error("Upload failed", error);
+      throw new Error("Failed to upload media to cloud.");
+    }
+  };
+
+    const uploadMultipleMedia = async(files:File[]) =>{
+        setUploading(true);
+        try{
+          const uploadPromises = files.map(file =>uploadMedia(file));
+          const results = await Promise.all(uploadPromises);
+          return results;
+
+        }
+        
+      
+    catch (error) {
       console.error("Upload failed", error);
       throw new Error("Failed to upload media to cloud.");
     } finally {
@@ -49,5 +66,5 @@ export const usePostCreation = () => {
     }
   };
 
-  return { uploadMedia, createPost, uploading, publishing };
+  return { uploadMedia,uploadMultipleMedia, createPost, uploading, publishing };
 };
