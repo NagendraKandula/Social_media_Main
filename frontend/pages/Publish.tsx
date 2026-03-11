@@ -52,7 +52,7 @@ export default function Publish() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
 
-  const { uploadMultipleMedia, createPost, uploading, publishing } = usePostCreation();
+  const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
 
   /* ===============================
      Derived Data
@@ -117,40 +117,16 @@ export default function Publish() {
       return;
     }
 
-    // 1. FRONTEND VALIDATION
-    if (files.length > 10) {
-      alert('You can only upload a maximum of 10 media files per post.');
-      return;
-    }
-
-    const hasImages = files.some(f => f.type.startsWith('image/'));
-    const hasVideos = files.some(f => f.type.startsWith('video/'));
-
-    if (hasImages && hasVideos && (selectedChannels.has('facebook') || selectedChannels.has('instagram'))) {
-      alert('Facebook and Instagram APIs do not support mixing images and videos in a single post. Please select only images or a single video.');
-      return;
-    }
-
     try {
-      // 2. UPLOAD ALL MEDIA IN PARALLEL
-      let uploadedMedia: { publicUrl: string, storagePath: string, mimeType: string }[] = [];
+      let mediaData = { publicUrl: '', storagePath: '', mimeType: '' };
 
       if (files.length > 0) {
-        // Use the new multi-upload function!
-        const uploadResults = await uploadMultipleMedia(files);
-        
-        // Map the results back with their mimeTypes
-        uploadedMedia = uploadResults.map((res, index) => ({
-          publicUrl: res.publicUrl,
-          storagePath: res.storagePath,
-          mimeType: files[index].type,
-        }));
-      }
-
-      // 3. DETERMINE BASE MEDIA TYPE
-      let baseMediaType = 'IMAGE';
-      if (uploadedMedia.length > 0 && uploadedMedia[0].mimeType.startsWith('video')) {
-        baseMediaType = 'VIDEO';
+        const uploaded = await uploadMedia(files[0]);
+        mediaData = {
+          publicUrl: uploaded.publicUrl,
+          storagePath: uploaded.storagePath,
+          mimeType: files[0].type,
+        };
       }
 
       const platformOverrides: any = {};
@@ -165,8 +141,6 @@ export default function Publish() {
       if (selectedChannels.has('instagram')) {
         platformOverrides.instagram = {
           postType: platformState.instagramPostType,
-          // Tell Instagram if it's a carousel!
-          mediaType: uploadedMedia.length > 1 ? 'CAROUSEL' : baseMediaType,
         };
       }
 
@@ -177,21 +151,21 @@ export default function Publish() {
         };
       }
 
-      // 4. EXTRACT ARRAY OF URLS
-      const mediaUrlsArray = uploadedMedia.map(m => m.publicUrl);
-
-      // 5. CONSTRUCT UNIFIED PAYLOAD
       const payload = {
         content,
-        mediaUrls: mediaUrlsArray, // NEW: Sending the array of URLs!
-        mediaType: baseMediaType,
+        mediaUrl: mediaData.publicUrl,
+        storagePath: mediaData.storagePath,
+        mimeType: mediaData.mimeType,
+        mediaType: mediaData.mimeType.startsWith('video')
+          ? 'VIDEO'
+          : 'IMAGE',
         platforms: selectedChannelList,
-        scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null, // Scheduling is natively supported!
+        scheduledAt: isScheduled
+          ? new Date(scheduleDate).toISOString()
+          : null,
         contentMetadata: {
           text: content,
           platformOverrides,
-          // Store raw storage paths in metadata so you can delete them from GCP later if needed
-          storagePaths: uploadedMedia.map(m => m.storagePath) 
         },
       };
 
@@ -199,11 +173,10 @@ export default function Publish() {
 
       alert(
         isScheduled
-          ? 'Post scheduled successfully!'
-          : 'Post published successfully!'
+          ? 'Post scheduled successfully'
+          : 'Post published successfully'
       );
 
-      // Reset Form
       setContent('');
       setFiles([]);
       setSelectedChannels(new Set());
