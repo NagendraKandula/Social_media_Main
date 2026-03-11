@@ -24,6 +24,7 @@ async function bootstrap() {
   // Enables class-validator and class-transformer for all incoming requests
   app.useGlobalPipes(new ValidationPipe());
 
+  
   // Enables cookie parsing for all incoming requests
  
   
