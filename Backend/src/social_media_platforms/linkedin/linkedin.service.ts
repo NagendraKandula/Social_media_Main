@@ -8,10 +8,22 @@ import * as crypto from 'crypto';
 export class LinkedinService {
   private readonly logger = new Logger(LinkedinService.name);
 
+  // ✅ Extracted Base URLs and Configs
+  private readonly authBaseUrl: string;
+  private readonly apiBaseUrl: string;
+  private readonly authScope: string;
+  private readonly postCharLimit: number;
+
   constructor(
     private readonly config: ConfigService,
     private readonly httpService: HttpService,
-  ) {}
+  ) {
+    // ✅ Load from environment with safe fallbacks
+    this.authBaseUrl = this.config.get<string>('LINKEDIN_AUTH_BASE_URL') !;
+    this.apiBaseUrl = this.config.get<string>('LINKEDIN_API_BASE_URL') !;
+    this.authScope = this.config.get<string>('LINKEDIN_SCOPE') !;
+    this.postCharLimit = this.config.get<number>('LINKEDIN_POST_CHAR_LIMIT') !;
+  }
 
   private getRedirectUri(): string {
     const url = this.config.get<string>('LINKEDIN_CALLBACK_URL');
@@ -22,15 +34,16 @@ export class LinkedinService {
   generateAuthUrl(userId: number) {
     const clientId = this.config.get<string>('LINKEDIN_CLIENT_ID');
     const redirectUri = this.getRedirectUri();
-    const scope = ['openid', 'profile', 'email', 'w_member_social'].join(' ');
+    
     const state = encodeURIComponent(JSON.stringify({ 
       userId, 
       nonce: crypto.randomBytes(16).toString('hex') 
     }));
 
-    return `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(
+    // ✅ Replaced hardcoded URL and Scope
+    return `${this.authBaseUrl}/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(
       redirectUri,
-    )}&scope=${encodeURIComponent(scope)}&state=${state}`;
+    )}&scope=${encodeURIComponent(this.authScope)}&state=${state}`;
   }
 
   async exchangeCodeForToken(code: string) {
@@ -47,7 +60,8 @@ export class LinkedinService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post('https://www.linkedin.com/oauth/v2/accessToken', params, {
+        // ✅ Replaced hardcoded URL
+        this.httpService.post(`${this.authBaseUrl}/accessToken`, params, {
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         }),
       );
@@ -61,7 +75,8 @@ export class LinkedinService {
   async getUserProfile(accessToken: string) {
     try {
       const response = await firstValueFrom(
-        this.httpService.get('https://api.linkedin.com/v2/userinfo', {
+        // ✅ Replaced hardcoded URL
+        this.httpService.get(`${this.apiBaseUrl}/userinfo`, {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
       );
@@ -71,8 +86,6 @@ export class LinkedinService {
       throw new InternalServerErrorException('Failed to fetch LinkedIn profile');
     }
   }
-
-  
 
   // --- Media Handling Helpers ---
 
@@ -108,14 +121,14 @@ export class LinkedinService {
 
     try {
       const response = await firstValueFrom(
-        this.httpService.post('https://api.linkedin.com/v2/assets?action=registerUpload', body, {
+        // ✅ Replaced hardcoded URL
+        this.httpService.post(`${this.apiBaseUrl}/assets?action=registerUpload`, body, {
           headers: { Authorization: `Bearer ${accessToken}` },
         }),
       );
       
       const uploadMechanism = response.data.value.uploadMechanism;
       const asset = response.data.value.asset;
-      // LinkedIn returns: "com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"
       const uploadUrl = uploadMechanism['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest'].uploadUrl;
 
       return { uploadUrl, asset };
@@ -127,9 +140,6 @@ export class LinkedinService {
 
   private async uploadBinary(uploadUrl: string, fileBuffer: Buffer, accessToken: string) {
     try {
-      // Upload directly to the URL provided by LinkedIn. 
-      // Note: Some docs suggest Authorization header is needed, some say the URL is signed. 
-      // Including the token usually doesn't hurt for LinkedIn API endpoints.
       await firstValueFrom(
         this.httpService.post(uploadUrl, fileBuffer, {
           headers: { 
@@ -156,13 +166,13 @@ export class LinkedinService {
     let shareMediaCategory = 'NONE';
     let mediaAssets: any[] = [];
  
+    // ✅ Replaced hardcoded char limit
+    if (text.length > this.postCharLimit) {
+      throw new BadRequestException(`Text exceeds LinkedIn limit of ${this.postCharLimit} characters.`);
+    }
+
     // If media is provided, process it
     if (media && media.url) {
-      
-      
-    if (text.length > 3000) {
-    throw new BadRequestException('Text exceeds LinkedIn limit of 3000 characters.');
-    }
       // 1. Download file
       const fileBuffer = await this.downloadMedia(media.url);
       
@@ -173,11 +183,11 @@ export class LinkedinService {
       await this.uploadBinary(uploadUrl, fileBuffer, accessToken);
 
       // 4. Prepare Post Metadata
-      shareMediaCategory = media.type; // 'IMAGE' or 'VIDEO'
+      shareMediaCategory = media.type;
       mediaAssets = [
         {
           status: 'READY',
-          description: { text: text.substring(0, 200) }, // Optional description
+          description: { text: text.substring(0, 200) }, 
           media: asset,
           title: { text: 'Shared Media' },
         },
@@ -201,7 +211,8 @@ export class LinkedinService {
       };
 
       const response = await firstValueFrom(
-        this.httpService.post('https://api.linkedin.com/v2/ugcPosts', requestBody, {
+        // ✅ Replaced hardcoded URL
+        this.httpService.post(`${this.apiBaseUrl}/ugcPosts`, requestBody, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'X-Restli-Protocol-Version': '2.0.0', 
