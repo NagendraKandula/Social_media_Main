@@ -1,18 +1,28 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { ConfigService  } from '@nestjs/config';
 
 @Injectable()
 export class ThreadsService {
-  private readonly GRAPH_API_URL = 'https://graph.threads.net/v1.0';
-  private readonly TOKEN_URL = 'https://graph.threads.net/oauth/access_token';
-  private readonly LONG_LIVED_TOKEN_URL = 'https://graph.threads.net/access_token';
-  private readonly CLIENT_ID = process.env.THREADS_APP_ID;
-  private readonly CLIENT_SECRET = process.env.THREADS_APP_SECRET;
-  private readonly REDIRECT_URL =
-    'https://aleigha-unchinked-dilan.ngrok-free.dev/auth/threads/callback';
+  private readonly GRAPH_API_URL :string;
+  private readonly TOKEN_URL :string;
+  private readonly LONG_LIVED_TOKEN_URL :string;
+  private readonly CLIENT_ID :string;
+  private readonly CLIENT_SECRET :string;
+  private readonly REDIRECT_URL :string;
 
-  constructor(private readonly http: HttpService) {}
+  constructor(private readonly http: HttpService ,
+    private readonly configService: ConfigService   
+  ) {
+       this.REDIRECT_URL = this.configService.get<string>('THREADS_REDIRECT_URL')!;
+       this.GRAPH_API_URL = this.configService.get<string>('THREADS_GRAPH_API_URL')!;
+       this.TOKEN_URL = this.configService.get<string>('THREADS_TOKEN_URL')!;
+       this.LONG_LIVED_TOKEN_URL = this.configService.get<string>('THREADS_LONG_LIVED_TOKEN_URL')!;
+       this.CLIENT_ID = this.configService.get<string>('THREADS_APP_ID')!;
+       this.CLIENT_SECRET = this.configService.get<string>('THREADS_APP_SECRET')!;
+
+  }
 
   // ✅ Updated: Exchange code → Short Token → Long Token
   async exchangeCodeForTokens(code: string) {
