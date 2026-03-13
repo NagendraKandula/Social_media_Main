@@ -1,12 +1,19 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class InstagramBusinessService {
+  private readonly IG_GRAPH_API_URL : string;
   private readonly logger = new Logger(InstagramBusinessService.name);
 
-  constructor(private readonly httpService: HttpService) {}
+  constructor(private readonly httpService: HttpService ,
+    private readonly configService: ConfigService
+
+  ) {
+    this.IG_GRAPH_API_URL = this.configService.get<string>('INSTAGRAM_GRAPH_API_URL') !;
+  }
 
 
   async publishContent(
@@ -81,7 +88,7 @@ export class InstagramBusinessService {
    // --- CAROUSEL SPECIFIC HELPERS ---
 
   private async createCarouselItemContainer(userId: string, accessToken: string, mediaUrl: string): Promise<string> {
-    const url = `https://graph.instagram.com/v24.0/${userId}/media`;
+    const url = `${this.IG_GRAPH_API_URL}/${userId}/media`;
     const isVideo = mediaUrl.match(/\.(mp4|mov|avi|mkv|webm)$/i); // Auto-detect video
     
     let params: any = { 
@@ -100,7 +107,7 @@ export class InstagramBusinessService {
     return response.data.id;
   }
 private async createMasterCarouselContainer(userId: string, accessToken: string, childrenIds: string[], caption?: string): Promise<string> {
-    const url = `https://graph.instagram.com/v24.0/${userId}/media`;
+    const url = `${this.IG_GRAPH_API_URL}/${userId}/media`;
     let params: any = {
       access_token: accessToken,
       media_type: 'CAROUSEL',
@@ -120,7 +127,7 @@ private async createMasterCarouselContainer(userId: string, accessToken: string,
     mediaUrl: string,
     caption?: string,
   ): Promise<string> {
-    const url = `https://graph.instagram.com/v24.0/${userId}/media`;
+    const url = `${this.IG_GRAPH_API_URL}/${userId}/media`;
     
     let params: any = { access_token: accessToken };
 
@@ -174,7 +181,7 @@ private async createMasterCarouselContainer(userId: string, accessToken: string,
     const delay = 5000; // 5 seconds between checks
 
     while (attempts < maxAttempts) {
-      const url = `https://graph.instagram.com/v24.0/${creationId}`;
+      const url = `${this.IG_GRAPH_API_URL}/${creationId}`;
       const response = await firstValueFrom(
         this.httpService.get(url, {
           params: {
@@ -209,7 +216,7 @@ private async createMasterCarouselContainer(userId: string, accessToken: string,
     accessToken: string,
     creationId: string,
   ) {
-    const url = `https://graph.instagram.com/v24.0/${userId}/media_publish`;
+    const url = `${this.IG_GRAPH_API_URL}/${userId}/media_publish`;
     const params = {
       creation_id: creationId,
       access_token: accessToken,
