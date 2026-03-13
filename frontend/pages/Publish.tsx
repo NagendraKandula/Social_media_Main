@@ -67,6 +67,54 @@ export default function Publish() {
     () => resolveEditorRules(selectedChannelList),
     [selectedChannelList]
   );
+// LOGIC: Calculate which channels are disabled based on files
+  const disabledChannels = useMemo(() => {
+    const disabled = new Set<Channel>();
+    
+    if (files.length > 1) {
+      // 1. Block channels that don't support multi-post at all
+      disabled.add('youtube');
+      disabled.add('threads');
+      disabled.add('twitter');
+      disabled.add('linkedin');
+
+      // 2. Check if there are any videos in the multi-file upload
+      const hasVideo = files.some(f => f.type.startsWith('video/'));
+      
+      // 3. Block Facebook if multi-posting AND there's a video (Facebook doesn't support mixed media multi-posts)
+      if (hasVideo) {
+        disabled.add('facebook');
+      }
+    }
+    
+    return disabled;
+  }, [files]);
+
+  // LOGIC: Automatically deselect channels if media rules are violated
+  useEffect(() => {
+    if (files.length > 1) {
+      let changed = false;
+      const nextChannels = new Set(selectedChannels);
+
+      // Force deselect unsupported channels
+      disabledChannels.forEach(ch => {
+        if (nextChannels.has(ch)) {
+          nextChannels.delete(ch);
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        setSelectedChannels(nextChannels);
+        const hasVideo = files.some(f => f.type.startsWith('video/'));
+        if (hasVideo && selectedChannels.has('facebook')) {
+          alert('Facebook has been deselected: it does not support multiple files containing videos. Only Instagram supports mixed-media carousels.');
+        } else {
+          alert('Only Facebook and Instagram support multi-image posts. Unsupported channels have been deselected.');
+        }
+      }
+    }
+  }, [files, selectedChannels, disabledChannels]);
 
   /* ===============================
      Fetch Connected Accounts
