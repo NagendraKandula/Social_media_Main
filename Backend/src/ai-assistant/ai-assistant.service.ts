@@ -6,10 +6,11 @@ import { Express } from 'express';
 @Injectable()
 export class AiAssistantService {
   private groq: Groq;
-  private readonly MODEL_ID = 'meta-llama/llama-4-maverick-17b-128e-instruct';
+  private readonly MODEL_ID: string;
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
+    this.MODEL_ID = this.configService.get<string>('GROQ_MODEL_ID') || 'meta-llama/llama-4-maverick-17b-128e-instruct';
     if (!apiKey) {
       throw new Error('GROQ_API_KEY is not set in environment variables.');
     }

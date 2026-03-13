@@ -2,10 +2,16 @@
 import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import axios from 'axios';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class InstagramAnalyticsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly graphApiUrl: string;
+  constructor(private prisma: PrismaService,
+    private configService: ConfigService
+  ) {
+    this.graphApiUrl = this.configService.get<string>('FB_GRAPH_API_URL')!;
+  }
 
   private async getSocialAccount(userId: number) {
     const account = await this.prisma.socialAccount.findFirst({
@@ -16,7 +22,7 @@ export class InstagramAnalyticsService {
   }
 
   private async getInstagramBusinessId(accessToken: string): Promise<string> {
-    const url = `https://graph.facebook.com/v21.0/me/accounts?fields=instagram_business_account&access_token=${accessToken}`;
+    const url = `${this.graphApiUrl}/me/accounts?fields=instagram_business_account&access_token=${accessToken}`;
     const response = await axios.get(url);
     const igId = response.data.data?.[0]?.instagram_business_account?.id;
     if (!igId) throw new BadRequestException('No Instagram Business Account linked to this Facebook page.');
@@ -28,8 +34,8 @@ export class InstagramAnalyticsService {
     const igId = await this.getInstagramBusinessId(accessToken);
 
     // Fetch Profile Info & Insights
-    const profileUrl = `https://graph.facebook.com/v21.0/${igId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${accessToken}`;
-    const insightsUrl = `https://graph.facebook.com/v21.0/${igId}/insights?metric=reach,accounts_engaged,total_interactions,views&period=day&metric_type=total_value&access_token=${accessToken}`;
+    const profileUrl = `${this.graphApiUrl}/${igId}?fields=id,name,username,followers_count,media_count,profile_picture_url&access_token=${accessToken}`;
+    const insightsUrl = `${this.graphApiUrl}${igId}/insights?metric=reach,accounts_engaged,total_interactions,views&period=day&metric_type=total_value&access_token=${accessToken}`;
 
     const [profile, insights] = await Promise.all([
       axios.get(profileUrl),
@@ -47,7 +53,7 @@ export class InstagramAnalyticsService {
     const igId = await this.getInstagramBusinessId(accessToken);
 
     // Fetch media with individual insights
-    const url = `https://graph.facebook.com/v21.0/${igId}?fields=media{id,like_count,comments_count,insights.metric(impressions,reach,saved,video_views)}&access_token=${accessToken}`;
+    const url = `${this.graphApiUrl}/${igId}?fields=media{id,like_count,comments_count,insights.metric(impressions,reach,saved,video_views)}&access_token=${accessToken}`;
     const response = await axios.get(url);
     const mediaList = response.data.media?.data || [];
 

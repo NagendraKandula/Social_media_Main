@@ -27,6 +27,7 @@ interface Props {
   accounts: Partial<Record<Channel, Account>>;
   selectedChannels: Set<Channel>;
   onSelectionChange: (s: Set<Channel>) => void;
+  disabledChannels?: Set<Channel>; // <-- ADDED: Track which channels are disabled by rules
 }
 
 const icons: Record<Channel, JSX.Element> = {
@@ -42,6 +43,7 @@ export default function ChannelSelector({
   accounts,
   selectedChannels,
   onSelectionChange,
+  disabledChannels = new Set(), // <-- Default to empty set
 }: Props) {
   const toggle = (channel: Channel) => {
     const next = new Set(selectedChannels);
@@ -59,7 +61,9 @@ export default function ChannelSelector({
           if (!account) return null;
 
           const isSelected = selectedChannels.has(channel);
-          const disabled = account.needsReconnect;
+          
+          // Disable if disconnected OR blocked by multi-file rules
+          const disabled = account.needsReconnect || disabledChannels.has(channel);
 
           return (
             <button
@@ -73,8 +77,10 @@ export default function ChannelSelector({
                 .filter(Boolean)
                 .join(' ')}
               onClick={() => !disabled && toggle(channel)}
-              title={account.name}
+              title={disabled ? `${account.name} (Unavailable for current media)` : account.name}
               aria-pressed={isSelected}
+              disabled={disabled}
+              style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
             >
               <img
                 src={account.profilePic || '/profile.png'}

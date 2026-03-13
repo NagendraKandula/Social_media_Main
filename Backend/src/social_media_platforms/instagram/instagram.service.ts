@@ -11,14 +11,16 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class InstagramService {
-  private readonly FB_GRAPH_API_URL = 'https://graph.facebook.com/v19.0';
+  private readonly FB_GRAPH_API_URL : string;
   private readonly logger = new Logger(InstagramService.name);
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    this.FB_GRAPH_API_URL = this.configService.get<string>('FACEBOOK_GRAPH_API_URL')!;
+  }
 
   /**
    * Helper function to handle API errors
