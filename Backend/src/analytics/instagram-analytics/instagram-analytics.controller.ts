@@ -1,20 +1,16 @@
-// Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts
-import { Controller, Get, UseGuards, Request } from '@nestjs/common';
+// Backend/src/Analytics/instagram-analytics/instagram-analytics.controller.ts
+import { Controller, Get, Query } from '@nestjs/common';
 import { InstagramAnalyticsService } from './instagram-analytics.service';
-import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
-@Controller('instagram-analytics')
-@UseGuards(JwtAuthGuard)
+@Controller('analytics/instagram')
 export class InstagramAnalyticsController {
   constructor(private readonly igService: InstagramAnalyticsService) {}
 
-  @Get('account')
-  getAccountStats(@Request() req) {
-    return this.igService.getAccountAnalytics(req.user.userId);
-  }
-
-  @Get('posts-summary')
-  getPostsSummary(@Request() req) {
-    return this.igService.getPostLevelTotals(req.user.userId);
+  @Get('media-insights')
+  async getMediaAnalytics(
+    @Query('accessToken') accessToken: string,
+    @Query('mediaId') mediaId: string,
+  ) {
+    return this.igService.getMediaInsights(accessToken, mediaId);
   }
 }
