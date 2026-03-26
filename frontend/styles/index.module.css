@@ -1,6 +1,7 @@
 .container {
   width: 100%;
-  min-height: 100vh; /* 👈 Use min-height instead of height */
-  display: flex;
-  flex-direction: column;
+  min-height: 100vh;
+  margin: 0; /* ✅ Reset all margins */
+  padding: 60px ; /* ✅ Reset padding */
+  box-sizing: border-box;
 }

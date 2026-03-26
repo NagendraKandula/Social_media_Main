@@ -19,6 +19,13 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         'instagram_basic',
         'instagram_content_publish',
         'business_management',// <-- ADD THIS
+        'instagram_manage_insights',
+        'instagram_manage_comments',
+        'pages_manage_metadata',
+        'pages_manage_ads',
+        'read_insights',
+      
+        
  ]
       ,
       profileFields: ['id', 'name','emails','photos'],
@@ -35,10 +42,10 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     const {id,name,emails,photos} = profile;
     const user = {
       id,
-      email: profile.emails?.[0]?.value ?? '', // Use optional chaining and fallback to empty string
-      firstName: profile.name?.givenName ?? '', // Use optional chaining and fallback
-      lastName: profile.name?.familyName ?? '', 
-      picture : photos?.[0]?.value ?? '',// Use optional chaining and fallback
+      email: profile.emails?.[0]?.value ?? null, // Use optional chaining and fallback to empty string
+      firstName: profile.name?.givenName ?? null, // Use optional chaining and fallback
+      lastName: profile.name?.familyName ?? null, // Use optional chaining and fallback
+      picture : photos?.[0]?.value ?? null ,// Use optional chaining and fallback
       accessToken,
       refreshToken,
     };

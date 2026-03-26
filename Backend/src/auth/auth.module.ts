@@ -9,7 +9,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy'; // <-- Import GoogleStrategy
 import { YoutubeStrategy } from './strategies/youtube.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';// <-- Import YoutubeStrategy
-import { LinkedinStrategy } from './strategies/linkedin.strategy';
 import { InstagramStrategy } from './strategies/instagram.strategy';
 import { HttpModule } from '@nestjs/axios';
 import { JwtRefreshTokenStrategy } from './strategies/jwt-refresh.strategy';
@@ -18,10 +17,15 @@ import { SocialAuthService } from './services/social-auth.service';
 import { LogoutService } from './services/logout-services';
 import { SocialAuthController } from './controllers/social-auth.controller';
 // <-- Import ThreadsStrategy                                                 
-
+import { TwitterModule } from '../social_media_platforms/twitter/twitter.module';
+import { LinkedinModule } from '../social_media_platforms/linkedin/linkedin.module';
+import { ThreadsStrategy } from './strategies/threads.strategy';
+import { LinkedInStrategy } from './strategies/linkedin.strategy';
+//import { TwitterStrategy } from './strategies/twitter.strategy';
 @Module({
   imports: [
     PrismaModule,
+    TwitterModule,LinkedinModule,
     HttpModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,10 +36,10 @@ import { SocialAuthController } from './controllers/social-auth.controller';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, LinkedinStrategy,SocialAuthController],
+  controllers: [AuthController,SocialAuthController],
   providers: [AuthService, JwtStrategy,
      GoogleStrategy,YoutubeStrategy,
-     FacebookStrategy,JwtRefreshTokenStrategy,
+     FacebookStrategy,JwtRefreshTokenStrategy,ThreadsStrategy,LinkedInStrategy,
     TokenService,SocialAuthService,InstagramStrategy,LogoutService], // <-- Add GoogleStrategy
   exports: [AuthService, JwtModule, TokenService, SocialAuthService,LogoutService], 
 })

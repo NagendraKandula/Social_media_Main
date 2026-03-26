@@ -33,6 +33,7 @@ const TwitterPost: React.FC = () => {
     }
 
     try {
+      await apiClient.get('/auth/profile'); // Ensure user is authenticated
       const res = await apiClient.post('/twitter/post-media', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }, // ✅ Critical Header
       });
@@ -42,6 +43,13 @@ const TwitterPost: React.FC = () => {
       setFile(null);
     } catch (err: any) {
       console.error(err);
+      // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (err.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }
       setMessage(err.response?.data?.message || 'Failed to post tweet');
     } finally {
       setLoading(false);

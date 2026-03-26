@@ -1,106 +1,155 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+
 import LHeader from "./LHeader";
-import Sidebar from "./Sidebar";
+import SubHeader from "./SubHeader";
 import styles from "../styles/Landing.module.css";
 
-// Import pages
+// Tabs
+import ActivePlatforms from "./ActivePlatforms";
 import Create from "./Create";
 import Templates from "./Templates";
 import Publish from "./Publish";
 import Planning from "./Planning";
 import Analytics from "./Analytics";
 import Summary from "./Summary";
+
+// Platform flows
 import YouTubeConnect from "./YouTubeConnect";
 import YouTubePost from "./YouTubePost";
 import InstagramConnect from "./InstagramConnect";
-import FacebookConnect from "./FacebookConnect";
+import FacebookPost from "./facebook-post";
 import TwitterConnect from "./TwitterConnect";
 import TwitterPost from "./TwitterPost";
 import LinkedInConnect from "./LinkedInConnect";
-import PinterestConnect from "./PinterestConnect";
 import ThreadsConnect from "./ThreadsConnect";
-import FacebookPost from "./facebook-post";
 
-const Landing = () => {
+const Landing: React.FC = () => {
   const router = useRouter();
-  const [activeSegment, setActiveSegment] = useState("Create");
+
+  /* ================= STATE ================= */
+
+  const [activeTab, setActiveTab] = useState<string>("Create");
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
+
   const [youtubeConnected, setYoutubeConnected] = useState(false);
   const [twitterConnected, setTwitterConnected] = useState(false);
 
-  // Check URL query for YouTube or Twitter connection
+  /* ================= OAUTH REDIRECT HANDLING ================= */
+
   useEffect(() => {
-    if (router.query.youtube === "connected") {
-      setActivePlatform("youtube");
+    const { youtube, twitter } = router.query;
+
+    if (youtube === "connected") {
       setYoutubeConnected(true);
-      router.replace("/Landing", undefined, { shallow: true });
+      setActivePlatform(null);
+      setActiveTab("Create");
     }
 
-    if (router.query.twitter === "connected") {
-      setActivePlatform("twitter");
+    if (twitter === "connected") {
       setTwitterConnected(true);
+      setActivePlatform(null);
+      setActiveTab("Create");
+    }
+
+    if (youtube || twitter) {
       router.replace("/Landing", undefined, { shallow: true });
     }
   }, [router.query]);
 
-  const renderContent = () => {
-    if (activePlatform) {
-      switch (activePlatform) {
-        case "youtube":
-          return youtubeConnected ? <YouTubePost /> : <YouTubeConnect />;
-        case "twitter":
-          return twitterConnected ? <TwitterPost /> : <TwitterConnect />;
-        case "instagram":
-          // Assuming you have a way to check if Instagram is connected
-          // For now, let's assume it's always the connect page
-          return <InstagramConnect />;
-        case "facebook":
-          return <FacebookConnect />;
-        case "linkedin":
-          return <LinkedInConnect />;
-        case "pinterest":
-          return <PinterestConnect />;
-        case "threads":
-          return <ThreadsConnect />;
-        default:
-          return <div>Select a platform</div>;
-      }
-    }
+  /* ================= TAB CONTENT ================= */
 
-    switch (activeSegment) {
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "Active Platforms":
+        return <ActivePlatforms />;
       case "Create":
         return <Create />;
       case "Templates":
         return <Templates />;
       case "Publish":
         return <Publish />;
-      case "Planning":
+      case "Schedule":
         return <Planning />;
       case "Analytics":
         return <Analytics />;
       case "Summary":
         return <Summary />;
       default:
-        return <div>Welcome</div>;
+        return null;
     }
   };
 
+  /* ================= PLATFORM POPUPS ================= */
+
+  const renderPlatformPopup = () => {
+    switch (activePlatform) {
+      case "twitter":
+        return (
+          twitterConnected ? (
+            <TwitterPost />
+          ) : (
+            <TwitterConnect onClose={() => setActivePlatform(null)} />
+          )
+        );
+
+      case "youtube":
+        return (
+          youtubeConnected ? (
+            <YouTubePost />
+          ) : (
+            <YouTubeConnect onClose={() => setActivePlatform(null)} />
+          )
+        );
+
+      case "instagram":
+        return (
+          <InstagramConnect onClose={() => setActivePlatform(null)} />
+        );
+
+      case "facebook":
+        return <FacebookPost />;
+
+      case "linkedin":
+        return (
+          <LinkedInConnect onClose={() => setActivePlatform(null)} />
+        );
+
+      case "threads":
+        return (
+          <ThreadsConnect onClose={() => setActivePlatform(null)} />
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  /* ================= RENDER ================= */
+
   return (
     <div className={styles.container}>
+      {/* ===== MAIN HEADER ===== */}
       <header className={styles.header}>
         <LHeader setActivePlatform={setActivePlatform} />
       </header>
 
-      <div className={styles.main}>
-        <Sidebar
-          activeSegment={activeSegment}
-          setActiveSegment={setActiveSegment}
-          activePlatform={activePlatform}
-          setActivePlatform={setActivePlatform} // <-- Pass the setActivePlatform function here
-        />
-        <main className={styles.content}>{renderContent()}</main>
-      </div>
+      {/* ===== SUB HEADER ===== */}
+      <SubHeader
+        activeTab={activeTab}
+        setActiveTab={(tab: string) => {
+          setActiveTab(tab);
+          setActivePlatform(null);
+        }}
+      />
+
+      {/* ===== PAGE CONTENT ===== */}
+      <main className={styles.content}>
+        {renderTabContent()}
+      </main>
+
+      {/* ===== PLATFORM POPUPS ===== */}
+      {activePlatform && renderPlatformPopup()}
     </div>
   );
 };

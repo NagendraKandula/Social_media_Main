@@ -1,76 +1,161 @@
-// frontend/pages/instagram-analytics.tsx
-import { useState } from "react";
-import api from "../lib/axios"; // Adjust path based on your lib/axios.ts location
+import React, { useState, useEffect } from 'react';
+import apiClient from '../lib/axios'; //
+import styles from '../styles/Instagram-analytics.module.css'; //
+import { withAuth } from '../utils/withAuth'; //
+import { GetServerSideProps } from 'next';
 
-export default function InstagramAnalytics() {
-  const [mediaId, setMediaId] = useState("");
-  const [insights, setInsights] = useState<any>(null);
+// --- INTERFACES ---
+interface ProfileData {
+  id: string;
+  name: string;
+  username: string;
+  followers_count: number;
+  media_count: number;
+}
+
+interface Metric {
+  name: string;
+  title?: string;
+  total_value: { value: number };
+}
+
+interface PostTotals {
+  totalLikes: number;
+  totalComments: number;
+  totalImpressions: number;
+  totalReach: number;
+  totalSaved: number;
+  totalVideoViews: number;
+}
+
+const InstagramAnalytics: React.FC = () => {
+  const [viewMode, setViewMode] = useState<'account' | 'posts'>('account');
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [accountMetrics, setAccountMetrics] = useState<Metric[]>([]);
+  const [postTotals, setPostTotals] = useState<PostTotals | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fetchAnalytics = async () => {
     setLoading(true);
+    setError('');
     try {
-      // Replace with actual user token logic
-      const token = "IGAAVTWXrRzc5BZAGFGdm1vUEprX2dKeU5OLTVkazdxeVFDc0F6dnlLUmE0Y0dwYjFoR2h0ajdhQ3pNMGhFSTBmdkZAwRjJYMm1LeW5QTHZAqLW5DYkZANdmM1UWxDc3U4dkp4ZAWtBQnFNYkxKQ3VlZAHpTR253"; 
-      const res = await api.get(`/analytics/instagram/media-insights`, {
-        params: { accessToken: token, mediaId: mediaId }
-      });
-      
-      // Map API array to a key-value object for easier display
-      const dataMap = res.data.data.reduce((acc: any, item: any) => {
-        acc[item.name] = item.values[0].value;
-        return acc;
-      }, {});
-      
-      setInsights(dataMap);
-    } catch (err) {
-      alert("Error fetching insights. Check console.");
+      if (viewMode === 'account') {
+        // Calls Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts -> getAccountStats
+        const response = await apiClient.get('/instagram-analytics/account');
+        setProfile(response.data.profile);
+        setAccountMetrics(response.data.metrics || []);
+        setPostTotals(null); 
+      } else {
+        // Calls Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts -> getPostsSummary
+        const response = await apiClient.get('/instagram-analytics/posts-summary');
+        setPostTotals(response.data);
+        setProfile(null);
+      }
+    } catch (err: any) {
+      console.error('Error fetching Instagram analytics:', err);
+      setError('Ensure your Instagram Business account is connected.');
     } finally {
       setLoading(false);
     }
   };
 
-  const statCards = [
-    { title: "Reach", value: insights?.reach || "0" },
-    { title: "Likes", value: insights?.likes || "0" },
-    { title: "Comments", value: insights?.comments || "0" },
-    { title: "Saves", value: insights?.saved || "0" },
-    { title: "Shares", value: insights?.shares || "0" },
-  ];
+  useEffect(() => {
+    fetchAnalytics();
+  }, [viewMode]);
 
   return (
-    <div className="p-8 bg-gray-50 min-h-screen">
-      <h1 className="text-2xl font-semibold mb-6">Instagram Media Analytics</h1>
-
-      {/* Input Section */}
-      <form onSubmit={handleSubmit} className="mb-10 flex gap-4 bg-white p-6 rounded-xl shadow">
-        <input
-          type="text"
-          placeholder="Enter Media ID"
-          className="border p-2 rounded flex-grow"
-          value={mediaId}
-          onChange={(e) => setMediaId(e.target.value)}
-          required
-        />
+    <div className={styles.analyticsContainer}>
+      {/* --- Platform Header (Only Instagram) --- */}
+      <div className={styles.platformHeader} style={{ textAlign: 'center', marginBottom: '2rem' }}>
         <button 
-          type="submit"
-          className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700"
-          disabled={loading}
+          className={styles.active} 
+          style={{ 
+            background: '#E1306C', // Instagram Brand Color
+            color: 'white',
+            padding: '12px 30px',
+            borderRadius: '12px',
+            fontSize: '1.2rem',
+            fontWeight: 'bold',
+            border: 'none'
+          }}
         >
-          {loading ? "Loading..." : "Submit"}
+          Instagram Analytics
         </button>
-      </form>
-
-      {/* Results Section */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {statCards.map((item) => (
-          <div key={item.title} className="bg-white rounded-xl shadow p-5 text-center">
-            <p className="text-gray-500 text-sm">{item.title}</p>
-            <h3 className="text-2xl font-bold mt-2">{item.value}</h3>
-          </div>
-        ))}
       </div>
+
+      {/* --- Sub-Level Toggle --- */}
+      <div className={styles.toggle} style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '3rem' }}>
+        <button
+          className={viewMode === 'account' ? styles.active : ''}
+          onClick={() => setViewMode('account')}
+          style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Account Level
+        </button>
+        <button
+          className={viewMode === 'posts' ? styles.active : ''}
+          onClick={() => setViewMode('posts')}
+          style={{ padding: '10px 20px', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Post Level
+        </button>
+      </div>
+
+      {loading && <p className={styles.message}>Loading data...</p>}
+      {error && <p className={styles.errorMessage}>{error}</p>}
+
+      {!loading && !error && (
+        <div className={styles.statsGrid}>
+          {/* Account Level Analytics */}
+          {viewMode === 'account' && profile && (
+            <>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Followers</h3>
+                <p className={styles.statValue}>{profile.followers_count?.toLocaleString() || 0}</p>
+              </div>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Posts</h3>
+                <p className={styles.statValue}>{profile.media_count?.toLocaleString() || 0}</p>
+              </div>
+              {accountMetrics.map((m) => (
+                <div key={m.name} className={styles.statCard}>
+                  <h3 className={styles.statTitle}>{m.title || m.name.replace(/_/g, ' ')}</h3>
+                  <p className={styles.statValue}>{m.total_value?.value?.toLocaleString() || 0}</p>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* Post Level Analytics */}
+          {viewMode === 'posts' && postTotals && (
+            <>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Total Likes</h3>
+                <p className={styles.statValue}>{postTotals.totalLikes?.toLocaleString()}</p>
+              </div>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Total Comments</h3>
+                <p className={styles.statValue}>{postTotals.totalComments?.toLocaleString()}</p>
+              </div>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Total Reach</h3>
+                <p className={styles.statValue}>{postTotals.totalReach?.toLocaleString()}</p>
+              </div>
+              <div className={styles.statCard}>
+                <h3 className={styles.statTitle}>Impressions</h3>
+                <p className={styles.statValue}>{postTotals.totalImpressions?.toLocaleString()}</p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export const getServerSideProps: GetServerSideProps = withAuth(async () => {
+  return { props: {} };
+});
+
+export default InstagramAnalytics;

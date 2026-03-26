@@ -1,148 +1,223 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styles from "../styles/lheader.module.css";
 import {
   FaInstagram,
   FaTwitter,
   FaFacebookF,
   FaLinkedinIn,
-  FaPinterestP,
   FaYoutube,
+  FaBell,
+  FaCog,
 } from "react-icons/fa";
 import { SiThreads } from "react-icons/si";
 import { useRouter } from "next/router";
-import apiClient from "../lib/axios"; // Import the apiClient
+import apiClient from "../lib/axios";
+
+import InstagramConnect from "./InstagramConnect";
+import FacebookConnect from "./FacebookConnect";
+import YouTubeConnect from "./YouTubeConnect";
+import TwitterConnect from "./TwitterConnect";
+import LinkedInConnect from "./LinkedInConnect";
+import ThreadsConnect from "./ThreadsConnect";
 
 interface LHeaderProps {
   setActivePlatform: (platform: string | null) => void;
 }
 
-const LHeader: React.FC<LHeaderProps> = ({ setActivePlatform }) => {
+type ConnectedMap = {
+  instagram?: boolean;
+  facebook?: boolean;
+  youtube?: boolean;
+  twitter?: boolean;
+  linkedin?: boolean;
+  threads?: boolean;
+};
+
+type PopupType =
+  | "instagram"
+  | "facebook"
+  | "youtube"
+  | "twitter"
+  | "linkedin"
+  | "threads"
+  | null;
+
+const LHeader: React.FC<LHeaderProps> = () => {
   const router = useRouter();
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activePopup, setActivePopup] = useState<PopupType>(null);
+  const [connectedPlatforms, setConnectedPlatforms] =
+    useState<ConnectedMap>({});
+
+  /* ================= FETCH CONNECTED PLATFORMS ================= */
+  const fetchConnectedPlatforms = async () => {
+  try {
+    const res = await apiClient.get("/auth/social/active-accounts");
+    const connected: ConnectedMap = {};
+
+    Object.entries(res.data || {}).forEach(([key, value]) => {
+      if (value) {
+        connected[key as keyof ConnectedMap] = true;
+      }
+    });
+
+    setConnectedPlatforms(connected);
+  } catch (error) {
+    console.error("Failed to fetch connected platforms:", error);
+  }
+};
+
+
+  /* ================= INITIAL LOAD + LIVE SYNC ================= */
+  useEffect(() => {
+    fetchConnectedPlatforms();
+
+    const handleUpdate = () => {
+      fetchConnectedPlatforms();
+    };
+
+    window.addEventListener("social-accounts-updated", handleUpdate);
+
+    return () => {
+      window.removeEventListener("social-accounts-updated", handleUpdate);
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
-      // Use apiClient to send the logout request to the correct backend URL
-     await apiClient.post("/auth/logout", {}, { withCredentials: true });
-
-      
-      // On success, redirect to the login page
+      await apiClient.post("/auth/logout", {}, { withCredentials: true });
       router.push("/login");
     } catch (error) {
-      console.error("An error occurred during logout:", error);
+      console.error("Logout failed:", error);
     }
+  };
+
+  const togglePopup = (popup: PopupType) => {
+    setActivePopup((prev) => (prev === popup ? null : popup));
   };
 
   return (
     <header className={styles.header}>
-      <div className={styles.logo}>☐ LOGO</div>
-
-      <div className={styles.channels}>
-        <button
-          className={styles.channelIcon}
-          data-platform="instagram"
-          onClick={() => setActivePlatform("instagram")}
-          aria-label="Instagram"
-        >
-          <span aria-hidden="true">
-            <FaInstagram />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="twitter"
-          onClick={() => setActivePlatform("twitter")}
-          aria-label="Twitter"
-        >
-          <span aria-hidden="true">
-            <FaTwitter />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="youtube"
-          onClick={() => setActivePlatform("youtube")}
-          aria-label="YouTube"
-        >
-          <span aria-hidden="true">
-            <FaYoutube />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="linkedin"
-          onClick={() => setActivePlatform("linkedin")}
-          aria-label="LinkedIn"
-        >
-          <span aria-hidden="true">
-            <FaLinkedinIn />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="pinterest"
-          onClick={() => setActivePlatform("pinterest")}
-          aria-label="Pinterest"
-        >
-          <span aria-hidden="true">
-            <FaPinterestP />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="facebook"
-          onClick={() => setActivePlatform("facebook")}
-          aria-label="Facebook"
-        >
-          <span aria-hidden="true">
-            <FaFacebookF />
-          </span>
-        </button>
-        <button
-          className={styles.channelIcon}
-          data-platform="threads"
-          onClick={() => setActivePlatform("threads")}
-          aria-label="Threads"
-        >
-          <span aria-hidden="true">
-            <SiThreads />
-          </span>
-        </button>
+      {/* Logo */}
+      <div className={styles.logo}>
+        Story<span className={styles.dot}>.</span>
       </div>
 
+      {/* Platforms */}
+      <div className={styles.channels}>
+        {/* Instagram */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.instagram ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("instagram")}
+          >
+            <FaInstagram />
+          </button>
+          {activePopup === "instagram" && (
+            <InstagramConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+
+        {/* Twitter */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.twitter ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("twitter")}
+          >
+            <FaTwitter />
+          </button>
+          {activePopup === "twitter" && (
+            <TwitterConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+
+        {/* YouTube */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.youtube ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("youtube")}
+          >
+            <FaYoutube />
+          </button>
+          {activePopup === "youtube" && (
+            <YouTubeConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+
+        {/* LinkedIn */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.linkedin ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("linkedin")}
+          >
+            <FaLinkedinIn />
+          </button>
+          {activePopup === "linkedin" && (
+            <LinkedInConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+
+        {/* Facebook */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.facebook ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("facebook")}
+          >
+            <FaFacebookF />
+          </button>
+          {activePopup === "facebook" && (
+            <FacebookConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+
+        {/* Threads */}
+        <div className={styles.iconWrapper}>
+          <button
+            className={`${styles.channelIcon} ${
+              connectedPlatforms.threads ? styles.connected : ""
+            }`}
+            onClick={() => togglePopup("threads")}
+          >
+            <SiThreads />
+          </button>
+          {activePopup === "threads" && (
+            <ThreadsConnect onClose={() => setActivePopup(null)} />
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
       <div className={styles.actions}>
-        <button
-          className={styles.newPostButton}
-          onClick={() => setActivePlatform(null)}
-        >
-          + New Post
-        </button>
-        <button className={styles.help} aria-label="Help">
-          ⭐️
+        <button className={styles.notification}>
+          <FaBell />
         </button>
 
-        {/* Profile Dropdown */}
+        <button className={styles.settings}>
+          <FaCog />
+        </button>
+
         <div className={styles.profileContainer}>
           <button
             className={styles.profilePic}
-            aria-label="Profile"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={() => setDropdownOpen((o) => !o)}
           >
-            <span className={styles.profileInitial}>U</span>
+            <span className={styles.profileInitial}>A</span>
           </button>
 
           {dropdownOpen && (
             <div className={styles.profileDropdown}>
-              <button 
-                onClick={() => router.push("/ActivePlatforms")} 
-                className={styles.dropdownItem}
-              >
-                Active Platforms
-              </button>
-              
-              <button onClick={handleLogout} className={styles.logoutButton}>
-                Logout
-              </button>
+              <button onClick={handleLogout}>Logout</button>
             </div>
           )}
         </div>

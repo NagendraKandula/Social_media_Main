@@ -3,6 +3,8 @@ import apiClient from '../lib/axios';
 import styles from '../styles/ThreadsPost.module.css';
 import { AxiosError } from 'axios';
 
+const MAX_CHARS = 500;
+
 const ThreadsPost: React.FC = () => {
   const [content, setContent] = useState('');
   const [mediaUrl, setMediaUrl] = useState('');
@@ -23,12 +25,12 @@ const ThreadsPost: React.FC = () => {
     setMessage('');
 
     try {
+      await apiClient.get('/auth/profile');
       const response = await apiClient.post('/threads/post', {
         content: content.trim(),
         mediaUrl: mediaUrl.trim() || null,
       });
 
-      // ✅ Fixed template literal here
       setMessage(`✅ Post successful! Post ID: ${response.data.postId || 'N/A'}`);
       setContent('');
       setMediaUrl('');
@@ -36,11 +38,13 @@ const ThreadsPost: React.FC = () => {
       const axiosError = err as AxiosError;
       const apiError = (axiosError.response?.data as any)?.message;
 
-      if (axiosError.response?.status === 401) {
-        setError(
-          '⚠ You are not connected to Threads. Please connect your account first.'
-        );
-      } else {
+     // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (err.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }else {
         setError(apiError || '❌ Something went wrong while posting to Threads.');
       }
       console.error('Threads post error:', axiosError);
@@ -59,8 +63,20 @@ const ThreadsPost: React.FC = () => {
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.formGroup}>
-          <label htmlFor="content">Text:</label>
+          {/* Header container for Label and Character Count */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+            <label htmlFor="content">Text:</label>
+            <span style={{ 
+              fontSize: '12px', 
+              color: content.length >= MAX_CHARS ? '#ef4444' : '#666', 
+              fontWeight: 500 
+            }}>
+              {content.length} / {MAX_CHARS}
+            </span>
+          </div>
+          
           <textarea
+            maxLength={MAX_CHARS}
             id="content"
             value={content}
             onChange={(e) => setContent(e.target.value)}

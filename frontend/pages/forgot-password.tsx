@@ -35,12 +35,17 @@ export default function ForgotPasswordPage() {
     setError('');
     setMessage('');
     try {
+      await apiClient.get('/auth/profile');
       // ✅ CHANGED: Use apiClient
       await apiClient.post('/auth/resend-otp', { email });
       setMessage('A new OTP has been sent.');
       setCanResend(false);
       setResendTimer(60); // Reset timer
     } catch (err) {
+      if (err.response?.status === 401) {
+         window.location.href = '/login';
+         return;
+      }
       setError('Failed to resend OTP.');
     } finally {
       setLoading(false);

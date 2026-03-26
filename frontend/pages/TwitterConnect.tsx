@@ -1,98 +1,85 @@
-import React, { useState } from "react";
-import Head from "next/head";
-import { FaTwitter } from "react-icons/fa";
+import React, { useState, useEffect, useRef } from "react";
 import styles from "../styles/TwitterConnect.module.css";
+import { FaTwitter, FaCheckCircle } from "react-icons/fa";
+import apiClient from "../lib/axios";
 
-const TwitterConnect: React.FC = () => {
+interface TwitterConnectProps {
+  onClose: () => void;
+}
+
+const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
   const [loading, setLoading] = useState(false);
+  const popupRef = useRef<HTMLDivElement>(null);
 
-  // Load environment URLs (Frontend + Backend)
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-  const handleConnectTwitter = () => {
+  // ✅ CLOSE ON OUTSIDE CLICK
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+
+  const handleConnectTwitter = async () => {
     setLoading(true);
     try {
-      // After successful connection, redirect back to frontend landing page
-      const redirectUri = encodeURIComponent(`${frontendUrl}/Landing?twitter=connected`);
+      await apiClient.get("/auth/profile");
 
-      // Redirect to backend OAuth route
+      const redirectUri = encodeURIComponent(
+        `${frontendUrl}/Landing?twitter=connected`
+      );
+
       window.location.href = `${backendUrl}/twitter/authorize?redirect=${redirectUri}`;
-    } catch (error) {
-      console.error("Connection error:", error);
-      alert("Unable to connect to Twitter. Please try again later.");
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+      alert("Unable to connect to Twitter. Try again later.");
       setLoading(false);
     }
+    setLoading(true);
+    // 🚀 Secure Redirect to Backend
+    window.location.href = `${backendUrl}/auth/twitter`;
   };
 
   return (
-    <div className={styles.container}>
-      <Head>
-        <title>Connect Twitter</title>
-        <meta name="description" content="Connect your Twitter account" />
-      </Head>
+    <div ref={popupRef} className={styles.twitterPopover}>
+      <h3 className={styles.popupTitle}>Connect a Twitter account</h3>
 
-      <div className={styles.card}>
-        {/* Header */}
-        <div className={styles.header}>
-          <FaTwitter className={styles.twitterIcon} />
-          <h1>Connect Your Twitter Account</h1>
-          <p className={styles.subtitle}>
-            Schedule tweets, track engagement, and grow your audience — all from one dashboard.
-          </p>
+      <div className={styles.optionCard}>
+        <div className={styles.optionHeader}>
+          <FaTwitter />
         </div>
 
-        {/* Benefits */}
-        <div className={styles.benefits}>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>🐦</div>
-            <div>
-              <h3>Schedule Tweets</h3>
-              <p>Plan threads, announcements, and daily tweets ahead of time.</p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>📈</div>
-            <div>
-              <h3>Track Impressions & Likes</h3>
-              <p>See what content resonates and optimize your strategy.</p>
-            </div>
-          </div>
-          <div className={styles.benefitItem}>
-            <div className={styles.benefitIcon}>🤖</div>
-            <div>
-              <h3>AI-Powered Tweet Ideas</h3>
-              <p>Get suggestions based on trending topics and your niche.</p>
-            </div>
-          </div>
-        </div>
+        <h4>Twitter Profile</h4>
+        <p className={styles.subtitle}>
+          Connect your Twitter account to schedule tweets and track engagement.
+        </p>
 
-        {/* Trust Section */}
-        <div className={styles.trustSection}>
-          <p>🔒 Secure connection via Twitter’s official API</p>
-          <p>🚫 We never tweet without your approval</p>
-        </div>
-
-        {/* Connect Button */}
-        <div className={styles.buttonGroup}>
-          <button
-            className={styles.connectButton}
-            onClick={handleConnectTwitter}
-            disabled={loading}
-          >
-            <FaTwitter />
-            {loading ? "Connecting..." : "Connect to Twitter"}
-          </button>
-        </div>
-
-        {/* Footer Note */}
-        <div className={styles.footerNote}>
-          <p>
-            By connecting, you agree to our <a href="#">Terms</a> and{" "}
-            <a href="#">Privacy Policy</a>.
-          </p>
-        </div>
+        <button
+          className={styles.primaryBtn}
+          onClick={handleConnectTwitter}
+          disabled={loading}
+        >
+          {loading ? "Connecting..." : "Connect Twitter"}
+        </button>
       </div>
+
+      <p className={styles.footer}>
+        🔒 Secure connection using Twitter’s official API
+      </p>
     </div>
   );
 };

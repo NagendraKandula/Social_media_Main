@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InstagramService } from './instagram.service';
-import { Request } from 'express';
+
 import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
 // Updated DTO

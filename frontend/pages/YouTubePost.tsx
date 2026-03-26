@@ -43,6 +43,7 @@ const YouTubePost = () => {
     setMessage("");
     setError("");
     try {
+      await apiClient.get('/auth/profile');
       const response = await apiClient.post(
         "/youtube/upload-video",
         {
@@ -57,6 +58,13 @@ const YouTubePost = () => {
       );
       setMessage(response.data.message || "Video uploaded successfully!");
     } catch (err: any) {
+      // ✅ HANDLE 401: If the refresh token is also expired, 
+      // the interceptor might have already redirected, but we catch it here too.
+      if (err.response?.status === 401) {
+        // You can use router.push('/login') if you import useRouter
+        window.location.href = '/login'; 
+        return;
+      }
       setError(err.response?.data?.message || "Upload failed. Please try again.");
     }
     finally {

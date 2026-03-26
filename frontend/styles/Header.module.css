@@ -1,138 +1,105 @@
-/* Full header background */
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100px;
-  background: black;
-  margin: 0 0 0 0;
+  height: 70px;
+  z-index: 1000;
+  background: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* Centered container */
 .headerContainer {
-  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  height: 70px; /* ✅ IMPORTANT */
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 15px 20px;
+  justify-content: space-between;
+  padding: 0 30px;
+  box-sizing: border-box;
 }
+
 
 /* Logo */
 .logo {
   font-size: 30px;
-  font-weight: bold;
-  color: white;
-  align-items: center;
-  margin-left: 50px;
-  margin-top: 10px;
+  font-weight: 500;
+  font-family: "Georgia", serif;
+  color: #000;
+  line-height: 1; /* ✅ remove extra space below text */
 }
 
-/* Navigation */
+.dot {
+  color: #ff5e45;
+}
+
+/* Navigation — now visually centered */
 .nav {
   display: flex;
-  gap: 60px;
-  align-items: center;
-  font-size: 20px;
-  font-weight: 500;
-  margin-top: 10px;
+  gap: 40px;
+  font-size: 15px;
+  margin-right: 500px;
+  margin-top: 5px;
+  /* Optional: fine-tune vertical position if still off */
+  /* transform: translateY(-0.5px); */
 }
 
 .nav a {
-  color: white;
-  text-decoration: none;
-}
-
-/* Dropdown */
-.dropdown {
   position: relative;
-}
-
-.dropbtn {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.dropdownContent {
-  display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  background: white;
-  min-width: 250px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 10;
-}
-
-.dropdownContent.show {
-  display: block;
-}
-
-/* Grid inside dropdown */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px 40px;
-  padding: 10px;
-}
-
-.grid a {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: #333;
-  font-size: 14px;
+  top: 1px;
+  color: #111;
   text-decoration: none;
+  font-weight: 400;
+  line-height: 1; /* ✅ remove extra space below text */
+  /* Optional: micro-adjustment */
+  /* position: relative; top: -0.5px; */
 }
 
-.grid a:hover {
-  color: #0070f3;
+.nav a:hover {
+  color: #ff5e45;
 }
 
-/* Buttons */
+/* Right actions */
 .actions {
   display: flex;
-  gap: 20px;           /* space between buttons */
-  justify-content: center;  /* center buttons horizontally */
-  align-items: center;      /* vertically aligned */
-  margin-right: 50px;
-  margin-top: 10px;
+  align-items: center;
+  gap: 22px;
+  margin-top: 5px;
 }
 
-
-.loginButton {
-  padding: 7px 16px;
-  border: 1px solid #333;
-  border-radius: 14px;
-  background: white;
-  color: #333;
+/* Log in */
+.login {
+  font-size: 15px;
+  color: #111;
   text-decoration: none;
-  font-size: 14px;
-  text-align: center;
+  font-weight: 500;
+  line-height: 1; /* ✅ keep consistent */
 }
 
-.getStartedButton {
-  padding: 8px 25px;
-  background-color: #3892fa;
-  color: white;
-  border-radius: 18px;
+/* CTA */
+.cta {
+  background: #ff5e45;
+  color: #fff;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
-  font-size: 22px;
-  text-align: center;
-  border: 0.5px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  line-height: 1; /* ensures button text aligns with nav */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.getStartedButton:hover {
-  background-color: #1a73e8;
-  border: 0.5px solid #1a73e8;
+.cta:hover {
+  background: #ea6f5a;
 }
 
-
-/* Responsive: Hide nav/buttons on small screens (optional) */
+/* Mobile */
 @media (max-width: 768px) {
-  .nav,
-  .actions {
+  .nav {
     display: none;
   }
 }
