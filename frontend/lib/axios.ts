@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
+ baseURL: '/api', 
   withCredentials: true,
 });
 
@@ -40,7 +40,7 @@ apiClient.interceptors.response.use(
 
       try {
         await axios.post(
-          `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/refresh`,
+          `/api/auth/refresh`,
           {},
           { withCredentials: true }
         );
@@ -50,7 +50,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
-failedQueue = []; // Clear queue on hard failure
+        failedQueue = []; // Clear queue on hard failure
 if (typeof window !== 'undefined') {
     window.location.href = '/login';
 }
