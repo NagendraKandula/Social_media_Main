@@ -3,8 +3,6 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-
-// Platform Services
 import { FacebookService } from '../social_media_platforms/facebook/facebook.service';
 import { InstagramBusinessService } from '../social_media_platforms/instagram-business/instagram-business.service';
 import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.service';
