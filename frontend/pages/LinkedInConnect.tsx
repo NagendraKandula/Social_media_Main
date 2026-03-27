@@ -38,16 +38,16 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({ onClose }) => {
 
     try {
       // 🔒 Validate session
-      await apiClient.get("/auth/profile");
+      await apiClient.get("/api/auth/profile");
 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
       const redirectUri = encodeURIComponent(
         `${frontendUrl}/Landing?linkedin=connected`
       );
 
-      window.location.href = `${backendUrl}/auth/linkedin?redirect=${redirectUri}`;
+      window.location.href = `/api/auth/linkedin?redirect=${redirectUri}`;
     } catch (error: any) {
       console.error("LinkedIn connection error:", error);
 
