@@ -32,7 +32,7 @@ const YouTubeConnect: React.FC<YouTubeConnectProps> = ({ onClose }) => {
   const handleConnectYouTube = async () => {
     setLoading(true);
     try {
-      await apiClient.get("/api/auth/profile");
+      await apiClient.get("/auth/profile");
 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
       //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
