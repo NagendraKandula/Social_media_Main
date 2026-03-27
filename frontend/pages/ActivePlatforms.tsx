@@ -52,7 +52,7 @@ const ActivePlatforms = () => {
 
     try {
       setActionLoading(provider);
-      await apiClient.get('/api/auth/profile');
+      await apiClient.get('/auth/profile');
 
       //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       const redirectUrl =
