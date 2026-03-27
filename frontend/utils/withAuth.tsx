@@ -1,6 +1,6 @@
 // frontend/utils/withAuth.tsx
 import { GetServerSideProps, GetServerSidePropsContext } from 'next';
-import apiClient from '../lib/axios';
+import axios from 'axios';
 
 export function withAuth(gssp: GetServerSideProps): GetServerSideProps {
   return async (context: GetServerSidePropsContext) => {
@@ -18,7 +18,10 @@ export function withAuth(gssp: GetServerSideProps): GetServerSideProps {
 
     try {
       
-      await apiClient.get('/auth/profile', {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      
+      // 👈 Change 3: Make a direct request to the full Render URL
+      await axios.get(`${backendUrl}/auth/profile`, {
         headers: {
           Cookie: `access_token=${token}`,
         },
