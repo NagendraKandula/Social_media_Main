@@ -49,7 +49,7 @@ const InstagramConnect: React.FC<InstagramConnectProps> = ({ onClose }) => {
   const handleConnect = async () => {
     try {
       setLoading(true);
-      await apiClient.get("/api/auth/profile");
+      await apiClient.get("/auth/profile");
 
       //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       window.location.href = `/api/auth/instagram`;

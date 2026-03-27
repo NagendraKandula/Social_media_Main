@@ -34,7 +34,7 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
   const handleConnectTwitter = async () => {
     setLoading(true);
     try {
-      await apiClient.get("/api/auth/profile");
+      await apiClient.get("/auth/profile");
 
       const redirectUri = encodeURIComponent(
         `${frontendUrl}/Landing?twitter=connected`
