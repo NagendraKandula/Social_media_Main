@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
+import { withAuth } from "../utils/withAuth";
 
 import LHeader from "./LHeader";
 import SubHeader from "./SubHeader";
@@ -155,3 +156,8 @@ const Landing: React.FC = () => {
 };
 
 export default Landing;
+export const getServerSideProps = withAuth(async (context) => {
+  return {
+    props: {}, // You can pass specific user data here later if you want
+  };
+});
