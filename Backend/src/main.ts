@@ -22,7 +22,12 @@ async function bootstrap() {
   });
    app.use(cookieParser());
   // Enables class-validator and class-transformer for all incoming requests
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,   // Automatically strip away unexpected properties
+      transform: true,   // CRITICAL: This makes your @Transform decorator actually run!
+    })
+  );
 
   
   // Enables cookie parsing for all incoming requests
