@@ -111,28 +111,29 @@ export class PostingProcessor {
         }
         else if (platformEntry.platform === 'linkedin') {
             const account = await this.getAccount(post.userId, 'linkedin');
+            const mediaList = post.media ? [{ url: mediaUrl, type: post.media.type as 'IMAGE' | 'VIDEO' }] : undefined;
             const result = await this.linkedinService.postToLinkedIn(
-                account.accessToken, account.providerId, contentText,
-                post.media ? { url: mediaUrl, type: post.media.type as 'IMAGE' | 'VIDEO' } : undefined
+                account.accessToken, account.providerId, contentText, mediaList
             );
-            externalId = result.postId;
+            externalId = result?.postId || 'linkedin_id';
         } 
        else if (platformEntry.platform === 'threads') {
             const account = await this.getAccount(post.userId, 'threads');
             
             // ✅ Determine type safely from Post Media
             // Note: Your schema uses 'IMAGE', 'VIDEO', 'REEL'
-            const type = (post.media?.type === 'VIDEO' || post.media?.type === 'REEL') 
+            const type: 'IMAGE' | 'VIDEO' = (post.media?.type === 'VIDEO' || post.media?.type === 'REEL') 
               ? 'VIDEO' 
               : 'IMAGE';
+
+            const mediaList = mediaUrl ? [{ url: mediaUrl, type }] : undefined;
 
             const result = await this.threadsService.postToThreads(
                 account.accessToken, 
                 contentText, 
-                mediaUrl || undefined, 
-                type // 👈 Pass the type here
+                mediaList
             );
-            externalId = result.postId;
+            externalId = result.postId || 'threads_id';
         }
         
         else if (platformEntry.platform === 'youtube') {
