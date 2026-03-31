@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { StorageService } from '../storage/storage.service';
 import { PostStatus } from '@prisma/client';
 import { UpdatePostDto } from './dto/update-post.dto';
 
@@ -11,6 +12,7 @@ export class PostingService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue('social-posting') private readonly postingQueue: Queue,
+    private readonly storageService: StorageService,
   ) {}
 
   async createPost(userId: number, dto: CreatePostDto) {
@@ -56,8 +58,7 @@ export class PostingService {
 
     return post;
   }
-  async getScheduledPosts(userId: number, offset: number) {
-    // Calculate the start (Sunday) and end (Saturday) of the requested week
+async getScheduledPosts(userId: number, offset: number) {
     const now = new Date();
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay() + (offset * 7));
@@ -66,33 +67,55 @@ export class PostingService {
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 7);
 
-    // Fetch posts within this date range
+    // 1. Fetch posts from Prisma (MUST INCLUDE platforms AND media)
     const posts = await this.prisma.post.findMany({
       where: {
         userId,
-        // CHANGE THIS: Use the 'in' operator to fetch multiple statuses
-        status: {
-          in: ['SCHEDULED', 'PUBLISHED', 'PENDING', 'FAILED'] 
-        },
-        scheduledAt: {
-          gte: startOfWeek,
-          lt: endOfWeek,
-        },
+        status: { in: ['SCHEDULED', 'PUBLISHED', 'PENDING', 'FAILED'] },
+        OR: [
+          { scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
+          { scheduledAt: null, createdAt: { gte: startOfWeek, lt: endOfWeek } }
+        ]
       },
-      include: { platforms: true }, 
+      include: { 
+        platforms: true, // 🔥 CRITICAL: Tells Prisma to fetch the platforms
+        media: true      // 🔥 CRITICAL: Tells Prisma to fetch the image URL
+      }, 
     });
 
-    // Format the response to match what the frontend expects
-    return posts.map(post => ({
-      id: post.id,
-      content: post.content,
-      scheduledAt: post.scheduledAt,
-      status: post.status,
-      // Safely grab the first platform (since the UI edit modal currently supports 1 platform)
-      platform: post.platforms.length > 0 ? post.platforms[0].platform : 'instagram',
-    }));
-  }
+    // 2. Format response asynchronously to generate Secure Signed URLs
+    const formattedPosts = await Promise.all(
+      posts.map(async (post) => {
+        let secureMediaUrl: string | null = null;
 
+        if (post.media && post.media.storagePath) {
+          try {
+            // Generates the public read link for your frontend
+            secureMediaUrl = await this.storageService.getSignedReadUrl(post.media.storagePath);
+          } catch (error) {
+            secureMediaUrl = post.media.fileUrl; 
+          }
+        }
+
+        return {
+          id: post.id,
+          content: post.content,
+          scheduledAt: post.scheduledAt || (post as any).createdAt,
+          status: post.status,
+          
+          // 🔥 CRITICAL FIX: Convert the Prisma platform objects into a simple array of strings for React
+          platforms: post.platforms.map((p) => p.platform.toLowerCase()), 
+          platform: post.platforms.length > 0 ? post.platforms[0].platform.toLowerCase() : 'instagram',
+          
+          // 🔥 CRITICAL FIX: Actually send the metadata and image back to React!
+          contentMetadata: post.contentMetadata, 
+          mediaUrl: secureMediaUrl, 
+        };
+      })
+    );
+
+    return formattedPosts;
+  }
   // 2. Reschedule a Post (Drag & Drop)
   async reschedulePost(userId: number, postId: number, newScheduledAt: string) {
     // Verify ownership
@@ -108,40 +131,57 @@ export class PostingService {
   }
 
   // 3. Update Post Content & Platform (Edit Modal)
-  async updatePost(userId: number, postId: number, data: UpdatePostDto) {
+ // 3. Update Post Content, Platform & Image (Edit Modal)
+  async updatePost(userId: number, postId: number, data: UpdatePostDto) { // Temporarily use 'any' so TypeScript allows the media fields
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
    
-    // 1. Update the main Post text and status
+    // Check if the frontend sent a NEW image during the edit
+    let mediaUpdate = {};
+    if (data.mediaUrl) {
+      mediaUpdate = {
+        media: {
+          create: {
+            userId,
+            fileUrl: data.mediaUrl,
+            storagePath: data.storagePath,
+            mimeType: data.mimeType,
+            type: data.mediaType,
+          }
+        }
+      };
+    }
+
+    // 1. Update the main Post text, status, metadata AND potentially the new image
     const updatedPost = await this.prisma.post.update({
       where: { id: postId },
       data: {
         content: data.content,
-        // Because we use UpdatePostDto, TypeScript knows this is safely formatted!
-        status: data.status, 
+        status: data.status,
+        ...(data.contentMetadata && { contentMetadata: data.contentMetadata as any }), 
+        ...mediaUpdate, // <--- This safely links the newly uploaded image to the post!
       },
     });
 
-    // 2. If platform changed, update the PostPlatform relations
-    if (data.platform) {
+    // 2. If platforms changed, update the PostPlatform relations
+    if (data.platforms && Array.isArray(data.platforms)) {
       // Delete old platforms
       await this.prisma.postPlatform.deleteMany({
         where: { postId: postId },
       });
-      // Create new platform link
-      await this.prisma.postPlatform.create({
-        data: {
+      // Create new platform links
+      await this.prisma.postPlatform.createMany({
+        data: data.platforms.map((platform: string) => ({
           postId: postId,
-          platform: data.platform,
+          platform: platform,
           status: 'PENDING',
-        },
+        })),
       });
     }
 
     return updatedPost;
   }
-
   // 4. Delete/Cancel a Scheduled Post
   async deletePost(userId: number, postId: number) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
