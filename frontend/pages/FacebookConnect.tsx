@@ -35,13 +35,13 @@ const FacebookConnect: React.FC<FacebookConnectProps> = ({ onClose }) => {
       await apiClient.get("/auth/profile");
 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
       const redirectUri = encodeURIComponent(
         `${frontendUrl}/Landing?facebook=connected`
       );
 
-      window.location.href = `${backendUrl}/auth/facebook?redirect=${redirectUri}`;
+      window.location.href = `/api/auth/facebook?redirect=${redirectUri}`;
     } catch (error: any) {
       if (error?.response?.status === 401) {
         window.location.href = "/login";

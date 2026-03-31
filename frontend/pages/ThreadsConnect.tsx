@@ -41,13 +41,13 @@ const ThreadsConnect: React.FC<ThreadsConnectProps> = ({ onClose }) => {
       await apiClient.get("/auth/profile");
 
       const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
       const redirectUri = encodeURIComponent(
         `${frontendUrl}/Landing?threads=connected`
       );
 
-      window.location.href = `${backendUrl}/auth/threads?redirect=${redirectUri}`;
+      window.location.href = `api/auth/threads?redirect=${redirectUri}`;
     } catch (error: any) {
       console.error("Threads connection error:", error);
 

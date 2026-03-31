@@ -12,7 +12,7 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
   const popupRef = useRef<HTMLDivElement>(null);
 
   const frontendUrl = process.env.NEXT_PUBLIC_FRONTEND_URL;
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+  //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
 
   // ✅ CLOSE ON OUTSIDE CLICK
   useEffect(() => {
@@ -40,7 +40,7 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
         `${frontendUrl}/Landing?twitter=connected`
       );
 
-      window.location.href = `${backendUrl}/twitter/authorize?redirect=${redirectUri}`;
+      window.location.href = `/api/twitter/authorize?redirect=${redirectUri}`;
     } catch (error: any) {
       if (error?.response?.status === 401) {
         window.location.href = "/login";
@@ -49,9 +49,9 @@ const TwitterConnect: React.FC<TwitterConnectProps> = ({ onClose }) => {
       alert("Unable to connect to Twitter. Try again later.");
       setLoading(false);
     }
-    setLoading(true);
+    //setLoading(true);
     // 🚀 Secure Redirect to Backend
-    window.location.href = `${backendUrl}/auth/twitter`;
+    //window.location.href = `${backendUrl}/auth/twitter`;
   };
 
   return (

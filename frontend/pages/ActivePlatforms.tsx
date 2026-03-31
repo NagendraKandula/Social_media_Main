@@ -54,11 +54,11 @@ const ActivePlatforms = () => {
       setActionLoading(provider);
       await apiClient.get('/auth/profile');
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      //const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       const redirectUrl =
         action === 'reconnect'
-          ? `${backendUrl}/auth/${provider}?reconnect=true`
-          : `${backendUrl}/auth/${provider}`;
+          ? `/api/auth/${provider}?reconnect=true`
+          : `/api/auth/${provider}`;
 
       notifyHeader();
       window.location.href = redirectUrl;
