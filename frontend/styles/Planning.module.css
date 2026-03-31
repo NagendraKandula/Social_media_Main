@@ -1,0 +1,513 @@
+/* ─── Page layout ─────────────────────────────────────────────── */
+.page {
+  background: #f9fafb;
+  min-height: 100vh;
+  padding: -10px 30px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  box-sizing: border-box;
+}
+
+/* ─── Header ──────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.createBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #FF4C2B;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.createBtn:hover {
+  background: #e03e20;
+}
+
+.createBtnPlus {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ─── Stat cards ──────────────────────────────────────────────── */
+.statsRow {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px 24px;
+  flex: 1;
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 10px;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.statValue.amber { color: #F59E0B; }
+.statValue.green { color: #10B981; }
+
+/* ─── Platform filter bar ─────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 13px;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filterPill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #555;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.filterPill.active {
+  border-color: transparent;
+  color: #fff;
+}
+
+.platformDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ─── Calendar container ──────────────────────────────────────── */
+.calendarCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* ─── Calendar toolbar ────────────────────────────────────────── */
+.calToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.calToolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.monthLabel {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.monthLabelYear {
+  font-weight: 400;
+  color: #888;
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navArrow {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #555;
+  transition: background 0.1s;
+}
+
+.navArrow:hover {
+  background: #f3f4f6;
+}
+
+.todayBtn {
+  padding: 4px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  transition: background 0.1s;
+}
+
+.todayBtn:hover {
+  background: #f3f4f6;
+}
+
+.viewToggle {
+  display: flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.viewBtn {
+  padding: 6px 14px;
+  border: none;
+  border-right: 1px solid #e5e7eb;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  background: #fff;
+  color: #888;
+  transition: background 0.1s, color 0.1s;
+}
+
+.viewBtn:last-child {
+  border-right: none;
+}
+
+.viewBtn.active {
+  background: #f3f4f6;
+  color: #1a1a1a;
+}
+
+/* ─── Calendar table ──────────────────────────────────────────── */
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.calTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.timeColHeader {
+  width: 64px;
+  padding: 10px 12px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+
+.dayHeader {
+  padding: 10px 8px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+  text-align: center;
+  min-width: 110px;
+  font-weight: 500;
+}
+
+.dayHeader:last-child {
+  border-right: none;
+}
+
+.dayName {
+  font-size: 12px;
+  color: #aaa;
+  margin-right: 4px;
+}
+
+.dayNum {
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.dayNum.today {
+  font-weight: 700;
+  color: #FF4C2B;
+}
+
+.timeCell {
+  padding: 10px 12px 6px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 11px;
+  color: #aaa;
+  text-align: right;
+  vertical-align: top;
+  white-space: nowrap;
+  background: #fafafa;
+}
+
+.calCell {
+  padding: 4px 6px;
+  vertical-align: top;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #f3f4f6;
+  min-height: 60px;
+  cursor: default;
+  transition: background 0.1s;
+}
+
+.calCell:last-child {
+  border-right: none;
+}
+
+.calCell.dragOver {
+  background: #f0f4ff;
+}
+
+/* ─── Post card ───────────────────────────────────────────────── */
+.postCard {
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  min-width: 0;
+  transition: opacity 0.15s;
+}
+
+.postCard:hover {
+  opacity: 0.85;
+}
+
+.postCard:active {
+  cursor: grabbing;
+}
+
+.postCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.postCardTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.postCardTime {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.postCardThumbs {
+  display: flex;
+  gap: 4px;
+}
+
+.postCardThumb {
+  width: 22px;
+  height: 16px;
+  border-radius: 3px;
+  background: #e5e7eb;
+}
+
+/* ─── Modal overlay ───────────────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: 400px;
+  max-width: 92vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.modalClose {
+  border: none;
+  background: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #888;
+  line-height: 1;
+  padding: 0;
+}
+
+.field {
+  margin-bottom: 16px;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #fff;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.fieldInput:focus {
+  border-color: #FF4C2B;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  align-items: center;
+}
+
+.btnDelete {
+  margin-right: auto;
+  padding: 9px 16px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.1s;
+}
+
+.btnDelete:hover {
+  background: #fee2e2;
+}
+
+.btnCancel {
+  padding: 9px 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  transition: background 0.1s;
+}
+
+.btnCancel:hover {
+  background: #f9fafb;
+}
+
+.btnSave {
+  padding: 9px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #FF4C2B;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btnSave:hover {
+  background: #e03e20;
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .page {
+    padding: 16px;
+  }
+
+  .statsRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .calToolbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
