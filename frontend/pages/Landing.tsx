@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import LHeader from "./LHeader";
 import SubHeader from "./SubHeader";
 import styles from "../styles/Landing.module.css";
+import Chatbot from "../components/Chatbot"; // ✅ chatbot
 
 // Tabs
 import ActivePlatforms from "./ActivePlatforms";
@@ -11,7 +12,7 @@ import Create from "./Create";
 import Templates from "./Templates";
 import Publish from "./Publish";
 import Planning from "./Planning";
-import Analytics from "./Analytics";
+import Analytics from "./analytics";
 import Summary from "./Summary";
 
 // Platform flows
@@ -85,21 +86,17 @@ const Landing: React.FC = () => {
   const renderPlatformPopup = () => {
     switch (activePlatform) {
       case "twitter":
-        return (
-          twitterConnected ? (
-            <TwitterPost />
-          ) : (
-            <TwitterConnect onClose={() => setActivePlatform(null)} />
-          )
+        return twitterConnected ? (
+          <TwitterPost />
+        ) : (
+          <TwitterConnect onClose={() => setActivePlatform(null)} />
         );
 
       case "youtube":
-        return (
-          youtubeConnected ? (
-            <YouTubePost />
-          ) : (
-            <YouTubeConnect onClose={() => setActivePlatform(null)} />
-          )
+        return youtubeConnected ? (
+          <YouTubePost />
+        ) : (
+          <YouTubeConnect onClose={() => setActivePlatform(null)} />
         );
 
       case "instagram":
@@ -128,29 +125,34 @@ const Landing: React.FC = () => {
   /* ================= RENDER ================= */
 
   return (
-    <div className={styles.container}>
-      {/* ===== MAIN HEADER ===== */}
-      <header className={styles.header}>
-        <LHeader setActivePlatform={setActivePlatform} />
-      </header>
+    <>
+      <div className={styles.container}>
+        {/* ===== MAIN HEADER ===== */}
+        <header className={styles.header}>
+          <LHeader setActivePlatform={setActivePlatform} />
+        </header>
 
-      {/* ===== SUB HEADER ===== */}
-      <SubHeader
-        activeTab={activeTab}
-        setActiveTab={(tab: string) => {
-          setActiveTab(tab);
-          setActivePlatform(null);
-        }}
-      />
+        {/* ===== SUB HEADER ===== */}
+        <SubHeader
+          activeTab={activeTab}
+          setActiveTab={(tab: string) => {
+            setActiveTab(tab);
+            setActivePlatform(null);
+          }}
+        />
 
-      {/* ===== PAGE CONTENT ===== */}
-      <main className={styles.content}>
-        {renderTabContent()}
-      </main>
+        {/* ===== PAGE CONTENT ===== */}
+        <main className={styles.content}>
+          {renderTabContent()}
+        </main>
 
-      {/* ===== PLATFORM POPUPS ===== */}
-      {activePlatform && renderPlatformPopup()}
-    </div>
+        {/* ===== PLATFORM POPUPS ===== */}
+        {activePlatform && renderPlatformPopup()}
+      </div>
+
+      {/* ✅ POST-LOGIN CHATBOT */}
+      <Chatbot type="post-login" />
+    </>
   );
 };
 

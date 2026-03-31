@@ -17,7 +17,7 @@ import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.modul
 import { PostingModule } from './posting/posting.module';
 import { ScheduleModule } from '@nestjs/schedule'; // 👈 IMPORT THIS
 import { BullModule } from '@nestjs/bull';
-import { InstagramAnalyticsModule } from './Analytics/instagram-analytics/instagram-analytics.module';
+import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
