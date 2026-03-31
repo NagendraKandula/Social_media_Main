@@ -157,44 +157,58 @@ export class LinkedinService {
   // --- Main Post Method ---
 
   async postToLinkedIn(
-    accessToken: string, 
-    providerId: string, 
-    text: string, 
-    media?: { url: string; type: 'IMAGE' | 'VIDEO' }
+    accessToken: string,
+    providerId: string,
+    text: string,
+    mediaArray?: { url: string; type: 'IMAGE' | 'VIDEO' }[]
   ) {
+    try {
     const authorUrn = `urn:li:person:${providerId}`;
     let shareMediaCategory = 'NONE';
     let mediaAssets: any[] = [];
- 
+
     // ✅ Replaced hardcoded char limit
     if (text.length > this.postCharLimit) {
       throw new BadRequestException(`Text exceeds LinkedIn limit of ${this.postCharLimit} characters.`);
     }
 
-    // If media is provided, process it
-    if (media && media.url) {
-      // 1. Download file
-      const fileBuffer = await this.downloadMedia(media.url);
-      
-      // 2. Register Upload
-      const { uploadUrl, asset } = await this.registerUpload(accessToken, authorUrn, media.type);
-      
-      // 3. Upload File
-      await this.uploadBinary(uploadUrl, fileBuffer, accessToken);
+    // If media is provided, process multiple images only
+    if (mediaArray && mediaArray.length > 0) {
+      // Validate: Only images allowed for carousel
+      const nonImages = mediaArray.filter(m => m.type !== 'IMAGE');
+      if (nonImages.length > 0) {
+        throw new BadRequestException('LinkedIn carousel posts only support images. Videos are not allowed in carousels.');
+      }
 
-      // 4. Prepare Post Metadata
-      shareMediaCategory = media.type;
-      mediaAssets = [
-        {
-          status: 'READY',
-          description: { text: text.substring(0, 200) }, 
-          media: asset,
-          title: { text: 'Shared Media' },
-        },
-      ];
-    }
+      // Process all image items concurrently
+      const uploadTasks = mediaArray.map(async (media, index) => {
+        try {
+          // 1. Download file
+          const fileBuffer = await this.downloadMedia(media.url);
 
-    try {
+          // 2. Register Upload (only IMAGE type)
+          const { uploadUrl, asset } = await this.registerUpload(accessToken, authorUrn, 'IMAGE');
+
+          // 3. Upload File
+          await this.uploadBinary(uploadUrl, fileBuffer, accessToken);
+
+          // 4. Return asset data
+          return {
+            status: 'READY',
+            description: { text: text.substring(0, 200) },
+            media: asset,
+            title: { text: `Image ${index + 1}` },
+          };
+        } catch (error) {
+          this.logger.error(`Failed to process image ${index + 1}:`, error);
+          throw error;
+        }
+      });
+
+      mediaAssets = await Promise.all(uploadTasks);
+
+      // Set share media category for carousel
+      shareMediaCategory = mediaArray.length === 1 ? 'IMAGE' : 'IMAGE'; // LinkedIn handles multiple images as carousel
       const requestBody: any = {
         author: authorUrn,
         lifecycleState: 'PUBLISHED',
@@ -222,7 +236,36 @@ export class LinkedinService {
 
       return { success: true, postId: response.data.id };
 
-    } catch (error: any) {
+    } else {
+      // Text-only post
+      const requestBody: any = {
+        author: authorUrn,
+        lifecycleState: 'PUBLISHED',
+        specificContent: {
+          'com.linkedin.ugc.ShareContent': {
+            shareCommentary: { text: text },
+            shareMediaCategory: 'NONE',
+          },
+        },
+        visibility: {
+          'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',
+        },
+      };
+
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.apiBaseUrl}/ugcPosts`, requestBody, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'X-Restli-Protocol-Version': '2.0.0',
+          },
+        }),
+      );
+
+      return { success: true, postId: response.data.id };
+    }
+
+
+  } catch (error: any) {
       this.logger.error('LinkedIn Post Failed', error.response?.data);
       throw new InternalServerErrorException(
         `LinkedIn Post Failed: ${JSON.stringify(error.response?.data)}`
