@@ -5,7 +5,7 @@ import { withAuth } from "../utils/withAuth";
 import LHeader from "./LHeader";
 import SubHeader from "./SubHeader";
 import styles from "../styles/Landing.module.css";
-import Chatbot from "../components/Chatbot"; // ✅ chatbot
+import Chatbot from "../components/Chatbot"; //  chatbot
 
 // Tabs
 import ActivePlatforms from "./ActivePlatforms";
@@ -13,7 +13,7 @@ import Create from "./Create";
 import Templates from "./Templates";
 import Publish from "./Publish";
 import Planning from "./Planning";
-import Analytics from "./analytics";
+import Analytics from "./Analytics";
 import Summary from "./Summary";
 
 // Platform flows
@@ -151,7 +151,7 @@ const Landing: React.FC = () => {
         {activePlatform && renderPlatformPopup()}
       </div>
 
-      {/* ✅ POST-LOGIN CHATBOT */}
+      {/*  POST-LOGIN CHATBOT */}
       <Chatbot type="post-login" />
     </>
   );
