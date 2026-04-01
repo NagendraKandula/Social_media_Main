@@ -1,0 +1,314 @@
+/* Templates.module.css */
+
+.page {
+  padding: 2rem 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.pageHeader {
+  margin-bottom: 1.5rem;
+}
+
+.pageTitle {
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #111;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+
+.pageSubtitle {
+  font-size: 0.9rem;
+  color: #888;
+  margin: 0;
+}
+
+/* ── Filter Bar ──────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 1.75rem;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.filterBar::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: #bbb;
+  color: #222;
+  background: #f7f7f7;
+}
+
+.chipActive {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.chipActive:hover {
+  background: #222;
+  border-color: #222;
+  color: #fff;
+}
+
+/* ── Sections ─────────────────────────────────────────── */
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+}
+
+.section {
+  /* no extra wrapper needed */
+}
+
+/* ── Section Header ───────────────────────────────────── */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #111;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.seeAll {
+  font-size: 0.8rem;
+  color: #888;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.seeAll:hover {
+  background: #f3f3f3;
+  color: #333;
+}
+
+/* ── Carousel ─────────────────────────────────────────── */
+.carouselWrap {
+  position: relative;
+}
+
+.carousel {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  padding: 4px 2px 8px;
+  scrollbar-width: none;
+}
+
+.carousel::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Scroll Buttons ───────────────────────────────────── */
+.scrollBtn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  font-size: 1rem;
+  color: #333;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, box-shadow 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.scrollBtn:hover {
+  background: #f3f3f3;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.scrollLeft {
+  left: -14px;
+}
+
+.scrollRight {
+  right: -14px;
+}
+
+/* ── Card ─────────────────────────────────────────────── */
+.card {
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid #eee;
+  position: relative;
+  background: #f3f3f3;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.cardImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, transparent 55%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 10px;
+}
+
+.card:hover .cardOverlay {
+  opacity: 1;
+}
+
+.overlayText {
+  font-size: 0.72rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.useTemplateBtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: #fff;
+  color: #111;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  font-family: inherit;
+}
+.useTemplateBtn:hover {
+  background: #f0f0f0;
+  transform: scale(1.04);
+}
+
+/* ── Skeleton ─────────────────────────────────────────── */
+.skeleton {
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #ebebeb;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Empty Card ───────────────────────────────────────── */
+.emptyCard {
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: #f5f5f5;
+  border: 1px dashed #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyLabel {
+  font-size: 0.72rem;
+  color: #bbb;
+}
+
+/* ── Dark Mode ────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .pageTitle { color: #f0f0f0; }
+  .pageSubtitle { color: #777; }
+
+  .chip {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #aaa;
+  }
+  .chip:hover { background: #222; color: #eee; border-color: #444; }
+  .chipActive { background: #f0f0f0; color: #111; border-color: #f0f0f0; }
+
+  .sectionTitle { color: #f0f0f0; }
+  .seeAll { color: #666; }
+  .seeAll:hover { background: #1e1e1e; color: #ccc; }
+
+  .scrollBtn {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #ccc;
+  }
+  .scrollBtn:hover { background: #222; }
+
+  .card { border-color: #2a2a2a; }
+  .skeleton { background: #2a2a2a; }
+  .emptyCard { background: #1e1e1e; border-color: #333; }
+  .emptyLabel { color: #555; }
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 600px) {
+  .page { padding: 1.25rem 1rem; }
+  .pageTitle { font-size: 1.35rem; }
+  .scrollLeft { left: -10px; }
+  .scrollRight { right: -10px; }
+}
