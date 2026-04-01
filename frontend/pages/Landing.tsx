@@ -25,12 +25,24 @@ import TwitterPost from "./TwitterPost";
 import LinkedInConnect from "./LinkedInConnect";
 import ThreadsConnect from "./ThreadsConnect";
 
+/* ================= TAB CONSTANTS ================= */
+
+const TABS = {
+  ACTIVE: "Active Platforms",
+  CREATE: "Create",
+  TEMPLATES: "Templates",
+  PUBLISH: "Publish",
+  SCHEDULE: "Schedule",
+  ANALYTICS: "Analytics",
+  SUMMARY: "Summary",
+};
+
 const Landing: React.FC = () => {
   const router = useRouter();
 
   /* ================= STATE ================= */
 
-  const [activeTab, setActiveTab] = useState<string>("Create");
+  const [activeTab, setActiveTab] = useState<string>(TABS.ACTIVE);
   const [activePlatform, setActivePlatform] = useState<string | null>(null);
 
   const [youtubeConnected, setYoutubeConnected] = useState(false);
@@ -44,13 +56,13 @@ const Landing: React.FC = () => {
     if (youtube === "connected") {
       setYoutubeConnected(true);
       setActivePlatform(null);
-      setActiveTab("Create");
+      setActiveTab(TABS.ACTIVE);
     }
 
     if (twitter === "connected") {
       setTwitterConnected(true);
       setActivePlatform(null);
-      setActiveTab("Create");
+      setActiveTab(TABS.ACTIVE);
     }
 
     if (youtube || twitter) {
@@ -62,19 +74,19 @@ const Landing: React.FC = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "Active Platforms":
+      case TABS.ACTIVE:
         return <ActivePlatforms />;
-      case "Create":
+      case TABS.CREATE:
         return <Create />;
-      case "Templates":
+      case TABS.TEMPLATES:
         return <Templates />;
-      case "Publish":
+      case TABS.PUBLISH:
         return <Publish />;
-      case "Schedule":
+      case TABS.SCHEDULE:
         return <Planning />;
-      case "Analytics":
+      case TABS.ANALYTICS:
         return <Analytics />;
-      case "Summary":
+      case TABS.SUMMARY:
         return <Summary />;
       default:
         return null;
@@ -86,21 +98,17 @@ const Landing: React.FC = () => {
   const renderPlatformPopup = () => {
     switch (activePlatform) {
       case "twitter":
-        return (
-          twitterConnected ? (
-            <TwitterPost />
-          ) : (
-            <TwitterConnect onClose={() => setActivePlatform(null)} />
-          )
+        return twitterConnected ? (
+          <TwitterPost />
+        ) : (
+          <TwitterConnect onClose={() => setActivePlatform(null)} />
         );
 
       case "youtube":
-        return (
-          youtubeConnected ? (
-            <YouTubePost />
-          ) : (
-            <YouTubeConnect onClose={() => setActivePlatform(null)} />
-          )
+        return youtubeConnected ? (
+          <YouTubePost />
+        ) : (
+          <YouTubeConnect onClose={() => setActivePlatform(null)} />
         );
 
       case "instagram":
@@ -156,8 +164,9 @@ const Landing: React.FC = () => {
 };
 
 export default Landing;
+
 export const getServerSideProps = withAuth(async (context) => {
   return {
-    props: {}, // You can pass specific user data here later if you want
+    props: {},
   };
 });
