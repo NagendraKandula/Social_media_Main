@@ -5,6 +5,7 @@ import { withAuth } from "../utils/withAuth";
 import LHeader from "./LHeader";
 import SubHeader from "./SubHeader";
 import styles from "../styles/Landing.module.css";
+import Chatbot from "../components/Chatbot"; 
 
 // Tabs
 import ActivePlatforms from "./ActivePlatforms";
@@ -137,29 +138,34 @@ const Landing: React.FC = () => {
   /* ================= RENDER ================= */
 
   return (
-    <div className={styles.container}>
-      {/* ===== MAIN HEADER ===== */}
-      <header className={styles.header}>
-        <LHeader setActivePlatform={setActivePlatform} />
-      </header>
+    <>
+      <div className={styles.container}>
+        {/* ===== MAIN HEADER ===== */}
+        <header className={styles.header}>
+          <LHeader setActivePlatform={setActivePlatform} />
+        </header>
 
-      {/* ===== SUB HEADER ===== */}
-      <SubHeader
-        activeTab={activeTab}
-        setActiveTab={(tab: string) => {
-          setActiveTab(tab);
-          setActivePlatform(null);
-        }}
-      />
+        {/* ===== SUB HEADER ===== */}
+        <SubHeader
+          activeTab={activeTab}
+          setActiveTab={(tab: string) => {
+            setActiveTab(tab);
+            setActivePlatform(null);
+          }}
+        />
 
-      {/* ===== PAGE CONTENT ===== */}
-      <main className={styles.content}>
-        {renderTabContent()}
-      </main>
+        {/* ===== PAGE CONTENT ===== */}
+        <main className={styles.content}>
+          {renderTabContent()}
+        </main>
 
-      {/* ===== PLATFORM POPUPS ===== */}
-      {activePlatform && renderPlatformPopup()}
-    </div>
+        {/* ===== PLATFORM POPUPS ===== */}
+        {activePlatform && renderPlatformPopup()}
+      </div>
+
+
+      <Chatbot type="post-login" />
+    </>
   );
 };
 
