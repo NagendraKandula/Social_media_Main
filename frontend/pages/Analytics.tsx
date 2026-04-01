@@ -9,14 +9,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import styles from '../styles/Analytics.module.css';
+import styles from '../styles/analytics.module.css';
 import axios from '../lib/axios';
 import { withAuth } from '../utils/withAuth';
 import { GetServerSideProps } from 'next';
-import { useRouter } from 'next/router'; // MODIFIED: Imported useRouter
-import Link from 'next/link'; // NEW: Imported Link for navigation
+import { useRouter } from 'next/router';
+import Link from 'next/link';
 
-// --- INTERFACES ---
 interface AnalyticsRow {
   day: string;
   views: number;
@@ -37,8 +36,8 @@ interface SummaryTotals {
 }
 
 const Analytics: React.FC = () => {
-  const router = useRouter(); // NEW: Get the router instance
-  const { videoId: videoIdFromUrl } = router.query; // NEW: Get videoId from the URL query
+  const router = useRouter();
+  const { videoId: videoIdFromUrl } = router.query;
 
   const [analyticsType, setAnalyticsType] = useState<'channel' | 'video'>('channel');
   const [videoId, setVideoId] = useState('');
@@ -57,19 +56,18 @@ const Analytics: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
 
   const fetchAnalytics = async () => {
-    // This function remains unchanged
     try {
       setLoading(true);
-  
+
       if (analyticsType === 'channel') {
         const params: Record<string, any> = { range: selectedRange };
         if (selectedRange === 'month') {
           params.year = selectedYear;
           params.month = selectedMonth;
         }
-  
+
         const response = await axios.get('/youtube-analytics', { params });
-  
+
         const formattedData: AnalyticsRow[] = response.data.rows.map(
           (row: (string | number)[]) => ({
             day: new Date(row[0] as string).toLocaleDateString(),
@@ -79,7 +77,7 @@ const Analytics: React.FC = () => {
             subscribers: row[4] as number,
           })
         );
-  
+
         const totals: SummaryTotals = formattedData.reduce(
           (acc: SummaryTotals, row: AnalyticsRow) => {
             acc.totalViews += row.views;
@@ -90,21 +88,21 @@ const Analytics: React.FC = () => {
           },
           { totalViews: 0, totalLikes: 0, totalComments: 0, totalSubscribers: 0 }
         );
-  
+
         setAnalyticsData(formattedData);
         setSummary(totals);
-      } else { // Video Analytics
+      } else {
         if (!videoId) {
-          // Set an initial state, but don't show an error until a fetch is attempted
           setAnalyticsData([]);
           setSummary({ totalViews: 0, totalLikes: 0, totalComments: 0 });
           setLoading(false);
           return;
         }
+
         const response = await axios.get('/youtube-analytics/video', {
           params: { videoId, range: selectedRange },
         });
-  
+
         const formattedData: AnalyticsRow[] = response.data.rows.map(
           (row: (string | number)[]) => ({
             day: new Date(row[0] as string).toLocaleDateString(),
@@ -115,23 +113,19 @@ const Analytics: React.FC = () => {
             averageViewDuration: row[5] as number,
           })
         );
-  
+
         setAnalyticsData(formattedData);
         setSummary(response.data.totals);
       }
-  
+
       setError('');
     } catch (err) {
-      console.error('Error fetching analytics:', err);
-      setError(
-        `Failed to load ${analyticsType} analytics data. Please ensure your account is connected and the Video ID is correct.`
-      );
+      setError(`Failed to load ${analyticsType} analytics data.`);
     } finally {
       setLoading(false);
     }
   };
-  
-  // NEW: This useEffect handles the videoId from the URL
+
   useEffect(() => {
     if (videoIdFromUrl) {
       setAnalyticsType('video');
@@ -139,11 +133,9 @@ const Analytics: React.FC = () => {
     }
   }, [videoIdFromUrl]);
 
-  // MODIFIED: Added videoId to the dependency array
   useEffect(() => {
-    // Only fetch if it's channel analytics, or if it's video analytics AND a videoId is set
     if (analyticsType === 'channel' || (analyticsType === 'video' && videoId)) {
-        fetchAnalytics();
+      fetchAnalytics();
     }
   }, [selectedRange, selectedYear, selectedMonth, analyticsType, videoId]);
 
@@ -154,35 +146,26 @@ const Analytics: React.FC = () => {
     <div className={styles.analyticsContainer}>
       <h1 className={styles.header}>📊 YouTube Analytics</h1>
 
-      {/* NEW: Link to select a video from a list */}
       <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-        <Link href="/VideoAnalytics" style={{ color: '#3b82f6', fontWeight: '600' }}>
+        <Link href="/VideoAnalytics">
           Or, select a video to see its stats
         </Link>
       </div>
 
-      {/* --- Analytics Type Toggle --- */}
+      {/* Toggle */}
       <div className={styles.toggle}>
-        <button
-          className={analyticsType === 'channel' ? styles.active : ''}
-          onClick={() => {
-            setAnalyticsType('channel');
-            setVideoId(''); // Clear videoId when switching back to channel
-          }}
-        >
+        <button onClick={() => { setAnalyticsType('channel'); setVideoId(''); }}>
           Channel
         </button>
-        <button
-          className={analyticsType === 'video' ? styles.active : ''}
-          onClick={() => setAnalyticsType('video')}
-        >
+        <button onClick={() => setAnalyticsType('video')}>
           Video
         </button>
       </div>
 
-      {/* --- Filters (No changes here) --- */}
+      {/* Filters */}
       <div className={styles.rangeSelector}>
         <select
+          aria-label="Select Range"
           value={selectedRange}
           onChange={(e) => setSelectedRange(e.target.value as any)}
         >
@@ -198,15 +181,16 @@ const Analytics: React.FC = () => {
           <div className={styles.monthSelector}>
             <input
               type="number"
-              min="2000"
-              max={new Date().getFullYear()}
+              aria-label="Year"
+              placeholder="Year"
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
             />
+
             <input
               type="number"
-              min="1"
-              max="12"
+              aria-label="Month"
+              placeholder="Month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(Number(e.target.value))}
             />
@@ -214,11 +198,13 @@ const Analytics: React.FC = () => {
         )}
       </div>
 
+      {/* Video Input */}
       {analyticsType === 'video' && (
         <div className={styles.videoInput}>
           <input
             type="text"
             placeholder="Enter YouTube Video ID"
+            aria-label="YouTube Video ID"
             value={videoId}
             onChange={(e) => setVideoId(e.target.value)}
           />
@@ -226,59 +212,31 @@ const Analytics: React.FC = () => {
         </div>
       )}
 
-      {/* --- Summary Stats & Chart (No changes here) --- */}
+      {/* Stats */}
       <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <h3 className={styles.statTitle}>Total Views</h3>
-          <p className={styles.statValue}>{summary.totalViews?.toLocaleString()}</p>
+          <h3>Total Views</h3>
+          <p>{summary.totalViews?.toLocaleString()}</p>
         </div>
         <div className={styles.statCard}>
-          <h3 className={styles.statTitle}>Total Likes</h3>
-          <p className={styles.statValue}>{summary.totalLikes?.toLocaleString()}</p>
+          <h3>Total Likes</h3>
+          <p>{summary.totalLikes?.toLocaleString()}</p>
         </div>
         <div className={styles.statCard}>
-          <h3 className={styles.statTitle}>Total Comments</h3>
-          <p className={styles.statValue}>{summary.totalComments?.toLocaleString()}</p>
+          <h3>Total Comments</h3>
+          <p>{summary.totalComments?.toLocaleString()}</p>
         </div>
-        {analyticsType === 'channel' ? (
-          <div className={styles.statCard}>
-            <h3 className={styles.statTitle}>Subscribers Gained</h3>
-            <p className={styles.statValue}>{summary.totalSubscribers?.toLocaleString()}</p>
-          </div>
-        ) : (
-          <>
-            <div className={styles.statCard}>
-              <h3 className={styles.statTitle}>Minutes Watched</h3>
-              <p className={styles.statValue}>{summary.totalEstimatedMinutesWatched?.toLocaleString()}</p>
-            </div>
-            <div className={styles.statCard}>
-              <h3 className={styles.statTitle}>Avg. View Duration</h3>
-              <p className={styles.statValue}>{summary.totalAverageViewDuration?.toFixed(2)}s</p>
-            </div>
-          </>
-        )}
       </div>
 
+      {/* Chart */}
       <div className={styles.chartWrapper}>
         <ResponsiveContainer width="100%" height={400}>
           <AreaChart data={analyticsData}>
-            <defs>
-              <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#8884d8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <XAxis dataKey="day" />
             <YAxis />
             <CartesianGrid strokeDasharray="3 3" />
             <Tooltip />
-            <Area
-              type="monotone"
-              dataKey="views"
-              stroke="#8884d8"
-              fillOpacity={1}
-              fill="url(#colorViews)"
-            />
+            <Area type="monotone" dataKey="views" stroke="#8884d8" fill="#8884d8" />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -286,7 +244,7 @@ const Analytics: React.FC = () => {
   );
 };
 
-export const getServerSideProps: GetServerSideProps = withAuth(async (context) => {
+export const getServerSideProps: GetServerSideProps = withAuth(async () => {
   return { props: {} };
 });
 
