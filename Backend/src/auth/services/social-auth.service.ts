@@ -112,7 +112,7 @@ export class SocialAuthService {
       }
       
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
-         return res.redirect(`${frontendUrl}/facebook-post`);
+         return res.redirect(`${frontendUrl}/Landing?ActivePlatforms=facebook_connected`);
       }
 
         async youtubeLogin(req, res: Response,appUserId: number) {
@@ -196,7 +196,7 @@ export class SocialAuthService {
         
         // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
-        return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
+        return res.redirect(`${frontendUrl}/Landing?ActivePlatforms=youtube_connected`);
       }
      async instagramLogin(req, res: Response, appUserId: number) {
     const { accessToken, instagramId, username,profilePic } = req.user;
@@ -263,7 +263,7 @@ try {
     // 3. Redirect to Frontend
     //console.log('✅ Instagram account connected:', longLivedToken);
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    return res.redirect(`${frontendUrl}/instagram-business-post?instagram=connected`);
+    return res.redirect(`${frontendUrl}/Landing?instagram=connected`);
   }
 async threadsLogin(req: any, res: Response, appUserId: number) {
     const { accessToken, threadsId ,username, profilePic} = req.user; // 'accessToken' here is Short-Lived
@@ -329,7 +329,7 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
 
     // 3. Redirect to Frontend
     const frontendUrl = this.config.get<string>('FRONTEND_URL');
-    return res.redirect(`${frontendUrl}/ActivePlatforms?threads=connected`);
+    return res.redirect(`${frontendUrl}/Landing?threads=connected`);
   }
 
 
@@ -371,10 +371,10 @@ async threadsLogin(req: any, res: Response, appUserId: number) {
         secure: process.env.NODE_ENV !== 'development',
         sameSite: 'none',
       });
-      return res.redirect(`${frontendUrl}/ActivePlatforms?linkedin=connected`);
+      return res.redirect(`${frontendUrl}/Landing?linkedin=connected`);
     } catch (error) {
       console.error('LinkedIn Login DB Error:', error);
-      return res.redirect(`${frontendUrl}/ActivePlatforms?error=linkedin_failed`);
+      return res.redirect(`${frontendUrl}/Landing?error=linkedin_failed`);
     }
   }
   
