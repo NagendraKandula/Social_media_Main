@@ -12,10 +12,6 @@ import { FacebookMediaService } from './facebook-media.service';
   ],
   controllers: [FacebookController],
   providers: [FacebookService, FacebookAuthService, FacebookMediaService],
-<<<<<<< HEAD
   exports: [FacebookService, FacebookAuthService, FacebookMediaService],
-=======
-  exports: [FacebookService],
->>>>>>> main
 })
 export class FacebookModule {}
