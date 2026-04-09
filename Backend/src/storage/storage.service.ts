@@ -58,7 +58,7 @@ export class StorageService {
       await file.delete();
       console.log(`🗑️ Deleted file from GCS: ${storagePath}`);
       return true;
-    } catch (error) {
+    } catch (error:any) {
       // ✅ Perfect safety net. Logs the error but doesn't crash the app.
       console.warn(`Failed to delete file ${storagePath}:`, error.message);
       return false;
