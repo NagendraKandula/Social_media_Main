@@ -99,7 +99,11 @@ async postPhotoStory(
       message: 'Photo story posted successfully.',
     };
   }
+<<<<<<< HEAD
   catch(error:any){
+=======
+  catch(error){
+>>>>>>> main
     console.error('Error posting photo story:', error.response?.data);
     throw new InternalServerErrorException(error.response?.data?.error?.message || 'Failed to post photo story.');
   }
@@ -169,7 +173,11 @@ async postPhotoStory(
       postId: finishResponse.data.post_id,
       message: 'Video story posted successfully.',
     };
+<<<<<<< HEAD
   } catch (error :any) {
+=======
+  } catch (error) {
+>>>>>>> main
     console.error('❌ Error posting video story:', error.response?.data || error.message);
     const errorMsg =
       error.response?.data?.debug_info?.message ||
@@ -297,7 +305,11 @@ async checkVideoStatus(videoId: string, pageAccessToken: string) {
       ? 'Reel is live!' 
       : 'Reel is being processed and will be live shortly.',
     };
+<<<<<<< HEAD
   } catch (error:any) {
+=======
+  } catch (error) {
+>>>>>>> main
     console.error('Reel Upload Error:', error.response?.data || error.message);
     throw new InternalServerErrorException('Failed to publish Facebook Reel.');
   }
