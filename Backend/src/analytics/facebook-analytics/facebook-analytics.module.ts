@@ -12,5 +12,5 @@ import { FacebookModule } from '../../social_media_platforms/facebook/facebook.m
   controllers: [FacebookAnalyticsController],
   providers: [FacebookAnalyticsService],
   exports: [FacebookAnalyticsService],
-})
+}) 
 export class FacebookAnalyticsModule {}

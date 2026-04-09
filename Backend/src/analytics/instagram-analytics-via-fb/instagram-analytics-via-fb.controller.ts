@@ -1,12 +1,12 @@
 // Backend/src/analytics/instagram-analytics/instagram-analytics.controller.ts
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
-import { InstagramAnalyticsService } from './instagram-analytics.service';
+import { InstagramAnalyticsViaFbService } from './instagram-analytics-via-fb.service';
 import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard';
 
-@Controller('instagram-analytics')
+@Controller('instagram-analytics-via-fb')
 @UseGuards(JwtAuthGuard)
-export class InstagramAnalyticsController {
-  constructor(private readonly igService: InstagramAnalyticsService) {}
+export class InstagramAnalyticsViaFbController {
+  constructor(private readonly igService: InstagramAnalyticsViaFbService) {}
 
   @Get('account')
   getAccountStats(@Request() req) {

@@ -23,7 +23,7 @@ import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.modul
 
 // Analytics Modules
 //import { YoutubeAnalyticsModule } from './youtube-analytics/youtube-analytics.module';
-import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module';
+import { InstagramAnalyticsViaFbModule} from './analytics/instagram-analytics-via-fb/instagram-analytics-via-fb.module';
 import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook-analytics.module'; // New Module
 
 @Module({
@@ -44,7 +44,7 @@ import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook
     FacebookModule,
      AiAssistantModule,
     InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
-    InstagramAnalyticsModule,
+    InstagramAnalyticsViaFbModule,
     FacebookAnalyticsModule, // Registered here
   ],
   controllers: [AppController],

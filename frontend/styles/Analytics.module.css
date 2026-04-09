@@ -1,299 +1,316 @@
-/* =========================
-   Page Container
-========================= */
+/* frontend/styles/Analytics.module.css */
+
+/* --- Layout Containers --- */
 .analyticsContainer {
-  padding: 2.5rem;
-  background-color: #ffffff;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+  padding: 2rem;
   max-width: 1200px;
-  margin: 2rem auto;
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04);
-  animation: fadeInUp 0.35s ease-out both;
+  margin: 0 auto;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* =========================
-   Header
-========================= */
-.header {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  letter-spacing: -0.02em;
-}
-
-.analyticsContainer p {
-  text-align: center;
-  color: #64748b;
-}
-
-/* =========================
-   Analytics Type Toggle
-========================= */
-.toggle {
+.centeredContainer {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  min-height: 60vh;
+  text-align: center;
+  padding: 2rem;
+}
+
+.centeredContainer h1 {
+  margin-bottom: 1rem;
+  font-size: 2.5rem;
+  color: #1c1e21;
+}
+
+.centeredContainer p {
+  color: #65676b;
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* --- Buttons --- */
+.mainButton {
+  background-color: #1877f2;
+  color: white;
+  padding: 0.8rem 2.5rem;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: background-color 0.2s ease;
+}
+
+.mainButton:hover {
+  background-color: #166fe5;
+}
+
+.backButton {
+  background: none;
+  border: 1px solid #ccd0d5;
+  color: #1c1e21;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.backButton:hover {
+  background-color: #f5f6f7;
+}
+
+.selectButton {
+  background-color: #e4e6eb;
+  color: #050505;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+  width: 100%;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.selectButton:hover {
+  background-color: #d8dadf;
+}
+
+/* --- Typography & Utils --- */
+.errorText {
+  color: #e41e3f;
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  background-color: #ffebe8;
+  padding: 0.8rem;
+  border-radius: 8px;
+}
+
+.helperText {
+  text-align: center;
+  color: #65676b;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 4rem;
+  color: #65676b;
+  font-size: 1.2rem;
+  font-style: italic;
+  animation: pulse 1.5s infinite;
+}
+
+/* --- Page Selection Grid --- */
+.pageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.pageCard {
+  background: white;
+  border: 1px solid #ced0d4;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.pageCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+  border-color: #1877f2;
+}
+
+.pageCard h3 {
+  margin: 0;
+  color: #1c1e21;
+  font-size: 1.2rem;
+}
+
+/* --- Header & Platform Toggle --- */
+.headerSection {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid #e4e6eb;
+  padding-bottom: 1.5rem;
+  text-align: center;
+}
+
+.headerSection h1 {
+  margin: 0.5rem 0 1.5rem;
+  color: #1c1e21;
+}
+
+.platformSelector {
+  display: flex;
+  gap: 4rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.platformSelector > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+  padding-bottom: 0.5rem;
+  border-bottom: 3px solid transparent;
+  width: 80px;
+}
+
+.platformSelector > div:hover {
+  opacity: 0.8;
+}
+
+.platformSelector img {
+  width: 45px;
+  height: 45px;
+  object-fit: contain;
+}
+
+.platformSelector span {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1c1e21;
+}
+
+/* Dynamic Active State Classes */
+.activePlatform {
+  opacity: 1 !important;
+}
+
+.activePlatform:nth-child(1) {
+  border-bottom-color: #1877f2 !important; /* Facebook Blue */
+}
+
+.activePlatform:nth-child(2) {
+  border-bottom-color: #E1306C !important; /* Instagram Pink/Red */
+}
+
+/* --- Dashboard Content --- */
+.dashboardContent {
+  animation: fadeIn 0.4s ease-in-out;
+}
+
+/* --- Metrics Grid --- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.toggle button {
-  padding: 0.55rem 1.4rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  border-radius: 999px;
-  border: 1px solid #e5e7eb;
-  background-color: #f9fafb;
-  color: #475569;
-  cursor: pointer;
-  transition:
-    background-color 150ms ease,
-    color 150ms ease,
-    box-shadow 150ms ease,
-    border-color 150ms ease;
-}
-
-.toggle button:hover {
-  background-color: #ffffff;
-}
-
-.toggle button.active {
-  background-color: #2563eb;
-  color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
-}
-
-/* =========================
-   Range Selector
-========================= */
-.rangeSelector {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 2.5rem;
-}
-
-.rangeSelector select {
-  padding: 0.55rem 0.9rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  font-size: 0.95rem;
-  font-weight: 500;
-  background-color: #f9fafb;
-  cursor: pointer;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    background-color 140ms ease;
-}
-
-.rangeSelector select:hover {
-  background-color: #ffffff;
-}
-
-.rangeSelector select:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-/* =========================
-   Month Selector
-========================= */
-.monthSelector {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.monthSelector input {
-  width: 5rem;
-  padding: 0.45rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  font-size: 0.95rem;
-  background-color: #f9fafb;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    background-color 140ms ease;
-}
-
-.monthSelector input:hover {
-  background-color: #ffffff;
-}
-
-.monthSelector input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-/* =========================
-   Video Input Section
-========================= */
-.videoInput {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 2.5rem;
-}
-
-.videoInput input {
-  width: 280px;
-  padding: 0.55rem 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  font-size: 0.95rem;
-  background-color: #f9fafb;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease,
-    background-color 140ms ease;
-}
-
-.videoInput input:focus {
-  outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
-}
-
-.videoInput button {
-  padding: 0.55rem 1.2rem;
-  border-radius: 8px;
-  border: none;
-  background-color: #2563eb;
-  color: #ffffff;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition:
-    background-color 150ms ease,
-    box-shadow 150ms ease,
-    transform 150ms ease;
-}
-
-.videoInput button:hover {
-  background-color: #1d4ed8;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
-}
-
-.videoInput button:active {
-  transform: translateY(1px);
-}
-
-/* =========================
-   Stats Grid
-========================= */
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 3rem;
-}
-
-/* =========================
-   Stat Cards
-========================= */
 .statCard {
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 1.75rem;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition:
-    transform 160ms ease,
-    box-shadow 160ms ease,
-    border-color 160ms ease;
+  background: white;
+  border: 1px solid #e4e6eb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  text-align: center;
+  transition: transform 0.2s ease;
 }
 
 .statCard:hover {
-  border-color: #dbeafe;
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08);
-}
-
-.statCard:active {
   transform: translateY(-2px);
 }
 
-.statTitle {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #6b7280;
+.statCard span {
+  color: #65676b;
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 0.5rem;
 }
 
-.statValue {
-  font-size: 2.4rem;
-  font-weight: 700;
-  color: #020617;
-  margin-top: 0.5rem;
-  letter-spacing: -0.02em;
-  transition: color 150ms ease;
+.statCard h2 {
+  margin: 0;
+  font-size: 2.2rem;
+  color: #1c1e21;
 }
 
-.statCard:hover .statValue {
-  color: #1d4ed8;
-}
-
-/* =========================
-   Chart Wrapper
-========================= */
-.chartWrapper {
-  background-color: #ffffff;
-  border-radius: 16px;
+/* --- Charts --- */
+.chartSection {
+  background: white;
   padding: 2rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 180ms ease;
+  border-radius: 12px;
+  border: 1px solid #e4e6eb;
+  margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.chartWrapper:hover {
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.08);
+.chartSection h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #1c1e21;
+  font-size: 1.2rem;
 }
 
-/* =========================
-   Messages & Errors
-========================= */
-.message,
-.errorMessage {
+/* --- Error States --- */
+.errorBox {
+  background-color: #fff0f0;
+  border: 1px solid #ffcdd2;
+  border-radius: 12px;
+  padding: 3rem 2rem;
   text-align: center;
-  font-size: 1.05rem;
-  padding: 2rem;
-  animation: fadeIn 0.25s ease-out both;
+  margin-top: 2rem;
 }
 
-.message {
-  color: #475569;
+.errorBox p {
+  margin: 0;
+  color: #c62828;
+  font-size: 1.1rem;
+  font-weight: 500;
 }
 
-.errorMessage {
-  color: #b91c1c;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-}
-
-/* =========================
-   Animations
-========================= */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* --- Animations --- */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+  .platformSelector {
+    gap: 2rem;
+  }
+  .chartSection {
+    padding: 1rem;
+  }
+}
+/* Add this to Analytics.module.css */
+.pageProfilePic {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  border: 2px solid #e4e6eb;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  background-color: #f0f2f5; /* nice background if image is transparent */
 }
