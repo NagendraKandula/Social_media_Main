@@ -7,7 +7,6 @@ import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { YoutubeModule } from './social_media_platforms/youtube/youtube.module';
 import { FacebookModule } from './social_media_platforms/facebook/facebook.module';
-import { YoutubeAnalyticsModule } from './youtube-analytics/youtube-analytics.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { InstagramModule } from './social_media_platforms/instagram/instagram.module';
 import { TwitterModule } from './social_media_platforms/twitter/twitter.module';
@@ -17,7 +16,8 @@ import { LinkedinModule } from './social_media_platforms/linkedin/linkedin.modul
 import { PostingModule } from './posting/posting.module';
 import { ScheduleModule } from '@nestjs/schedule'; // 👈 IMPORT THIS
 import { BullModule } from '@nestjs/bull';
-import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instagram-analytics.module';
+import { InstagramAnalyticsViaFbModule} from './analytics/instagram-analytics-via-fb/instagram-analytics-via-fb.module';
+import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook-analytics.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -38,10 +38,9 @@ import { InstagramAnalyticsModule } from './analytics/instagram-analytics/instag
     AuthModule,
     YoutubeModule,
     FacebookModule,
-    YoutubeAnalyticsModule,
      AiAssistantModule,
     InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
-    InstagramAnalyticsModule,
+    InstagramAnalyticsViaFbModule,FacebookAnalyticsModule
     
   ],
   controllers: [AuthController],
