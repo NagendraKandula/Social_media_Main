@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import styles from '../styles/analytics.module.css';
+import styles from '../styles/Analytics.module.css';
 import axios from '../lib/axios';
 import { withAuth } from '../utils/withAuth';
 import { GetServerSideProps } from 'next';
