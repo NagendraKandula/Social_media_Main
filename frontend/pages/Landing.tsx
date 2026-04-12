@@ -5,7 +5,7 @@ import { withAuth } from "../utils/withAuth";
 import LHeader from "./LHeader";
 import SubHeader from "./SubHeader";
 import styles from "../styles/Landing.module.css";
-import Chatbot from "../components/Chatbot"; 
+import Chatbot from "../components/Chatbot";
 
 // Tabs
 import ActivePlatforms from "./ActivePlatforms";
@@ -70,6 +70,14 @@ const Landing: React.FC = () => {
       router.replace("/Landing", undefined, { shallow: true });
     }
   }, [router.query]);
+
+  
+  useEffect(() => {
+    // Always clear old chats when entering dashboard
+    localStorage.removeItem("chat_landing");
+    localStorage.removeItem("chat_login");
+    localStorage.removeItem("chat_postlogin"); 
+  }, []);
 
   /* ================= TAB CONTENT ================= */
 
@@ -163,7 +171,7 @@ const Landing: React.FC = () => {
         {activePlatform && renderPlatformPopup()}
       </div>
 
-
+      {/* DASHBOARD CHATBOT */}
       <Chatbot type="post-login" />
     </>
   );
