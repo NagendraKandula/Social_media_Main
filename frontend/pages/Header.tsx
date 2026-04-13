@@ -3,8 +3,14 @@
 import Link from "next/link";
 import styles from "../styles/Header.module.css";
 import Chatbot from "../components/Chatbot";
+import { useRouter } from "next/router";
 
 export default function Header() {
+  const router = useRouter();
+
+  // Show chatbot ONLY on landing page
+  const isLandingPage = router.pathname === "/";
+
   return (
     <>
       <header className={styles.header}>
@@ -34,8 +40,7 @@ export default function Header() {
         </div>
       </header>
 
-      {/*  SAME UI CHATBOT */}
-      <Chatbot type="landing" />
+      {isLandingPage && <Chatbot type="landing" />}
     </>
   );
 }

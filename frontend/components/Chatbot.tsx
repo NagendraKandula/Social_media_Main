@@ -9,62 +9,149 @@ type Message = {
 
 const chatbotData = {
   landing: [
-    { q: "About Tool", a: "Manage all social media in one place." },
-    { q: "Features", a: "Scheduling Posts, Weekly Analytics, AI captions, AI content creation" },
-    { q: "Quick Tour", a: "Signup with your credentials → Connect with your social media accounts → Post your content → Analyze" },
-    { q: "Get Started", a: "Click Sign Up to begin!" }
+    {
+      q: "About Tool",
+      a: `📌 About the Platform:
+• Manage all your social media accounts in one place
+• Create and publish content easily
+• Track performance efficiently`
+    },
+    {
+      q: "Features",
+      a: `✨ Key Features:
+• Schedule posts
+• Weekly analytics
+• AI-generated captions
+• AI content creation`
+    },
+    {
+      q: "Quick Tour",
+      a: `🚀 How it works:
+• Sign up with your credentials
+• Connect your social media accounts
+• Create and publish content
+• Analyze performance`
+    },
+    {
+      q: "Get Started",
+      a: `👉 Get Started:
+• Click on "Sign Up"
+• Create your account
+• Start managing your content`
+    }
   ],
 
   "pre-login": [
     {
-    q: "Login Help",
-    a: `Login Process:
-1. Click on "Register" if you are a new user
-2. Fill in your details
-3. Log in using your credentials`
-  },
+      q: "Login Help",
+      a: `🔐 Login Process:
+• Click on "Register" if you are a new user
+• Fill in your details
+• Log in using your credentials`
+    },
     {
-    q: "Forgot Password",
-    a: `Reset Password:
-1. Click on "Forgot Password"
-2. Enter your registered email
-3. Reset your password using OTP`
-  },
-{
-    q: "Security Guidelines",
-    a: `Stay Secure:
+      q: "Forgot Password",
+      a: `🔑 Reset Password:
+• Click on "Forgot Password"
+• Enter your registered email
+• Reset your password using OTP`
+    },
+    {
+      q: "Security Guidelines",
+      a: `🛡️ Stay Secure:
 • Use a strong password
-• Avoid sharing your credentials
+• Avoid sharing credentials
 • Always log out on shared devices`
-  },
-  {
-    q: "About Tool",
-    a: "This platform helps you manage and control all your social media accounts in one place efficiently."
-  },
-  {
-    q: "Features",
-    a: `✨ Key Features:
+    },
+    {
+      q: "Features",
+      a: `✨ Platform Features:
 • Post scheduling
 • Weekly analytics
-• AI-generated captions
+• AI captions
 • AI content creation`
-  },
-  {
-    q: "Quick Tour",
-    a: `🚀 How it works:
-1. Sign up with your credentials
-2. Connect your social media accounts
-3. Create and publish your content
-4. Track performance using analytics`
-  },
-    { q: "Get Started",
-    a: "Click on 'Sign Up' to begin using the platform and start managing your content."}
+    },
+    {
+      q: "Quick Tour",
+      a: `🚀 How it Works:
+• Sign up with your credentials
+• Connect social media accounts
+• Create and publish posts
+• Track analytics`
+    }
   ],
 
   "post-login": [
-    { q: "How to post", a: "Go to Create Post → Upload your content → Publish." },
-    { q: "Scheduling", a: "Click on Scheduling → Select date & time to schedule your post → Auto publish in your social media account as per your schedule" },
-    { q: "Connect Accounts", a: "Go to Settings → Select Social Channels → and then Connect your account" }
+    {
+  q: "How to create post",
+  a: `📝 Create a Post:
+• Go to the "Create" section
+• Choose a template or start from scratch
+• Upload your image or content
+• Add elements like shapes, frames, and designs
+• Edit your text using text tools
+• Customize font size, style, and formatting from properties
+• Download or publish your final post`
+},
+    {
+      q: "How do Active Platforms work?",
+      a: `🔗 sers can select social media platforms such as Facebook, Instagram, YouTube, Threads, X (Twitter), and LinkedIn.
+
+• Click on the "Connect" button for the platform you want to link.
+• You will be redirected to the respective platform’s login page.
+• Sign in using your credentials and grant necessary permissions.
+• Once connected, the platform will be integrated with the tool for posting and management.`},
+    {
+  q: "How to Schedule a Post",
+  a: `⏰ Schedule a Post:
+• Go to the "Schedule" section
+• Select the social media channels
+• Write your post content
+• Add images or media if needed
+• Choose the date and time for posting
+• Click on "Schedule" to automate publishing
+• Your post will be published automatically at the selected time`
+},{
+  q: "AI Assistant",
+  a: `🤖 AI Assistant:
+• Go to the "Publish" or "Schedule" section
+• Enter a topic or idea for your post
+• Use AI tools to generate:
+  - Captions
+  - Hashtags
+  - Content ideas
+  - Descriptions
+• Edit the generated content if needed
+• Use it directly in your post to save time and improve quality`
+},
+  {
+  q: "How to use templates",
+  a: `🎨 Using Templates:
+• Go to the "Templates" section
+• Browse available templates for different platforms
+• Click on the template you want to use
+• Customize it by adding your content and media
+• Edit text, colors, and design elements
+• Use it to create your post easily`
+},{
+  q: "How to publish post",
+  a: `🚀 Publish a Post:
+• Go to the "Publish" section
+• Select the social media channels
+• Write or paste your content
+• Add images or media if needed
+• Use AI Assistant for captions, hashtags, or content
+• Click on "Publish" to post instantly
+• Or choose "Schedule" to post later`
+},
+    {
+      q: "Connect Accounts",
+      a: `🔗 Connect Accounts:
+• Go to Settings
+• Select Social Channels
+• Connect your account`
+    }
+
   ]
 };
 
@@ -77,7 +164,6 @@ export default function Chatbot({
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState("");
 
-  // DIFFERENT STORAGE FOR EACH BOT
   const storageKey =
     type === "landing"
       ? "chat_landing"
@@ -85,14 +171,12 @@ export default function Chatbot({
       ? "chat_login"
       : "chat_postlogin";
 
-  // Welcome message
   const getWelcomeMessage = () => {
     if (type === "landing") return "👋 Welcome! I’ll guide you 🚀";
     if (type === "pre-login") return "Hi! Need help logging in?";
     return "Hi! Need help using the tool?";
   };
 
-  // Load messages
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
@@ -102,14 +186,12 @@ export default function Chatbot({
     }
   }, [storageKey]);
 
-  // Save messages
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem(storageKey, JSON.stringify(messages));
     }
   }, [messages, storageKey]);
 
-  // Auto open only landing
   useEffect(() => {
     if (type === "landing") {
       setTimeout(() => setOpen(true), 3000);
@@ -130,9 +212,7 @@ export default function Chatbot({
       text: found ? found.a : "Sorry, I didn't understand."
     };
 
-    // NEW MESSAGE AT TOP
     setMessages(prev => [botReply, userMessage, ...prev]);
-
     setUserInput("");
   };
 
@@ -176,7 +256,7 @@ export default function Chatbot({
             🤖 Assistant
           </div>
 
-          {/*  QUESTIONS AT TOP */}
+          {/* QUESTIONS */}
           <div style={{ padding: "6px", borderBottom: "1px solid #eee" }}>
             {chatbotData[type].map((item, i) => (
               <button
@@ -197,7 +277,7 @@ export default function Chatbot({
             ))}
           </div>
 
-          {/* MESSAGES */}
+         
           <div
             style={{
               flex: 1,
@@ -226,7 +306,12 @@ export default function Chatbot({
                     color: msg.sender === "user" ? "white" : "black",
                     padding: "10px",
                     borderRadius: "16px",
-                    maxWidth: "75%"
+                    maxWidth: "75%",
+
+                    // IMPORTANT FIX
+                    whiteSpace: "pre-line",
+                    lineHeight: "1.8",
+                    fontSize: "13px"
                   }}
                 >
                   {msg.text}
@@ -238,14 +323,14 @@ export default function Chatbot({
           {/* INPUT */}
           <div style={{ display: "flex", padding: "8px" }}>
             <input
-  value={userInput}
-  placeholder="Type a message..."   
-  onChange={(e) => setUserInput(e.target.value)}
-  onKeyDown={(e) =>
-    e.key === "Enter" && handleSend(userInput)
-  }
-  style={{ flex: 1, padding: "8px" }}
-/>
+              value={userInput}
+              placeholder="Type a message..."
+              onChange={(e) => setUserInput(e.target.value)}
+              onKeyDown={(e) =>
+                e.key === "Enter" && handleSend(userInput)
+              }
+              style={{ flex: 1, padding: "8px" }}
+            />
             <button onClick={() => handleSend(userInput)}>➤</button>
           </div>
         </div>
