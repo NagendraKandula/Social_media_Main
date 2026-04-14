@@ -10,7 +10,7 @@ export class AiAssistantService {
 
   constructor(private configService: ConfigService) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
-    this.MODEL_ID = this.configService.get<string>('GROQ_MODEL_ID') || 'meta-llama/llama-4-maverick-17b-128e-instruct';
+    this.MODEL_ID = this.configService.get<string>('GROQ_MODEL_ID')!;
     if (!apiKey) {
       throw new Error('GROQ_API_KEY is not set in environment variables.');
     }
