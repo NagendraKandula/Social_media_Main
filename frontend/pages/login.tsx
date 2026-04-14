@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import apiClient from "../lib/axios";
 import styles from "../styles/login.module.css";
-import Chatbot from "../components/Chatbot"; // ✅ correct
+import Chatbot from "../components/Chatbot"; 
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -18,17 +18,28 @@ export default function LoginPage() {
     setLoading(true);
     setMessage("");
 
-    try {
-      await apiClient.post("/auth/login", { email, password });
-      await apiClient.get("/auth/profile");
-      setMessage("Login successful!");
-      router.push("/Landing");
-    } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.message || "Login failed. Please try again.";
-      setMessage(errorMessage);
-      setLoading(false);
-    }
+try {
+  await apiClient.post("/auth/login", { email, password });
+  await apiClient.get("/auth/profile");
+
+  // 🔥 CLEAR ALL CHAT HISTORY
+  localStorage.removeItem("chat_landing");
+  localStorage.removeItem("chat_login");
+  localStorage.removeItem("chat_postlogin"); // ✅ THIS WAS MISSING
+
+  // OPTIONAL (if using session logic)
+  localStorage.setItem("isLoggedIn", "active");
+
+  setMessage("Login successful!");
+
+  router.push("/Landing");
+
+} catch (error: any) {
+  const errorMessage =
+    error.response?.data?.message || "Login failed. Please try again.";
+  setMessage(errorMessage);
+  setLoading(false);
+}
   };
 
   return (
@@ -136,7 +147,7 @@ export default function LoginPage() {
             </form>
           </section>
 
-          {/* RIGHT ILLUSTRATION */}
+          {/* RIGHT IMAGE */}
           <section className={styles.illustrationSection}>
             <img src="loginimg.png" alt="Dashboard illustration" />
           </section>
@@ -154,7 +165,7 @@ export default function LoginPage() {
         </footer>
       </div>
 
-      {/* ✅ CHATBOT HERE (OUTSIDE MAIN CONTAINER) */}
+      {/* LOGIN CHATBOT */}
       <Chatbot type="pre-login" />
     </>
   );
