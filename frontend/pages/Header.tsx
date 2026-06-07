@@ -22,11 +22,11 @@ export default function Header() {
 
         {/* Actions */}
         <div className={styles.actions}>
-          <Link href="/login" className={styles.login}>
-            Log In
-          </Link>
-          <Link href="/register" className={styles.cta}>
+          <Link href="/register" className={styles.login}>
             Sign Up
+          </Link>
+          <Link href="/login" className={styles.cta}>
+            Log In
           </Link>
         </div>
 
