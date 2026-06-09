@@ -111,40 +111,44 @@ export class TwitterService {
   // ✅ UPDATED METHOD
   async postTweetWithUserToken(
     text: string,
-    mediaPath: string | undefined,
+    mediaPaths: string[] | undefined,
     userOAuth2Token: string,
   ) {
     try {
       const userClient = new TwitterApi(userOAuth2Token);
-      let mediaId: string | undefined;
+      const mediaIds: string[] = [];
 
       // ---------------------------------------------------------
       // 1️⃣ MEDIA UPLOAD (Uses API v1.1)
       // ---------------------------------------------------------
-      if (mediaPath) {
-        // 1. Download file from Google Storage
-        const signedUrl = await this.storageService.getSignedReadUrl(mediaPath);
-        const response = await this.httpService.axiosRef.get(signedUrl, {
-          responseType: 'arraybuffer',
-        });
-        
-        const buffer = Buffer.from(response.data);
-        const mimeType = response.headers['content-type'];
+      if (mediaPaths && mediaPaths.length > 0) {
+        if (mediaPaths.length > 4) {
+          throw new BadRequestException('Twitter only allows a maximum of 4 images per tweet.');
+        }
+
+        for (const path of mediaPaths) {
+          // 1. Download file from Google Storage
+          const signedUrl = await this.storageService.getSignedReadUrl(path);
+          const response = await this.httpService.axiosRef.get(signedUrl, {
+            responseType: 'arraybuffer',
+          });
+          
+          const buffer = Buffer.from(response.data);
+          const mimeType = response.headers['content-type'];
 
         // 2. Determine Twitter Media Type
         let mediaTypeEnum: EUploadMimeType;
-        if (mimeType.includes('jpeg') || mimeType.includes('jpg')) mediaTypeEnum = EUploadMimeType.Jpeg;
-        else if (mimeType.includes('png')) mediaTypeEnum = EUploadMimeType.Png;
-        else if (mimeType.includes('gif')) mediaTypeEnum = EUploadMimeType.Gif;
-        else if (mimeType.includes('mp4')) mediaTypeEnum = EUploadMimeType.Mp4;
-        else throw new BadRequestException(`Unsupported media type: ${mimeType}`);
-
+          if (mimeType.includes('jpeg') || mimeType.includes('jpg')) mediaTypeEnum = EUploadMimeType.Jpeg;
+          else if (mimeType.includes('png')) mediaTypeEnum = EUploadMimeType.Png;
+          else if (mimeType.includes('gif')) mediaTypeEnum = EUploadMimeType.Gif;
+          else if (mimeType.includes('mp4')) mediaTypeEnum = EUploadMimeType.Mp4;
+          else throw new BadRequestException(`Unsupported media type: ${mimeType}`);
         // 3. Upload using v1 API (Standard for Media)
         try {
-            // 👇 THIS IS THE KEY CHANGE: .v1.uploadMedia
-            mediaId = await userClient.v1.uploadMedia(buffer, {
-              mimeType: mediaTypeEnum,
-            });
+            const mediaId = await userClient.v1.uploadMedia(buffer, {
+                mimeType: mediaTypeEnum,
+              });
+              mediaIds.push(mediaId);
         } catch (uploadError: any) {
             console.error("Twitter Media Upload Error:", uploadError);
             if (uploadError.code === 403) {
@@ -153,22 +157,25 @@ export class TwitterService {
             throw uploadError;
         }
       }
+      }
 
       // ---------------------------------------------------------
       // 2️⃣ POST TWEET (Uses API v2)
       // ---------------------------------------------------------
       const tweet = await userClient.v2.tweet({
         text,
-        media: mediaId ? { media_ids: [mediaId] } : undefined,
+        // ✅ Attach the array of media IDs (casted to 'any' to bypass strict tuple types in twitter-api-v2)
+        media: mediaIds.length > 0 ? { media_ids: mediaIds as any } : undefined,
       });
 
       return {
         success: true,
         tweetId: tweet.data.id,
-        mediaPath, 
+        mediaPaths, 
       };
 
-    } catch (err: any) {
+    } 
+    catch (err: any) {
       console.error('Twitter Service Error:', err);
       if (err.message && err.message.includes('Free Tier')) {
           throw new BadRequestException(err.message);

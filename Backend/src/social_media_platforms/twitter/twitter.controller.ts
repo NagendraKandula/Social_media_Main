@@ -142,7 +142,7 @@ export class TwitterController {
 
     return this.twitterService.postTweetWithUserToken(
       body.text,
-      body.mediaPath, // Pass the GCS path (e.g., 'uploads/1/123-image.jpg')
+      body.mediaPath ? [body.mediaPath] : undefined, // Pass the GCS path (e.g., 'uploads/1/123-image.jpg')
       account.accessToken,
     );
   }

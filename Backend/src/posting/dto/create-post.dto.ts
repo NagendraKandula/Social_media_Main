@@ -1,6 +1,7 @@
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum } from 'class-validator';
-
+import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ContentMetadata } from '../interfaces/content-metadata.interface';
+
 export enum MediaTypeDto {
   IMAGE = 'IMAGE',
   VIDEO = 'VIDEO',
@@ -8,28 +9,38 @@ export enum MediaTypeDto {
   STORY = 'STORY',
 }
 
+// ✅ 1. Create a DTO for individual media items
+export class MediaItemDto {
+  @IsString()
+  mediaUrl?: string;
+
+  @IsString()
+  storagePath?: string;
+
+  @IsString()
+  mimeType?: string;
+
+  @IsEnum(MediaTypeDto)
+  mediaType?: MediaTypeDto;
+}
+
 export class CreatePostDto {
   @IsString()
   @IsOptional()
   content?: string;
 
-  // ✅ MEDIA FIELDS
-  @IsString()
-  mediaUrl: string;      // Public URL
+  // ❌ REMOVE OLD MEDIA FIELDS: mediaUrl, storagePath, mimeType, mediaType
 
-  @IsString()
-  storagePath: string;   // Internal GCS path
-
-  @IsString()
-  mimeType: string;      // e.g. "image/jpeg"
-
-  @IsEnum(MediaTypeDto)
-  mediaType: MediaTypeDto;
+  // ✅ 2. Replace with an Array of Media Items
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => MediaItemDto)
+  mediaItems?: MediaItemDto[];
 
   @IsArray()
-  platforms: string[];
+  platforms?: string[];
 
-  // ✅ SCHEDULING
   @IsBoolean()
   @IsOptional()
   isScheduled?: boolean;
@@ -38,7 +49,6 @@ export class CreatePostDto {
   @IsOptional()
   scheduledAt?: string;
 
-  // ✅ RICH METADATA
   @IsOptional()
   @IsObject()
   contentMetadata?: ContentMetadata;
