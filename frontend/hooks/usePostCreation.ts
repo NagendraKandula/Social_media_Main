@@ -26,9 +26,10 @@ export const usePostCreation = () => {
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type }
       });
-
+      setUploading(false);
       return { publicUrl, storagePath };
     } catch (error) {
+      setUploading(false);
       console.error("Upload failed", error);
       throw new Error("Failed to upload media to cloud.");
     }
