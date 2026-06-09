@@ -52,8 +52,7 @@ export default function Publish() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
 
-  const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
-
+  const { uploadMultipleMedia, createPost, uploading, publishing } = usePostCreation();
   /* ===============================
      Derived Data
   ================================ */
@@ -154,7 +153,7 @@ export default function Publish() {
      Submit
   ================================ */
 
-  const handleSubmit = async (isScheduled: boolean) => {
+const handleSubmit = async (isScheduled: boolean) => {
     if (selectedChannels.size === 0) {
       alert('Select at least one channel.');
       return;
@@ -166,15 +165,19 @@ export default function Publish() {
     }
 
     try {
-      let mediaData = { publicUrl: '', storagePath: '', mimeType: '' };
+      // ✅ 1. Use YOUR existing hook to upload all files at once!
+      let uploadedMediaItems: any[] = [];
 
       if (files.length > 0) {
-        const uploaded = await uploadMedia(files[0]);
-        mediaData = {
-          publicUrl: uploaded.publicUrl,
-          storagePath: uploaded.storagePath,
-          mimeType: files[0].type,
-        };
+        const uploadResults = await uploadMultipleMedia(files);
+        
+        // Format the results to match your new backend DTO
+        uploadedMediaItems = uploadResults.map((result: any, index: number) => ({
+          mediaUrl: result.publicUrl,
+          storagePath: result.storagePath,
+          mimeType: files[index].type,
+          mediaType: files[index].type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+        }));
       }
 
       const platformOverrides: any = {};
@@ -185,32 +188,19 @@ export default function Publish() {
           postType: platformState.facebookPostType,
         };
       }
-
       if (selectedChannels.has('instagram')) {
-        platformOverrides.instagram = {
-          postType: platformState.instagramPostType,
-        };
+        platformOverrides.instagram = { postType: platformState.instagramPostType };
       }
-
       if (selectedChannels.has('youtube')) {
-        platformOverrides.youtube = {
-          title: platformState.youtubeTitle,
-          postType: platformState.youtubeType,
-        };
+        platformOverrides.youtube = { title: platformState.youtubeTitle, postType: platformState.youtubeType };
       }
 
+      // ✅ 2. Send the 'mediaItems' array to the backend
       const payload = {
         content,
-        mediaUrl: mediaData.publicUrl,
-        storagePath: mediaData.storagePath,
-        mimeType: mediaData.mimeType,
-        mediaType: mediaData.mimeType.startsWith('video')
-          ? 'VIDEO'
-          : 'IMAGE',
+        mediaItems: uploadedMediaItems, 
         platforms: selectedChannelList,
-        scheduledAt: isScheduled
-          ? new Date(scheduleDate).toISOString()
-          : null,
+        scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         contentMetadata: {
           text: content,
           platformOverrides,
@@ -219,11 +209,7 @@ export default function Publish() {
 
       await createPost(payload);
 
-      alert(
-        isScheduled
-          ? 'Post scheduled successfully'
-          : 'Post published successfully'
-      );
+      alert(isScheduled ? 'Post scheduled successfully' : 'Post published successfully');
 
       setContent('');
       setFiles([]);
