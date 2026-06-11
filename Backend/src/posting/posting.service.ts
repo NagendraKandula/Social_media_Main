@@ -106,6 +106,7 @@ export class PostingService {
     // It was leftover code trying to use the old `mediaUrl` variables.
     // The nested `mediaItems: { create: ... }` block below handles this perfectly now.
 
+    
     // 2. Create Post Linked to Media
     const post = await this.prisma.post.create({
       data: {
