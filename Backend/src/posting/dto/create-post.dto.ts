@@ -12,16 +12,16 @@ export enum MediaTypeDto {
 // ✅ 1. Create a DTO for individual media items
 export class MediaItemDto {
   @IsString()
-  mediaUrl?: string;
+  mediaUrl!: string;
 
   @IsString()
-  storagePath?: string;
+  storagePath!: string;
 
   @IsString()
-  mimeType?: string;
+  mimeType!: string;
 
   @IsEnum(MediaTypeDto)
-  mediaType?: MediaTypeDto;
+  mediaType!: MediaTypeDto;
 }
 
 export class CreatePostDto {
