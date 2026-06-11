@@ -103,10 +103,11 @@ export class PostingService {
     const isScheduled = !!scheduledAt;
 
     // ✅ FIX 1: Removed the old standalone `this.prisma.media.create` block!
+    
     // It was leftover code trying to use the old `mediaUrl` variables.
     // The nested `mediaItems: { create: ... }` block below handles this perfectly now.
 
-    
+
     // 2. Create Post Linked to Media
     const post = await this.prisma.post.create({
       data: {
