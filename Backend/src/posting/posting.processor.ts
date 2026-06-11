@@ -123,12 +123,15 @@ export class PostingProcessor {
                 );
                 externalId = result.id;
             } else {
-                 const urls = mediaList.map((m: any) => m.url);
+                 const carouselMedia = mediaList.map((m: any) => ({
+                    url: m.url,
+                    type: m.type // Explicitly carry the type down!
+                 }));
                  const result = await this.instagramBusinessService.publishContent(
                     account.providerId, 
                     account.accessToken, 
                     'CAROUSEL',   
-                    urls,         
+                    carouselMedia,         
                     contentText
                  );
                  externalId = result.id || 'insta_carousel_id';
