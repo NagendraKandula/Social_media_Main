@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException,BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { InjectQueue } from '@nestjs/bull';
@@ -23,7 +23,83 @@ export class PostingService {
       scheduledAt, 
       contentMetadata 
     } = dto;
+    const totalMedia = mediaItems.length;
     
+    // Count videos (including Reels/Stories which are technically video files)
+    const videoCount = mediaItems.filter(m => 
+        m.mediaType === 'VIDEO' || m.mediaType === 'REEL' || m.mediaType === 'STORY' || (m.mimeType && m.mimeType.startsWith('video/'))
+    ).length;
+    
+    const imageCount = totalMedia - videoCount;
+    const isMixedMedia = videoCount > 0 && imageCount > 0;
+
+    if (totalMedia > 0) {
+      for (const platform of platforms) {
+        switch (platform) {
+          
+          case 'youtube':
+            if (imageCount > 0) {
+              throw new BadRequestException('YouTube does not support images. Please upload only 1 video.');
+            }
+            if (videoCount > 1) {
+              throw new BadRequestException('YouTube only supports uploading 1 video at a time.');
+            }
+            break;
+
+          case 'facebook':
+            if (isMixedMedia) {
+              throw new BadRequestException('Facebook does not support mixing images and videos in a single post.');
+            }
+            if (videoCount > 1) {
+              throw new BadRequestException('Facebook only supports 1 video per standard post.');
+            }
+            break;
+
+          case 'linkedin':
+            if (isMixedMedia) {
+              throw new BadRequestException('LinkedIn does not support mixing images and videos in a single gallery.');
+            }
+            if (imageCount > 9) {
+              throw new BadRequestException('LinkedIn supports a maximum of 9 images in a gallery.');
+            }
+            if (videoCount > 1) {
+              throw new BadRequestException('LinkedIn only supports 1 video per post.');
+            }
+            break;
+
+          case 'twitter':
+            if (totalMedia > 4) {
+              throw new BadRequestException('Twitter restricts posts to a maximum of 4 media items.');
+            }
+            // Note on Twitter API: While the UI sometimes makes it look like you can mix, 
+            // the actual Twitter API v2 strictly forbids attaching a video and an image to the same Tweet ID.
+            if (isMixedMedia) {
+              throw new BadRequestException('Twitter API does not allow mixing images and videos in the same tweet.');
+            }
+            if (videoCount > 1) {
+              throw new BadRequestException('Twitter only supports 1 video per tweet.');
+            }
+            break;
+
+          case 'instagram':
+            if (totalMedia > 10) {
+              throw new BadRequestException('Instagram carousels support a maximum of 10 media items.');
+            }
+            // Add 'as any' and explicitly look inside 'platformOverrides'
+            const igPostType = (contentMetadata as any)?.platformOverrides?.instagram?.postType;
+            if (igPostType === 'STORY' && totalMedia > 1) {
+              throw new BadRequestException('Instagram Stories do not support multiple media items in a single request.');
+            }
+            break;
+            
+          case 'threads':
+             if (totalMedia > 10) {
+               throw new BadRequestException('Threads carousels support a maximum of 10 media items.');
+             }
+             break;
+        }
+      }
+    }
     const isScheduled = !!scheduledAt;
 
     // ✅ FIX 1: Removed the old standalone `this.prisma.media.create` block!
