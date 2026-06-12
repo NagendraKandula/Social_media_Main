@@ -211,7 +211,9 @@ export class PostingService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-
+      if (post.status === 'PUBLISHED') {
+       throw new ForbiddenException('Cannot reschedule a post that is already published.');
+    }
     return this.prisma.post.update({
       where: { id: postId },
       data: { scheduledAt: new Date(newScheduledAt) },
@@ -223,27 +225,36 @@ export class PostingService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-   
+    if (post.status === 'PUBLISHED' || post.status === 'FAILED') {
+       throw new ForbiddenException(`Cannot edit a post that is already ${post.status.toLowerCase()}.`);
+    }
+
     let mediaUpdate = {};
     
     // ✅ Adapted safely for the new schema
-    if ((data as any).mediaUrl) {
+    if (data.mediaItems !== undefined) {
+      // 1. Always wipe out the old media links if the frontend sends a media state
+      await this.prisma.postMedia.deleteMany({
+        where: { postId: postId }
+      });
+   if (data.mediaItems.length > 0) {
       mediaUpdate = {
         mediaItems: {
-          create: {
-            position: 0, // Fallback position
+          create: data.mediaItems.map((item: any, index: number) => ({
+            position: index,
             media: {
               create: {
                 userId,
-                fileUrl: (data as any).mediaUrl,
-                storagePath: (data as any).storagePath,
-                mimeType: (data as any).mimeType,
-                type: (data as any).mediaType,
+                fileUrl: item.mediaUrl,
+                storagePath: item.storagePath,
+                mimeType: item.mimeType,
+                type: item.mediaType || (item.mimeType?.startsWith("video/") ? "VIDEO" : "IMAGE"),
+             }
               }
-            }
+            }))
           }
-        }
-      };
+        };
+      }
     }
 
     const updatedPost = await this.prisma.post.update({
@@ -277,7 +288,11 @@ export class PostingService {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-
+    if (post.status === 'PUBLISHED') {
+      throw new ForbiddenException(
+        'Cannot delete a post that is already published.'
+      );
+  }
     return this.prisma.post.delete({
       where: { id: postId },
     });
