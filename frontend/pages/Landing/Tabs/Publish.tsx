@@ -52,8 +52,7 @@ export default function Publish() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState('');
 
-  const { uploadMedia, createPost, uploading, publishing } = usePostCreation();
-
+  const { uploadMultipleMedia, createPost, uploading, publishing } = usePostCreation();
   /* ===============================
      Derived Data
   ================================ */
@@ -68,20 +67,37 @@ export default function Publish() {
     [selectedChannelList]
   );
 // LOGIC: Calculate which channels are disabled based on files
+  
+  // LOGIC: Calculate which channels are disabled based on files
   const disabledChannels = useMemo(() => {
     const disabled = new Set<Channel>();
     
     if (files.length > 1) {
-      // 1. Block channels that don't support multi-post at all
+      // 1. YouTube only supports 1 video at a time
       disabled.add('youtube');
-      disabled.add('threads');
-      disabled.add('twitter');
-      disabled.add('linkedin');
 
-      // 2. Check if there are any videos in the multi-file upload
+      // 2. Twitter restricts threads/single tweets to a max of 4 images
+      if (files.length > 4) {
+        disabled.add('twitter');
+      }
+
+      // 3. LinkedIn supports up to 9 images in a gallery
+      if (files.length > 9) {
+        disabled.add('linkedin');
+      }
+
+      // 4. Instagram carousels maximize at 10 items
+      if (files.length > 10) {
+        disabled.add('instagram');
+      }
+
+      // 5. Threads carousels maximize at 20 items
+      if (files.length > 20) {
+        disabled.add('threads');
+      }
+
+      // 6. Facebook Graph API does not support mixing images & videos in single album requests
       const hasVideo = files.some(f => f.type.startsWith('video/'));
-      
-      // 3. Block Facebook if multi-posting AND there's a video (Facebook doesn't support mixed media multi-posts)
       if (hasVideo) {
         disabled.add('facebook');
       }
@@ -107,10 +123,11 @@ export default function Publish() {
       if (changed) {
         setSelectedChannels(nextChannels);
         const hasVideo = files.some(f => f.type.startsWith('video/'));
+        
         if (hasVideo && selectedChannels.has('facebook')) {
-          alert('Facebook has been deselected: it does not support multiple files containing videos. Only Instagram supports mixed-media carousels.');
+          alert('Facebook has been deselected: it does not support mixed albums containing videos. Try posting videos individually or use Instagram Carousels.');
         } else {
-          alert('Only Facebook and Instagram support multi-image posts. Unsupported channels have been deselected.');
+          alert('Some platforms were deselected because your media count exceeds their maximum gallery limit (e.g. Twitter max is 4).');
         }
       }
     }
@@ -154,7 +171,7 @@ export default function Publish() {
      Submit
   ================================ */
 
-  const handleSubmit = async (isScheduled: boolean) => {
+const handleSubmit = async (isScheduled: boolean) => {
     if (selectedChannels.size === 0) {
       alert('Select at least one channel.');
       return;
@@ -166,15 +183,19 @@ export default function Publish() {
     }
 
     try {
-      let mediaData = { publicUrl: '', storagePath: '', mimeType: '' };
+      // ✅ 1. Use YOUR existing hook to upload all files at once!
+      let uploadedMediaItems: any[] = [];
 
       if (files.length > 0) {
-        const uploaded = await uploadMedia(files[0]);
-        mediaData = {
-          publicUrl: uploaded.publicUrl,
-          storagePath: uploaded.storagePath,
-          mimeType: files[0].type,
-        };
+        const uploadResults = await uploadMultipleMedia(files);
+        
+        // Format the results to match your new backend DTO
+        uploadedMediaItems = uploadResults.map((result: any, index: number) => ({
+          mediaUrl: result.publicUrl,
+          storagePath: result.storagePath,
+          mimeType: files[index].type,
+          mediaType: files[index].type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+        }));
       }
 
       const platformOverrides: any = {};
@@ -185,32 +206,19 @@ export default function Publish() {
           postType: platformState.facebookPostType,
         };
       }
-
       if (selectedChannels.has('instagram')) {
-        platformOverrides.instagram = {
-          postType: platformState.instagramPostType,
-        };
+        platformOverrides.instagram = { postType: platformState.instagramPostType };
       }
-
       if (selectedChannels.has('youtube')) {
-        platformOverrides.youtube = {
-          title: platformState.youtubeTitle,
-          postType: platformState.youtubeType,
-        };
+        platformOverrides.youtube = { title: platformState.youtubeTitle, postType: platformState.youtubeType };
       }
 
+      // ✅ 2. Send the 'mediaItems' array to the backend
       const payload = {
         content,
-        mediaUrl: mediaData.publicUrl,
-        storagePath: mediaData.storagePath,
-        mimeType: mediaData.mimeType,
-        mediaType: mediaData.mimeType.startsWith('video')
-          ? 'VIDEO'
-          : 'IMAGE',
+        mediaItems: uploadedMediaItems, 
         platforms: selectedChannelList,
-        scheduledAt: isScheduled
-          ? new Date(scheduleDate).toISOString()
-          : null,
+        scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         contentMetadata: {
           text: content,
           platformOverrides,
@@ -219,11 +227,7 @@ export default function Publish() {
 
       await createPost(payload);
 
-      alert(
-        isScheduled
-          ? 'Post scheduled successfully'
-          : 'Post published successfully'
-      );
+      alert(isScheduled ? 'Post scheduled successfully' : 'Post published successfully');
 
       setContent('');
       setFiles([]);

@@ -20,7 +20,7 @@ export class InstagramBusinessService {
     userId: string,
     accessToken: string,
     mediaType: 'IMAGE' |'VIDEO'| 'REELS' | 'STORIES'| 'CAROUSEL',
-    mediaSource : string | string[], // Accept either a single URL or an array for carousel
+    mediaSource : string | any[], // Accept either a single URL or an array for carousel
     caption?: string,
   ) {
     try {
@@ -34,13 +34,20 @@ export class InstagramBusinessService {
       // 🔄 FAST CAROUSEL LOGIC (Fully Optimized)
       // ==========================================
       if (mediaType === 'CAROUSEL') {
-        const urls = mediaSource as string[]; 
+        const items= mediaSource as any[]; 
 
         // Optional but recommended validation
 
-        this.logger.log(`🖼 Creating ${urls.length} child containers concurrently...`);
+        this.logger.log(`🖼 Creating ${items.length} child containers concurrently...`);
         const childContainerIds = await Promise.all(
-          urls.map((url) => this.createCarouselItemContainer(userId, accessToken, url))
+          items.map((item) => {
+             // ✅ Safely extract URL and explicit type
+             const url = typeof item === 'string' ? item : item.url;
+             const explicitType = typeof item === 'string' ? null : item.type;
+             
+             // Pass explicitType to the container function
+             return this.createCarouselItemContainer(userId, accessToken, url, explicitType);
+          })
         );
         
         this.logger.log(`⏳ Waiting for all child containers to process concurrently...`);
@@ -78,7 +85,7 @@ export class InstagramBusinessService {
 
       this.logger.log(`✅ Successfully published ${mediaType}: ${result.id}`);
       return result;
-    } catch (error) {
+    } catch (error:any) {
       this.logger.error(`❌ Publish Failed:`, error.response?.data || error.message);
       throw new BadRequestException(
         `Instagram Publish Failed: ${JSON.stringify(error.response?.data?.error?.message || error.message)}`,
@@ -87,10 +94,14 @@ export class InstagramBusinessService {
   }
    // --- CAROUSEL SPECIFIC HELPERS ---
 
-  private async createCarouselItemContainer(userId: string, accessToken: string, mediaUrl: string): Promise<string> {
+  private async createCarouselItemContainer(userId: string, accessToken: string, mediaUrl: string,explicitType?: string): Promise<string> {
     const url = `${this.IG_GRAPH_API_URL}/${userId}/media`;
-    const isVideo = mediaUrl.match(/\.(mp4|mov|avi|mkv|webm)$/i); // Auto-detect video
-    
+    let isVideo = false;
+    if (explicitType === 'VIDEO' || explicitType === 'REEL') {
+        isVideo = true;
+    } else if (!explicitType && mediaUrl.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+        isVideo = true;
+    }
     let params: any = { 
       access_token: accessToken,
       is_carousel_item: true // ⚠️ Required by Meta for carousel children

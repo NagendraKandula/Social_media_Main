@@ -32,7 +32,13 @@ export class PostingProcessor {
 
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: { platforms: true, media: true },
+      include: { 
+        platforms: true, 
+        mediaItems: { 
+          include: { media: true },
+          orderBy: { position: 'asc' }
+        } 
+      },
     });
 
     if (!post) {
@@ -41,25 +47,33 @@ export class PostingProcessor {
     }
 
     const contentText = post.content || '';
-    let mediaUrl = post.media?.fileUrl || '';
+    
+    // ✅ FIX 1 & 3: Cast to any[] to bypass the 'never' error while Prisma Client updates
+    const postMediaItems = (post as any).mediaItems || [];
 
-    // Generate Signed URL if necessary
-    if (post.media?.storagePath) {
-      try {
-        // Uncomment if using private bucket
-        mediaUrl = await this.storageService.getSignedReadUrl(post.media.storagePath);
-        this.logger.log(`🔑 Signed URL Generated: ${mediaUrl}`);
-      } catch (e) {
-        this.logger.warn(`Could not sign URL: ${e.message}`);
-      }
-    }
+    const mediaList = await Promise.all(
+      postMediaItems.map(async (item: any) => {
+        let signedUrl = item.media.fileUrl;
+        if (item.media.storagePath) {
+          try {
+            signedUrl = await this.storageService.getSignedReadUrl(item.media.storagePath);
+          } catch (e: any) { 
+            // ✅ FIX 2: Added ': any' to 'e'
+            this.logger.warn(`Could not sign URL for ${item.media.storagePath}: ${e.message}`);
+          }
+        }
+        return {
+          url: signedUrl,
+          storagePath: item.media.storagePath,
+          type: item.media.type, 
+          mimeType: item.media.mimeType
+        };
+      })
+    );
 
-    // Tracker for failures
     let hasFailures = false;
 
-    // 2. Loop through selected platforms
     for (const platformEntry of post.platforms) {
-      // ✅ SKIP if already published
       if (platformEntry.status === 'PUBLISHED') continue;
 
       try {
@@ -67,80 +81,96 @@ export class PostingProcessor {
         this.logger.log(`📤 Posting to ${platformEntry.platform}...`);
 
         if (platformEntry.platform === 'facebook') {
-            if (!mediaUrl) throw new Error('Media URL is required for Facebook');
+            if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
             const pageId = (post.contentMetadata as any)?.platformOverrides?.facebook?.pageId;
             if (!pageId) throw new Error('Facebook Page ID missing');
 
+            const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
+
             const result = await this.facebookService.postToFacebook(
-                post.userId, pageId, contentText, mediaUrl, post.media?.type as any
+                post.userId, 
+                pageId, 
+                contentText, 
+                urlsParam, 
+                mediaList[0].type as any 
             );
+            
             externalId = result.postId || 'fb_id';
-        } 
+        }
        else if (platformEntry.platform === 'instagram') {
-            if (!mediaUrl) throw new Error('Media URL is required for Instagram');
+            if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
             const account = await this.getAccount(post.userId, 'instagram');
             const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
-            const userPostType = instaMeta?.postType || 'post'; // 'post', 'reel', 'story'
+            const userPostType = instaMeta?.postType || 'post'; 
 
-            let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
-
-            if (userPostType === 'story') {
-                apiMediaType = 'STORIES';
-            } else if (userPostType === 'reel') {
-                apiMediaType = 'REELS';
-            } else {
-                // If 'post' (Feed), check if it's actually a video file.
-                // Instagram Business API requires Videos to be sent as REELS mostly.
-                if (post.media?.type === 'VIDEO') {
+            if (mediaList.length === 1) {
+                let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
+                
+                if (userPostType === 'story') {
+                    apiMediaType = 'STORIES';
+                } else if (userPostType === 'reel') {
                     apiMediaType = 'REELS';
                 } else {
-                    apiMediaType = 'IMAGE';
+                    if (mediaList[0].type === 'VIDEO') {
+                        apiMediaType = 'REELS';
+                    } else {
+                        apiMediaType = 'IMAGE';
+                    }
                 }
-            }
 
-            // 3. Call Service
-            // Note: account.providerId MUST be the Instagram Business Account ID
-            const result = await this.instagramBusinessService.publishContent(
-                account.providerId, 
-                account.accessToken, 
-                apiMediaType, 
-                mediaUrl, 
-                contentText
-            );
-            externalId = result.id;
+                const result = await this.instagramBusinessService.publishContent(
+                    account.providerId, account.accessToken, apiMediaType, mediaList[0].url, contentText
+                );
+                externalId = result.id;
+            } else {
+                 const carouselMedia = mediaList.map((m: any) => ({
+                    url: m.url,
+                    type: m.type // Explicitly carry the type down!
+                 }));
+                 const result = await this.instagramBusinessService.publishContent(
+                    account.providerId, 
+                    account.accessToken, 
+                    'CAROUSEL',   
+                    carouselMedia,         
+                    contentText
+                 );
+                 externalId = result.id || 'insta_carousel_id';
+            }
         }
         else if (platformEntry.platform === 'linkedin') {
             const account = await this.getAccount(post.userId, 'linkedin');
-            const mediaList = post.media ? [{ url: mediaUrl, type: post.media.type as 'IMAGE' | 'VIDEO' }] : undefined;
+            
+            const linkedInMedia = mediaList.length > 0 
+                ? mediaList.map((m: any) => ({ url: m.url, type: m.type as 'IMAGE' | 'VIDEO' })) 
+                : undefined;
+                
             const result = await this.linkedinService.postToLinkedIn(
-                account.accessToken, account.providerId, contentText, mediaList
+                account.accessToken, account.providerId, contentText, linkedInMedia
             );
             externalId = result?.postId || 'linkedin_id';
         } 
        else if (platformEntry.platform === 'threads') {
             const account = await this.getAccount(post.userId, 'threads');
             
-            // ✅ Determine type safely from Post Media
-            // Note: Your schema uses 'IMAGE', 'VIDEO', 'REEL'
-            const type: 'IMAGE' | 'VIDEO' = (post.media?.type === 'VIDEO' || post.media?.type === 'REEL') 
-              ? 'VIDEO' 
-              : 'IMAGE';
-
-            const mediaList = mediaUrl ? [{ url: mediaUrl, type }] : undefined;
+            const threadsMedia = mediaList.length > 0 
+              ? mediaList.map((m: any) => ({ 
+                  url: m.url, 
+                 type: ((m.type === 'VIDEO' || m.type === 'REEL') ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' }))
+              : undefined;
 
             const result = await this.threadsService.postToThreads(
-                account.accessToken, 
-                contentText, 
-                mediaList
+                account.accessToken, contentText, threadsMedia
             );
             externalId = result.postId || 'threads_id';
         }
         
         else if (platformEntry.platform === 'youtube') {
-            if (!mediaUrl) throw new Error('Video file is required for YouTube');
+           if (mediaList.length === 0 || mediaList[0].type === 'IMAGE') {
+              throw new Error('Video file is required for YouTube');
+            }
             const title = (post.contentMetadata as any)?.title || 'New Video';
             const result = await this.youtubeService.uploadVideoToYoutube(
-                post.userId, title, contentText, post.media?.type === 'REEL' ? 'SHORTS' : 'VIDEO', mediaUrl
+                post.userId, title, contentText, mediaList[0].type === 'REEL' ? 'SHORTS' : 'VIDEO', mediaList[0].url
             );
             externalId = result.videoId ?? 'unknown_id';
         }
@@ -148,56 +178,47 @@ export class PostingProcessor {
             const account = await this.getAccount(post.userId, 'twitter');
             this.logger.log(`🐦 Posting to Twitter...`);
 
-            // ✅ Pass storagePath (not the signed URL) because the updated 
-            // TwitterService handles the GCS download/signing internally.
+            const storagePaths = mediaList.map((m: any) => m.storagePath).filter(Boolean);
+
             const result = await this.twitterService.postTweetWithUserToken(
                 contentText,
-                post.media?.storagePath, 
+                storagePaths, 
                 account.accessToken
             );
             externalId = result.tweetId;
         }
-        // ✅ Success Update
+        
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },
           data: { status: 'PUBLISHED', externalId: externalId },
         });
 
-      } catch (error) {
+      } catch (error: any) { // ✅ Fixed catch variable type
         let detailedError = error.message;
 
-    // Check if the error comes from an HTTP request (Axios/Fetch)
-    if (error.response) {
-        // Facebook / Instagram / Threads usually put details here:
-        if (error.response.data?.error?.message) {
-            detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.message}`;
+        if (error.response) {
+            if (error.response.data?.error?.message) {
+                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.message}`;
+            }
+            else if (error.response.data?.error?.errors?.[0]?.message) {
+                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.errors[0].message}`;
+            }
+            else if (error.response.data?.message) {
+                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.message}`;
+            }
+            else {
+                 detailedError = `[${platformEntry.platform}] Raw Error: ${JSON.stringify(error.response.data)}`;
+            }
         }
-        // YouTube / Google usually puts details here:
-        else if (error.response.data?.error?.errors?.[0]?.message) {
-            detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.errors[0].message}`;
-        }
-        // LinkedIn sometimes puts details here:
-        else if (error.response.data?.message) {
-            detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.message}`;
-        }
-        // Fallback: Just dump the whole data object if we can't find a specific message
-        else {
-             detailedError = `[${platformEntry.platform}] Raw Error: ${JSON.stringify(error.response.data)}`;
-        }
-    }
     
-    // Log the REAL reason to your console
-    this.logger.error(`❌ FAILURE DETECTED: ${detailedError}`);
-    // 🔍 END DEBUGGING LOGIC
+        this.logger.error(`❌ FAILURE DETECTED: ${detailedError}`);
 
-    // Update Database with the DETAILED error
-    await this.prisma.postPlatform.update({
-        where: { id: platformEntry.id },
-        data: { status: 'FAILED', errorMessage: detailedError }, 
-    });
+        await this.prisma.postPlatform.update({
+            where: { id: platformEntry.id },
+            data: { status: 'FAILED', errorMessage: detailedError }, 
+        });
 
-    hasFailures = true;
-      
+        hasFailures = true;
       }
     }
 
@@ -205,29 +226,46 @@ export class PostingProcessor {
     // 🧹 CLEANUP SECTION
     // ---------------------------------------------------------
 
-    // Refetch to get latest statuses
     const updatedPost = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: { platforms: true, media: true },
+      include: { 
+         platforms: true,
+         mediaItems: { include: { media: true } }
+      },
     });
 
-    // Safe checks using ?.
-    const allSuccess = updatedPost?.platforms.every(p => p.status === 'PUBLISHED');
-    const anyFailed = updatedPost?.platforms.some(p => p.status === 'FAILED');
+    // ✅ FIX 4: Explicit null check for updatedPost
+    if (!updatedPost) {
+        if (hasFailures) throw new Error('Some platforms failed to publish. Job will retry.');
+        return;
+    }
 
-    // Update Main Post Status
+    const allSuccess = updatedPost.platforms.every(p => p.status === 'PUBLISHED');
+    const anyFailed = updatedPost.platforms.some(p => p.status === 'FAILED');
+
     await this.prisma.post.update({
       where: { id: postId },
       data: { status: allSuccess ? 'PUBLISHED' : (anyFailed ? 'PARTIAL' : 'PUBLISHED') },
     });
 
-    // Delete file if EVERYTHING succeeded
-    if (allSuccess && updatedPost?.media?.storagePath) {
-      this.logger.log(`✨ All platforms success. Deleting media...`);
-      await this.storageService.deleteFile(updatedPost.media.storagePath);
+    // ✅ FIX 5: Cast to any[] to fix the 'length' and Iterator errors on 'never' type
+    const updatedMediaItems = (updatedPost as any).mediaItems || [];
+
+    if (allSuccess && updatedMediaItems.length > 0) {
+      this.logger.log(`✨ All platforms success. Deleting media files from Cloud...`);
+      
+      for (const item of updatedMediaItems) {
+          if (item.media?.storagePath) {
+              try {
+                  await this.storageService.deleteFile(item.media.storagePath);
+              } catch (err: any) { 
+                  // ✅ FIX 6: Added ': any' to 'err'
+                  this.logger.warn(`Failed to delete ${item.media.storagePath}: ${err.message}`);
+              }
+          }
+      }
     }
 
-    // ⚠️ TRIGGER RETRY: If we had failures, throw error now so BullMQ retries later
     if (hasFailures) {
         throw new Error('Some platforms failed to publish. Job will retry.');
     }

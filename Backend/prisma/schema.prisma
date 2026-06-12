@@ -64,10 +64,6 @@ model Post {
   
   // ✅ 1. FUTURE-PROOF METADATA (JSON)
   contentMetadata Json?     
-  
-  // ✅ 2. RELATION TO MEDIA TABLE
-  media           Media?    @relation(fields: [mediaId], references: [id])
-  mediaId         Int?
 
   // Scheduling
   isScheduled     Boolean   @default(false)
@@ -79,8 +75,21 @@ model Post {
 
   user            User           @relation(fields: [userId], references: [id])
   platforms       PostPlatform[]
+  // ✅ ADD TO Post MODEL
+  mediaItems      PostMedia[]
 }
+// ✅ NEW TABLE
+model PostMedia {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  mediaId   Int
+  position  Int      // Keeps track of Carousel/Album order (0, 1, 2...)
 
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, mediaId]) // Prevent duplicate linking
+}
 model PostPlatform {
   id           Int        @id @default(autoincrement())
   postId       Int
@@ -105,8 +114,9 @@ model Media {
   
   createdAt   DateTime @default(now())
   
-  posts       Post[]
+ posts       PostMedia[] 
   user        User     @relation(fields: [userId], references: [id])
+
 }
 
 enum PostStatus {

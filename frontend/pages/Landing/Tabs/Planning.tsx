@@ -42,13 +42,11 @@ const PlatformIcon = ({ platform, size = 14 }: any) => {
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
       </svg>
     ),
-    // (Other icons omitted for brevity, but they will work based on your CSS/Imports)
   };
   return icons[platform] || <div style={{ width: size, height: size, background: c, borderRadius: '50%' }} />;
 };
 
 /* ─── TIMEZONE HELPER ────────────────────────────────────────── */
-// 🔥 FIX 1: This securely converts UTC database time to your Local IST Time!
 const toLocalInput = (dateStr: string) => {
   const d = new Date(dateStr);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -63,9 +61,12 @@ const PostCard = ({ post, onEdit }: any) => {
   return (
     <div
       className={styles.postCard}
-      draggable
+      draggable={post.status !== 'published'}
       onDragStart={(e) => e.dataTransfer.setData("postId", String(post.id))}
-      onClick={() => onEdit(post)}
+      onClick={(e) => {
+        e.stopPropagation(); // ✅ FIX: Stops the click from hitting the <td> behind it
+        onEdit(post);
+      }}
       style={{ background: plt.bg, border: `1px solid ${plt.border}` }}
     >
       <div className={styles.postCardHeader}>
@@ -81,9 +82,9 @@ const PostCard = ({ post, onEdit }: any) => {
 };
 
 /* ─── Advanced Schedule Modal ────────────────────────────────── */
-const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }: any) => {
+const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, isReadOnly }: any) => {
   const [content, setContent] = useState(post?.content || '');
-  const [files, setFiles] = useState<File[]>([]);
+  const [files, setFiles] = useState<any[]>(post?.files || []);
   
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(
     new Set(post?.platforms ? post.platforms : (post?.platform ? [post.platform as Channel] : []))
@@ -99,7 +100,6 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }:
     }
   );
 
-  // 🔥 FIX 1 APPLIED: We safely wrap the database time in the 'toLocalInput' function
   const [scheduleDate, setScheduleDate] = useState(() => {
     if (post?.scheduledAt) return toLocalInput(post.scheduledAt);
     return initialDate || '';
@@ -108,7 +108,6 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }:
   const [facebookPages, setFacebookPages] = useState([]);
   const [accounts, setAccounts] = useState({});
 
-  // Get current local time to prevent past scheduling
   const currentLocalTime = toLocalInput(new Date().toISOString());
 
   useEffect(() => {
@@ -125,8 +124,9 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }:
   const effectiveRules = resolveEditorRules(selectedChannelList);
 
   const handleSubmit = (status: 'DRAFT' | 'SCHEDULED') => {
+    if (isReadOnly) return; // Prevent any saves if read only
     if (selectedChannels.size === 0) return alert('Select at least one channel.');
-    if (!content && files.length === 0 && !post?.mediaUrl) return alert('Add content or media.');
+    if (!content && files.length === 0) return alert('Add content or media.');
     if (status === 'SCHEDULED' && !scheduleDate) return alert('Please select a date and time.');
 
     if (status === 'SCHEDULED' && new Date(scheduleDate) < new Date()) {
@@ -154,7 +154,6 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }:
       id: post?.id,
       content,
       status, 
-      // When saving, new Date() automatically converts the local string BACK to UTC for the database!
       scheduledAt: status === 'SCHEDULED' ? new Date(scheduleDate).toISOString() : null,
       platforms: selectedChannelList,
       files,
@@ -167,36 +166,44 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete }:
       <div className={styles.publishPage} onClick={(e) => e.stopPropagation()} style={{ height: '90vh', background: '#f5f5f5', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 20px', background: '#fff', borderBottom: '1px solid #eee' }}>
-          <h2 style={{ margin: 0 }}>{post ? "Edit Scheduled Post" : "Schedule New Post"}</h2>
+          <h2 style={{ margin: 0 }}>
+             {/* ✅ Handle Read-Only Title */}
+             {isReadOnly ? "View Published Post" : post ? "Edit Scheduled Post" : "Schedule New Post"}
+          </h2>
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <input 
               type="datetime-local" 
               value={scheduleDate} 
               min={currentLocalTime} 
               onChange={(e) => setScheduleDate(e.target.value)} 
-              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }} 
+              disabled={isReadOnly} // ✅ Disable time picker
+              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', opacity: isReadOnly ? 0.6 : 1 }} 
             />
-            {post && <button onClick={() => onDelete(post.id)} style={{ color: 'red', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Delete</button>}
-            <button onClick={onClose} style={{ padding: '8px 16px', cursor: 'pointer' }}>Cancel</button>
-            <button onClick={() => handleSubmit('DRAFT')} style={{ padding: '8px 16px', background: '#eee', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Save Draft</button>
-            <button onClick={() => handleSubmit('SCHEDULED')} style={{ padding: '8px 16px', background: '#000', color: '#fff', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Schedule Post</button>
+            {/* ✅ Hide actions if Read Only */}
+            {!isReadOnly && (
+              <>
+                {post && <button onClick={() => onDelete(post.id)} style={{ color: 'red', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Delete</button>}
+                <button onClick={() => handleSubmit('DRAFT')} style={{ padding: '8px 16px', background: '#eee', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Save Draft</button>
+                <button onClick={() => handleSubmit('SCHEDULED')} style={{ padding: '8px 16px', background: '#000', color: '#fff', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Schedule Post</button>
+              </>
+            )}
+            <button onClick={onClose} style={{ padding: '8px 16px', cursor: 'pointer', background: isReadOnly ? '#eee' : 'transparent', borderRadius: '4px', border: 'none' }}>Close</button>
           </div>
         </div>
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+          {/* ✅ Freeze left panel if Read Only */}
+          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', opacity: isReadOnly ? 0.8 : 1 }}>
             <ChannelSelector accounts={accounts} selectedChannels={selectedChannels} onSelectionChange={setSelectedChannels} />
-            
-            {/* Display the existing media if it exists! */}
-            {post?.mediaUrl && files.length === 0 && (
-              <div style={{ marginBottom: '15px', padding: '15px', background: '#fff', borderRadius: '8px', border: '1px solid #ddd' }}>
-                <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#666', fontWeight: 'bold' }}>Currently Attached Media:</p>
-                <img src={post.mediaUrl} alt="Attached media" style={{ maxWidth: '100%', maxHeight: '250px', borderRadius: '6px', objectFit: 'contain' }} />
-                <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: '#999' }}>*Uploading a new file below will replace this image.</p>
-              </div>
-            )}
-
-            <ContentEditor content={content} onContentChange={setContent} files={files} onFilesChange={setFiles} effectiveRules={effectiveRules} validation={{}} />
+            <ContentEditor
+   content={content}
+  onContentChange={setContent}
+  files={files}
+  onFilesChange={setFiles}
+  effectiveRules={effectiveRules}
+  validation={{}}
+  isReadOnly={isReadOnly}
+/>
             <PlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
           </div>
           <div style={{ width: '1px', background: '#ddd' }} />
@@ -295,22 +302,34 @@ const Planning = () => {
 
   const handleSave = async (postData: any) => {
     try {
-      let mediaUrl = undefined;
-      let storagePath = undefined;
-      let mimeType = undefined;
-      let mediaType = undefined;
+      let mediaItems: any[] = [];
 
       if (postData.files && postData.files.length > 0) {
-        const file = postData.files[0];
-        mimeType = file.type;
-        mediaType = file.type.startsWith('video') ? 'VIDEO' : 'IMAGE';
+        const uploadPromises = postData.files.map(async (fileObj: any) => {
+          
+          if (fileObj.mediaUrl || fileObj.secureUrl) {
+            return {
+              mediaUrl: fileObj.mediaUrl || fileObj.secureUrl, 
+              storagePath: fileObj.storagePath,
+              mimeType: fileObj.mimeType,
+              mediaType: fileObj.mediaType || fileObj.type,
+            };
+          }
 
-        const uploaded: any = await uploadMedia(file);
-        
-        if (uploaded) {
-          mediaUrl = uploaded.publicUrl || uploaded.url; 
-          storagePath = uploaded.storagePath || uploaded.key;
-        }
+          const uploaded: any = await uploadMedia(fileObj);
+          if (uploaded) {
+            return {
+              mediaUrl: uploaded.publicUrl || uploaded.url, 
+              storagePath: uploaded.storagePath || uploaded.key,
+              mimeType: fileObj.type,
+              mediaType: fileObj.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+            };
+          }
+          return null;
+        });
+
+        const results = await Promise.all(uploadPromises);
+        mediaItems = results.filter(item => item !== null);
       }
 
       const payload = {
@@ -319,7 +338,7 @@ const Planning = () => {
         status: postData.status.toUpperCase(),
         scheduledAt: postData.scheduledAt,
         contentMetadata: postData.contentMetadata,
-        ...(mediaUrl && { mediaUrl, storagePath, mimeType, mediaType })
+        mediaItems: mediaItems 
       };
 
       if (postData.id) {
@@ -365,8 +384,10 @@ const Planning = () => {
       await axios.patch(`/posting/${id}/reschedule`, {
         scheduledAt: targetDateStr
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to reschedule", error);
+      // Alert if they try to drag a published post
+      if (error.response?.status === 403) alert(error.response.data.message);
       setPosts(previousPosts); 
     }
   };
@@ -524,13 +545,31 @@ const Planning = () => {
                             return; 
                           }
 
-                          // 🔥 FIX 1 APPLIED: Uses helper function when creating new post from grid click
                           const localTime = toLocalInput(targetDate.toISOString());
                           setModal({ type: 'create', initialDate: localTime });
                         }}
                       >
                         {cellPosts.map((post: any) => (
-                          <PostCard key={post.id} post={post} onEdit={(p: any) => setModal({ type: "edit", post: p })} />
+                          <PostCard 
+                            key={post.id} 
+                            post={post} 
+                            onEdit={(p: any) => {
+                              // ✅ Robust mapper to ensure URLs hit the Content Editor perfectly
+                              const mappedFiles = p.mediaItems ? p.mediaItems.map((item: any) => ({
+                                ...item,
+                                type: item.type || item.mimeType, 
+                                mediaUrl: item.secureUrl || item.fileUrl || item.mediaUrl,
+                                preview: item.secureUrl || item.fileUrl || item.mediaUrl,
+                                url: item.secureUrl || item.fileUrl || item.mediaUrl
+                              })) : [];
+                              
+                              setModal({ 
+                                type: "edit", 
+                                post: { ...p, files: mappedFiles },
+                                isReadOnly: p.status === 'published' // ✅ Toggle the freeze state
+                              });
+                            }} 
+                          />
                         ))}
                       </td>
                     );
@@ -549,6 +588,7 @@ const Planning = () => {
           onClose={() => setModal(null)}
           onSave={handleSave}
           onDelete={handleDelete}
+          isReadOnly={modal.isReadOnly} // ✅ Pass down the freeze state
         />
       )}
     </div>
