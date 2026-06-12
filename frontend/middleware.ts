@@ -7,16 +7,16 @@ export function middleware(req: NextRequest) {
   const token = req.cookies.get('access_token')?.value;
 
   // 2. Define your public routes (pages anyone can visit without logging in)
-  const publicPaths = ['/login', '/register', '/forgot-password', '/'];
+  const publicPaths = ['/Auth/login', '/Auth/register', '/forgot-password', '/', '/home'];
   const isPublicPath = publicPaths.includes(req.nextUrl.pathname);
 
   // 3. SECURITY RULE: If no token and trying to access a private page -> Redirect to Login
   if (!token && !isPublicPath) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return NextResponse.redirect(new URL('/Auth/login', req.url));
   }
 
   // 4. UX RULE: If they ARE logged in but try to go to the login/register page -> Send them to Landing
-  if (token && (req.nextUrl.pathname === '/login' || req.nextUrl.pathname === '/register')) {
+  if (token && (req.nextUrl.pathname === '/Auth/login' || req.nextUrl.pathname === '/Auth/register')) {
     return NextResponse.redirect(new URL('/Landing', req.url));
   }
 

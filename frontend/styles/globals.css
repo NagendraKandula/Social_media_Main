@@ -7,6 +7,31 @@
 
 html {
   overflow-x: hidden;
+  --app-bg: #ffffff;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
+  --app-surface-muted: #f1f5f9;
+  --app-text: #111827;
+  --app-text-muted: #595f6c;
+  --app-border: #e5e7eb;
+  --app-shadow: rgba(0, 0, 0, 0.1);
+  --app-accent: #ff4d4f;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: #000000;
+  --app-surface: #0b0b0f;
+  --app-surface-soft: #121218;
+  --app-surface-muted: #1a1a22;
+  --app-text: #ffffff;
+  --app-text-muted: #d8dbe2;
+  --app-border: rgba(255, 255, 255, 0.16);
+  --app-shadow: rgba(0, 0, 0, 0.28);
 }
 
 body {
@@ -15,4 +40,87 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   font-family: "Inter", sans-serif;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+html[data-theme="dark"] body {
+  background: #000000;
+  color: var(--app-text);
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  background-color: var(--app-surface);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: var(--app-text-muted);
+}
+
+html[data-theme="dark"] :where(
+  [class*="container"],
+  [class*="Container"],
+  [class*="page"],
+  [class*="Page"],
+  [class*="root"],
+  [class*="Root"],
+  [class*="dashboard"],
+  [class*="Dashboard"],
+  [class*="main"],
+  [class*="Main"]
+) {
+  background-color: var(--app-bg);
+  color: var(--app-text);
+}
+
+html[data-theme="dark"] :where(
+  [class*="card"],
+  [class*="Card"],
+  [class*="panel"],
+  [class*="Panel"],
+  [class*="box"],
+  [class*="Box"],
+  [class*="modal"],
+  [class*="Modal"],
+  [class*="dropdown"],
+  [class*="Dropdown"],
+  [class*="sidebar"],
+  [class*="Sidebar"],
+  [class*="section"],
+  [class*="Section"]
+) {
+  background-color: var(--app-surface);
+  border-color: var(--app-border);
+  color: var(--app-text);
+}
+
+html[data-theme="dark"] :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  label,
+  span,
+  a,
+  li,
+  td,
+  th
+) {
+  color: inherit;
 }

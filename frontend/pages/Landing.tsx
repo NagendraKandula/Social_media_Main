@@ -2,36 +2,34 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { withAuth } from "../utils/withAuth";
 
-import LHeader from "./LHeader";
-import SubHeader from "./SubHeader";
-import styles from "../styles/Landing.module.css";
-import Chatbot from "../components/Chatbot"; 
+import LHeader from "./Landing/LHeader";
+import SubHeader from "./Landing/SubHeader";
+import styles from "../styles/LandingCSS/Landing.module.css";
+import Chatbot from "../components/Chatbot";
 
 // Tabs
-import ActivePlatforms from "./ActivePlatforms";
-import Create from "./Create";
-import Templates from "./Templates";
-import Publish from "./Publish";
-import Planning from "./Planning";
-import Analytics from "./Analytics";
-import Summary from "./Summary";
+import ActivePlatforms from "./Landing/Tabs/ActivePlatforms";
+import Create from "./Landing/Tabs/Create";
+import Publish from "./Landing/Tabs/Publish";
+import Planning from "./Landing/Tabs/Planning";
+import Analytics from "./Landing/Tabs/Analytics";
+import Summary from "./Landing/Tabs/Summary";
 
 // Platform flows
-import YouTubeConnect from "./YouTubeConnect";
-import YouTubePost from "./YouTubePost";
-import InstagramConnect from "./InstagramConnect";
-import FacebookPost from "./facebook-post";
-import TwitterConnect from "./TwitterConnect";
-import TwitterPost from "./TwitterPost";
-import LinkedInConnect from "./LinkedInConnect";
-import ThreadsConnect from "./ThreadsConnect";
+import YouTubeConnect from "./Landing/Connect/YouTubeConnect";
+import YouTubePost from "./Landing/Post/YouTubePost";
+import InstagramConnect from "./Landing/Connect/InstagramConnect";
+import FacebookPost from "./Landing/Post/facebook-post";
+import TwitterConnect from "./Landing/Connect/TwitterConnect";
+import TwitterPost from "./Landing/Post/TwitterPost";
+import LinkedInConnect from "./Landing/Connect/LinkedInConnect";
+import ThreadsConnect from "./Landing/Connect/ThreadsConnect";
 
 /* ================= TAB CONSTANTS ================= */
 
 const TABS = {
   ACTIVE: "Active Platforms",
   CREATE: "Create",
-  TEMPLATES: "Templates",
   PUBLISH: "Publish",
   SCHEDULE: "Schedule",
   ANALYTICS: "Analytics",
@@ -52,7 +50,12 @@ const Landing: React.FC = () => {
   /* ================= OAUTH REDIRECT HANDLING ================= */
 
   useEffect(() => {
-    const { youtube, twitter } = router.query;
+    const { youtube, twitter, tab } = router.query;
+
+    if (typeof tab === "string" && Object.values(TABS).includes(tab)) {
+      setActiveTab(tab);
+      setActivePlatform(null);
+    }
 
     if (youtube === "connected") {
       setYoutubeConnected(true);
@@ -71,6 +74,14 @@ const Landing: React.FC = () => {
     }
   }, [router.query]);
 
+  
+  useEffect(() => {
+    // Always clear old chats when entering dashboard
+    localStorage.removeItem("chat_landing");
+    localStorage.removeItem("chat_login");
+    localStorage.removeItem("chat_postlogin"); 
+  }, []);
+
   /* ================= TAB CONTENT ================= */
 
   const renderTabContent = () => {
@@ -79,8 +90,6 @@ const Landing: React.FC = () => {
         return <ActivePlatforms />;
       case TABS.CREATE:
         return <Create />;
-      case TABS.TEMPLATES:
-        return <Templates />;
       case TABS.PUBLISH:
         return <Publish />;
       case TABS.SCHEDULE:
@@ -163,7 +172,7 @@ const Landing: React.FC = () => {
         {activePlatform && renderPlatformPopup()}
       </div>
 
-
+      {/* DASHBOARD CHATBOT */}
       <Chatbot type="post-login" />
     </>
   );

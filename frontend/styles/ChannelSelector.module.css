@@ -53,7 +53,7 @@
 
 /* ✅ ONLY when selected */
 .selected {
-  border-color: #22c55e; /* green */
+  border-color: #ff4d4f; /* green */
 }
 
 /* 🚫 Disabled / reconnect needed */
@@ -109,4 +109,30 @@
 .avatarRow::-webkit-scrollbar-thumb {
   background: #e5e7eb;
   border-radius: 4px;
+}
+
+:global([data-theme="dark"]) .title,
+:global([data-theme="dark"]) .header h3 {
+  color: #f9fafb;
+}
+
+:global([data-theme="dark"]) .header span {
+  color: #a1a1aa;
+}
+
+:global([data-theme="dark"]) .avatarBtn {
+  background: #121218;
+}
+
+:global([data-theme="dark"]) .selected {
+  border-color: #ff4d4f;
+}
+
+:global([data-theme="dark"]) .platformBadge {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+:global([data-theme="dark"]) .avatarRow::-webkit-scrollbar-thumb {
+  background: #27272f;
 }

@@ -34,7 +34,7 @@
 }
 
 .toolbarLeft button:hover {
-  color: #2563eb;
+  color: #f63e22;
 }
 
 /* ===============================
@@ -139,4 +139,44 @@
 .overLimit {
   color: #dc2626;
   font-weight: 500;
+}
+
+:global([data-theme="dark"]) .editorCard {
+  background: #0b0b0f;
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f9fafb;
+}
+
+:global([data-theme="dark"]) .toolbar,
+:global([data-theme="dark"]) .footerInfo {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+:global([data-theme="dark"]) .toolbarLeft button {
+  color: #d1d5db;
+}
+
+:global([data-theme="dark"]) .toolbarLeft button:hover {
+  color: #ff7a7b;
+}
+
+:global([data-theme="dark"]) .editor {
+  color: #f9fafb;
+}
+
+:global([data-theme="dark"]) .editor:empty:before {
+  color: #8b8b95;
+}
+
+:global([data-theme="dark"]) .uploadBox {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #f9fafb;
+}
+
+:global([data-theme="dark"]) .uploadBox:hover {
+  background: #1a1a22;
+}
+
+:global([data-theme="dark"]) .footerInfo span {
+  color: #a1a1aa;
 }

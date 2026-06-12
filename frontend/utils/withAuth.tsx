@@ -10,7 +10,7 @@ export function withAuth(gssp: GetServerSideProps): GetServerSideProps {
     if (!token) {
       return {
         redirect: {
-          destination: '/login',
+          destination: '/Auth/login',
           permanent: false,
         },
       };
@@ -33,7 +33,7 @@ export function withAuth(gssp: GetServerSideProps): GetServerSideProps {
       console.error("Authentication failed:", error);
       return {
         redirect: {
-          destination: '/login',
+          destination: '/Auth/login',
           permanent: false,
         },
       };

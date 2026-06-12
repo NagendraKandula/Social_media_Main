@@ -1,24 +1,14 @@
-import React from "react";
-import Header from "./Header";
-import styles from "../styles/index.module.css";
-import dynamic from "next/dynamic";
-import HeroContainer from "./HeroContainer";
-import MainContent from "./MainContent";
+import type { GetServerSideProps } from "next";
 
+export const getServerSideProps: GetServerSideProps = async () => {
+  return {
+    redirect: {
+      destination: "/home",
+      permanent: false,
+    },
+  };
+};
 
-const HeroSection = dynamic(() => import("./HeroSection1"), { ssr: false });
-
-export default function Home() {
-  return (
-    <>
-      {/* Main UI */}
-      <div className={styles.container}>
-        <Header />
-        <MainContent />
-        <HeroContainer />
-      </div>
-
-      
-    </>
-  );
+export default function Index() {
+  return null;
 }

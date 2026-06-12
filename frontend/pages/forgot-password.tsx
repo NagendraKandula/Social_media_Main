@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       setResendTimer(60); // Reset timer
     } catch (err) {
       if (err.response?.status === 401) {
-         window.location.href = '/login';
+         window.location.href = '/Auth/login';
          return;
       }
       setError('Failed to resend OTP.');
@@ -121,7 +121,7 @@ export default function ForgotPasswordPage() {
       });
       setMessage(response.data.message);
       setTimeout(() => {
-        router.push('/login'); // Use router for navigation
+        router.push('/Auth/login'); // Use router for navigation
       }, 2000);
     } catch (err: any) {
       const serverError = err.response?.data?.message;
@@ -262,7 +262,7 @@ export default function ForgotPasswordPage() {
           {message && <p className={styles.successMessage}>{message}</p>}
           {error && <p className={styles.errorMessage}>{error}</p>}
           <div className={styles.backToLogin}>
-            <Link href="/login">Back to Login</Link>
+            <Link href="/Auth/login">Back to Login</Link>
           </div>
         </div>
       </div>
