@@ -77,6 +77,9 @@ const ActivePlatforms = () => {
     { id: 'linkedin', name: 'LinkedIn', icon: <FaLinkedin />, color: styles.linkedinIcon },
   ];
 
+  const getAccountName = (account: any, fallback: string) =>
+    account?.name || account?.username || `${fallback} User`;
+
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Social Media Connections</h1>
@@ -90,15 +93,29 @@ const ActivePlatforms = () => {
               <div className={styles.cardBody}>
                 {accounts?.[p.id] ? (
                   <div className={styles.connectedProfile}>
-                    <img
-                      src={accounts[p.id].profilePic || '/profile.png'}
-                      className={styles.avatar}
-                      onError={(e) => (e.currentTarget.src = '/profile.png')}
-                      alt={`${p.name} Profile`}
-                    />
+                    {accounts[p.id].profilePic ? (
+                      <img
+                        src={accounts[p.id].profilePic}
+                        className={styles.avatar}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove(styles.hiddenIcon);
+                        }}
+                        alt={`${p.name} Profile`}
+                      />
+                    ) : null}
+
+                    <div
+                      className={`${styles.platformIcon} ${styles.connectedIconFallback} ${p.color} ${
+                        accounts[p.id].profilePic ? styles.hiddenIcon : ''
+                      }`}
+                    >
+                      {p.icon}
+                    </div>
+
                     <div className={styles.profileInfo}>
   <p className={styles.userName}>
-    {accounts[p.id].name}
+    {getAccountName(accounts[p.id], p.name)}
   </p>
 
   <p className={styles.platformName}>
@@ -122,7 +139,23 @@ const ActivePlatforms = () => {
                     </div>
                   </div>
                 ) : (
-                  <p className={styles.emptyText}>No {p.name} account linked.</p>
+                  <div className={styles.connectedProfile}>
+                    <div className={`${styles.platformIcon} ${p.color}`}>
+                      {p.icon}
+                    </div>
+
+                    <div className={styles.profileInfo}>
+                      <p className={styles.userName}>No username</p>
+
+                      <p className={styles.platformName}>
+                        {p.name}
+                      </p>
+
+                      <p className={`${styles.statusBadge} ${styles.notConnectedBadge}`}>
+                        Not Connected
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -148,8 +181,9 @@ const ActivePlatforms = () => {
                   <button
                     onClick={() => handleAction(p.id, 'connect')}
                     className={styles.connectBtn}
+                    disabled={actionLoading === p.id}
                   >
-                    <FaPlus /> Connect
+                    <FaPlus /> {actionLoading === p.id ? 'Connecting...' : 'Connect'}
                   </button>
                 )}
               </div>

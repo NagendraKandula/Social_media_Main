@@ -1,14 +1,26 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import dynamic from "next/dynamic";
 import axios from "../../../lib/axios";
 import styles from "../../../styles/LandingCSS/Tabs/Planning.module.css";
 
 // --- Imported Publish Components & Hooks ---
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
-import ContentEditor from '../../../components/ContentEditor';
-import PlatformFields, { PlatformState } from '../../../components/PlatformFields';
-import AIAssistant from '../../../components/AIAssistant';
+import { PlatformState } from '../../../components/PlatformFields';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { usePostCreation } from '../../../hooks/usePostCreation';
+
+const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
+  loading: () => <p>Loading editor...</p>,
+});
+const LazyPlatformFields = dynamic(() => import('../../../components/PlatformFields'), {
+  loading: () => <p>Loading platform options...</p>,
+});
+const LazyAIAssistant = dynamic(() => import('../../../components/AIAssistant'), {
+  loading: () => <p>Loading AI assistant...</p>,
+});
+const LazyDynamicPreview = dynamic(() => import('../../../components/DynamicPreview'), {
+  loading: () => <p>Loading preview...</p>,
+});
 
 /* ─── Constants & Icons ──────────────────────────────────────── */
 const PLATFORMS: Record<string, any> = {
@@ -21,6 +33,10 @@ const PLATFORMS: Record<string, any> = {
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 const HOURS = [
   "12 AM","1 AM","2 AM","3 AM","4 AM","5 AM","6 AM","7 AM",
   "8 AM","9 AM","10 AM","11 AM","12 PM","1 PM","2 PM","3 PM",
@@ -105,8 +121,8 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
     return initialDate || '';
   });
 
-  const [facebookPages, setFacebookPages] = useState([]);
-  const [accounts, setAccounts] = useState({});
+  const [facebookPages, setFacebookPages] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<Partial<Record<Channel, any>>>({});
 
   const currentLocalTime = toLocalInput(new Date().toISOString());
 
@@ -115,13 +131,27 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   }, []);
 
   useEffect(() => {
-    if (selectedChannels.has('facebook')) {
-      axios.get('/facebook/pages').then(({ data }) => setFacebookPages(data)).catch(console.error);
-    }
-  }, [selectedChannels]);
+    if (!accounts.facebook) return;
+
+    axios
+      .get('/facebook/pages')
+      .then(({ data }) => {
+        setFacebookPages(data);
+        if (!platformState.facebookPageId && data.length > 0) {
+          setPlatformState((prev) => ({
+            ...prev,
+            facebookPageId: data[0].id,
+          }));
+        }
+      })
+      .catch(console.error);
+  }, [accounts.facebook, platformState.facebookPageId]);
 
   const selectedChannelList = Array.from(selectedChannels);
   const effectiveRules = resolveEditorRules(selectedChannelList);
+  const selectedFacebookPage = facebookPages.find(
+    (page: any) => page.id === platformState.facebookPageId
+  );
 
   const handleSubmit = (status: 'DRAFT' | 'SCHEDULED') => {
     if (isReadOnly) return; // Prevent any saves if read only
@@ -162,62 +192,98 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   };
 
   return (
-    <div className={styles.modalOverlay} onClick={onClose} style={{ zIndex: 1000, padding: '20px' }}>
-      <div className={styles.publishPage} onClick={(e) => e.stopPropagation()} style={{ height: '90vh', background: '#f5f5f5', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px 20px', background: '#fff', borderBottom: '1px solid #eee' }}>
-          <h2 style={{ margin: 0 }}>
-             {/* ✅ Handle Read-Only Title */}
-             {isReadOnly ? "View Published Post" : post ? "Edit Scheduled Post" : "Schedule New Post"}
-          </h2>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.publishPage} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.scheduleHeader}>
+          <div>
+            <h2 className={styles.scheduleTitle}>
+              {isReadOnly ? "View Published Post" : post ? "Edit Scheduled Post" : "Schedule New Post"}
+            </h2>
+          </div>
+          <div className={styles.scheduleActions}>
             <input 
               type="datetime-local" 
               value={scheduleDate} 
               min={currentLocalTime} 
               onChange={(e) => setScheduleDate(e.target.value)} 
-              disabled={isReadOnly} // ✅ Disable time picker
-              style={{ padding: '8px', borderRadius: '6px', border: '1px solid #ccc', opacity: isReadOnly ? 0.6 : 1 }} 
+              disabled={isReadOnly}
+              className={styles.scheduleDateInput}
             />
-            {/* ✅ Hide actions if Read Only */}
             {!isReadOnly && (
               <>
-                {post && <button onClick={() => onDelete(post.id)} style={{ color: 'red', padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer' }}>Delete</button>}
-                <button onClick={() => handleSubmit('DRAFT')} style={{ padding: '8px 16px', background: '#eee', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Save Draft</button>
-                <button onClick={() => handleSubmit('SCHEDULED')} style={{ padding: '8px 16px', background: '#000', color: '#fff', borderRadius: '4px', border: 'none', cursor: 'pointer' }}>Schedule Post</button>
+                {post && (
+                  <button className={styles.scheduleDeleteBtn} onClick={() => onDelete(post.id)}>
+                    Delete
+                  </button>
+                )}
+                <button className={styles.scheduleDraftBtn} onClick={() => handleSubmit('DRAFT')}>
+                  Save Draft
+                </button>
+                <button className={styles.schedulePrimaryBtn} onClick={() => handleSubmit('SCHEDULED')}>
+                  Schedule Post
+                </button>
               </>
             )}
-            <button onClick={onClose} style={{ padding: '8px 16px', cursor: 'pointer', background: isReadOnly ? '#eee' : 'transparent', borderRadius: '4px', border: 'none' }}>Close</button>
+            <button className={styles.scheduleCloseBtn} onClick={onClose}>Close</button>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* ✅ Freeze left panel if Read Only */}
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', opacity: isReadOnly ? 0.8 : 1 }}>
-            <ChannelSelector accounts={accounts} selectedChannels={selectedChannels} onSelectionChange={setSelectedChannels} />
-            <ContentEditor
-   content={content}
-  onContentChange={setContent}
-  files={files}
-  onFilesChange={setFiles}
-  effectiveRules={effectiveRules}
-  validation={{}}
-  isReadOnly={isReadOnly}
-/>
-            <PlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
+        <div className={styles.scheduleBody}>
+          <div className={`${styles.scheduleEditorPane} ${isReadOnly ? styles.readOnlyPane : ""}`}>
+            <ChannelSelector
+              accounts={accounts}
+              selectedChannels={selectedChannels}
+              onSelectionChange={setSelectedChannels}
+              facebookPages={facebookPages}
+              selectedFacebookPageId={platformState.facebookPageId}
+              onFacebookPageSelect={(pageId) =>
+                setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
+              }
+            />
+            <LazyContentEditor
+              content={content}
+              onContentChange={setContent}
+              files={files}
+              onFilesChange={setFiles}
+              effectiveRules={effectiveRules}
+              validation={{}}
+              isReadOnly={isReadOnly}
+            />
+            <LazyPlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
           </div>
-          <div style={{ width: '1px', background: '#ddd' }} />
-          <div style={{ width: '400px', display: 'flex', flexDirection: 'column', background: '#fff' }}>
-            <div style={{ display: 'flex', borderBottom: '1px solid #eee' }}>
-              <button style={{ flex: 1, padding: '15px', background: rightTab === 'ai' ? '#f9f9f9' : '#fff', border: 'none', cursor: 'pointer' }} onClick={() => setRightTab('ai')}>AI Assistant</button>
-              <button style={{ flex: 1, padding: '15px', background: rightTab === 'preview' ? '#f9f9f9' : '#fff', border: 'none', cursor: 'pointer' }} onClick={() => setRightTab('preview')}>Preview</button>
+          <aside className={styles.scheduleSidePane}>
+            <div className={styles.scheduleTabs}>
+              <button
+                className={`${styles.scheduleTab} ${rightTab === 'ai' ? styles.active : ""}`}
+                onClick={() => setRightTab('ai')}
+              >
+                AI Assistant
+              </button>
+              <button
+                className={`${styles.scheduleTab} ${rightTab === 'preview' ? styles.active : ""}`}
+                onClick={() => setRightTab('preview')}
+              >
+                Preview
+              </button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-              {rightTab === 'ai' ? <AIAssistant /> : <div>Preview coming soon</div>}
+            <div className={styles.scheduleSideContent}>
+              {rightTab === 'ai' ? (
+                <LazyAIAssistant />
+              ) : (
+                <LazyDynamicPreview
+                  selectedPlatforms={selectedChannelList}
+                  content={content}
+                  mediaFiles={files}
+                  facebookPostType={platformState.facebookPostType}
+                  instagramPostType={platformState.instagramPostType}
+                  youtubeType={platformState.youtubeType}
+                  accounts={accounts}
+                  facebookPage={selectedFacebookPage}
+                />
+              )}
             </div>
-          </div>
+          </aside>
         </div>
-
       </div>
     </div>
   );
@@ -249,6 +315,15 @@ const Planning = () => {
 
   const weekDates = getWeekDates();
   const monthYear = weekDates[1].toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const visibleMonth = weekDates[1].getMonth();
+  const visibleYear = weekDates[1].getFullYear();
+  const visibleDay = weekDates.find((date) => date.toDateString() === new Date().toDateString()) || weekDates[1];
+  const calendarTitle =
+    view === "year"
+      ? { primary: String(visibleYear), secondary: "" }
+      : view === "list"
+        ? { primary: "Scheduled", secondary: "Posts" }
+        : { primary: monthYear.split(" ")[0], secondary: monthYear.split(" ")[1] };
   
   const dateToGrid = (dateString: string) => {
     const date = new Date(dateString);
@@ -274,6 +349,46 @@ const Planning = () => {
     
     targetDate.setHours(hours, 0, 0, 0);
     return targetDate.toISOString();
+  };
+
+  const setTimeOnDate = (date: Date, hourStr = "9 AM") => {
+    const nextDate = new Date(date);
+    const [time, modifier] = hourStr.split(" ");
+    let hours = parseInt(time, 10);
+    if (hours === 12) hours = 0;
+    if (modifier === "PM") hours += 12;
+    nextDate.setHours(hours, 0, 0, 0);
+    return nextDate;
+  };
+
+  const openCreateForDate = (date: Date, hour = "9 AM") => {
+    const targetDate = setTimeOnDate(date, hour);
+
+    if (targetDate < new Date()) {
+      alert("You cannot schedule a post in the past!");
+      return;
+    }
+
+    setModal({ type: 'create', initialDate: toLocalInput(targetDate.toISOString()) });
+  };
+
+  const getPostDate = (post: any) => new Date(post.scheduledAt);
+
+  const isSameDay = (left: Date, right: Date) =>
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate();
+
+  const getMonthDates = () => {
+    const firstOfMonth = new Date(visibleYear, visibleMonth, 1);
+    const start = new Date(firstOfMonth);
+    start.setDate(firstOfMonth.getDate() - firstOfMonth.getDay());
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(start);
+      date.setDate(start.getDate() + index);
+      return date;
+    });
   };
 
   const fetchScheduledPosts = useCallback(async () => {
@@ -404,6 +519,259 @@ const Planning = () => {
     return map;
   }, [filtered]);
 
+  const postsByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    filtered.forEach((post: any) => {
+      const key = getPostDate(post).toDateString();
+      if (!map[key]) map[key] = [];
+      map[key].push(post);
+    });
+    return map;
+  }, [filtered]);
+
+  const postsByMonth = useMemo(() => {
+    const map: Record<number, any[]> = {};
+    filtered.forEach((post: any) => {
+      const date = getPostDate(post);
+      if (date.getFullYear() !== visibleYear) return;
+      const key = date.getMonth();
+      if (!map[key]) map[key] = [];
+      map[key].push(post);
+    });
+    return map;
+  }, [filtered, visibleYear]);
+
+  const openEditPost = (post: any) => {
+    const mappedFiles = post.mediaItems ? post.mediaItems.map((item: any) => ({
+      ...item,
+      type: item.type || item.mimeType,
+      mediaUrl: item.secureUrl || item.fileUrl || item.mediaUrl,
+      preview: item.secureUrl || item.fileUrl || item.mediaUrl,
+      url: item.secureUrl || item.fileUrl || item.mediaUrl
+    })) : [];
+
+    setModal({
+      type: "edit",
+      post: { ...post, files: mappedFiles },
+      isReadOnly: post.status === 'published'
+    });
+  };
+
+  const renderPost = (post: any) => (
+    <PostCard
+      key={post.id}
+      post={post}
+      onEdit={openEditPost}
+    />
+  );
+
+  const renderWeekView = () => (
+    <div className={styles.tableWrapper}>
+      <table className={styles.calTable}>
+        <thead>
+          <tr>
+            <th className={styles.timeColHeader}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+            </th>
+            {DAYS.map((d, i) => {
+              const dt = weekDates[i];
+              const isToday = dt?.toDateString() === new Date().toDateString();
+              return (
+                <th key={d} className={styles.dayHeader}>
+                  <span className={styles.dayName}>{d}</span>
+                  <span className={`${styles.dayNum} ${isToday ? styles.today : ""}`}>
+                    {dt ? dt.getDate() : ""}
+                  </span>
+                </th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {HOURS.map((hour) => (
+            <tr key={hour}>
+              <td className={styles.timeCell}>{hour}</td>
+              {DAYS.map((_, di) => {
+                const cellKey = `${di}-${hour}`;
+                const cellPosts = postsByCell[cellKey] || [];
+
+                return (
+                  <td
+                    key={di}
+                    className={`${styles.calCell} ${dragOverCell === cellKey ? styles.dragOver : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverCell(cellKey); }}
+                    onDragLeave={() => setDragOverCell(null)}
+                    onDrop={(e) => handleDrop(e, di, hour)}
+                    onClick={() => openCreateForDate(weekDates[di], hour)}
+                  >
+                    {cellPosts.map(renderPost)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  const renderDayView = () => {
+    const dayIndex = visibleDay.getDay();
+
+    return (
+      <div className={styles.tableWrapper}>
+        <table className={`${styles.calTable} ${styles.dayTable}`}>
+          <thead>
+            <tr>
+              <th className={styles.timeColHeader}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+              </th>
+              <th className={styles.dayHeader}>
+                <span className={styles.dayName}>{DAYS[dayIndex]}</span>
+                <span className={`${styles.dayNum} ${isSameDay(visibleDay, new Date()) ? styles.today : ""}`}>
+                  {visibleDay.getDate()}
+                </span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {HOURS.map((hour) => {
+              const cellKey = `${dayIndex}-${hour}`;
+              const cellPosts = postsByCell[cellKey] || [];
+
+              return (
+                <tr key={hour}>
+                  <td className={styles.timeCell}>{hour}</td>
+                  <td
+                    className={`${styles.calCell} ${styles.dayCell} ${dragOverCell === cellKey ? styles.dragOver : ""}`}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverCell(cellKey); }}
+                    onDragLeave={() => setDragOverCell(null)}
+                    onDrop={(e) => handleDrop(e, dayIndex, hour)}
+                    onClick={() => openCreateForDate(visibleDay, hour)}
+                  >
+                    {cellPosts.map(renderPost)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderMonthView = () => {
+    const monthDates = getMonthDates();
+
+    return (
+      <div className={styles.monthGrid}>
+        {DAYS.map((day) => (
+          <div key={day} className={styles.monthWeekday}>{day}</div>
+        ))}
+        {monthDates.map((date) => {
+          const key = date.toDateString();
+          const dayPosts = postsByDate[key] || [];
+          const isCurrentMonth = date.getMonth() === visibleMonth;
+          const isToday = isSameDay(date, new Date());
+
+          return (
+            <button
+              type="button"
+              key={key}
+              className={`${styles.monthCell} ${!isCurrentMonth ? styles.mutedMonthCell : ""}`}
+              onClick={() => openCreateForDate(date)}
+            >
+              <span className={`${styles.monthDayNum} ${isToday ? styles.today : ""}`}>
+                {date.getDate()}
+              </span>
+              <div className={styles.monthPostList}>
+                {dayPosts.slice(0, 3).map((post: any) => (
+                  <span key={post.id} className={styles.monthPostPill}>
+                    <PlatformIcon platform={post.platform} size={10} />
+                    {post.content || "Media Post"}
+                  </span>
+                ))}
+                {dayPosts.length > 3 && (
+                  <span className={styles.morePosts}>+{dayPosts.length - 3} more</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderYearView = () => (
+    <div className={styles.yearGrid}>
+      {MONTHS.map((month, index) => {
+        const monthPosts = postsByMonth[index] || [];
+        const isCurrentMonth = index === new Date().getMonth() && visibleYear === new Date().getFullYear();
+
+        return (
+          <button
+            type="button"
+            key={month}
+            className={`${styles.yearMonthCard} ${isCurrentMonth ? styles.currentYearMonth : ""}`}
+            onClick={() => {
+              const date = new Date(visibleYear, index, 1, 9, 0, 0, 0);
+              openCreateForDate(date);
+            }}
+          >
+            <span className={styles.yearMonthName}>{month}</span>
+            <strong>{monthPosts.length}</strong>
+            <span>{monthPosts.length === 1 ? "post" : "posts"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const renderListView = () => (
+    <div className={styles.listView}>
+      {filtered.length === 0 ? (
+        <div className={styles.emptyState}>No posts found for this filter.</div>
+      ) : (
+        [...filtered]
+          .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+          .map((post: any) => {
+            const date = getPostDate(post);
+            const platform = PLATFORMS[post.platform] || PLATFORMS.instagram;
+
+            return (
+              <button
+                type="button"
+                key={post.id}
+                className={styles.listItem}
+                onClick={() => openEditPost(post)}
+              >
+                <span className={styles.listPlatform} style={{ background: platform.color }}>
+                  <PlatformIcon platform={post.platform} size={14} />
+                </span>
+                <span className={styles.listMain}>
+                  <strong>{post.content || "Media Post"}</strong>
+                  <span>{date.toLocaleString()}</span>
+                </span>
+                <span className={styles.listStatus}>{post.status}</span>
+              </button>
+            );
+          })
+      )}
+    </div>
+  );
+
+  const renderCalendarView = () => {
+    if (view === "day") return renderDayView();
+    if (view === "month") return renderMonthView();
+    if (view === "year") return renderYearView();
+    if (view === "list") return renderListView();
+    return renderWeekView();
+  };
+
   const stats = {
     total: posts.length,
     draft: posts.filter((p: any) => p.status === "draft").length,
@@ -473,8 +841,10 @@ const Planning = () => {
         <div className={styles.calToolbar}>
           <div className={styles.calToolbarLeft}>
             <span className={styles.monthLabel}>
-              {monthYear.split(" ")[0]}{" "}
-              <span className={styles.monthLabelYear}>{monthYear.split(" ")[1]}</span>
+              {calendarTitle.primary}{" "}
+              {calendarTitle.secondary && (
+                <span className={styles.monthLabelYear}>{calendarTitle.secondary}</span>
+              )}
             </span>
             <div className={styles.navGroup}>
               <button className={styles.navArrow} onClick={() => setCurrentWeekOffset((o) => o - 1)}>‹</button>
@@ -483,7 +853,7 @@ const Planning = () => {
             </div>
           </div>
           <div className={styles.viewToggle}>
-            {["Day", "Week", "Month"].map((v) => (
+            {["Day", "Week", "Month", "Year", "List"].map((v) => (
               <button
                 key={v}
                 className={`${styles.viewBtn} ${view === v.toLowerCase() ? styles.active : ""}`}
@@ -495,90 +865,7 @@ const Planning = () => {
           </div>
         </div>
 
-        <div className={styles.tableWrapper}>
-          <table className={styles.calTable}>
-            <thead>
-              <tr>
-                <th className={styles.timeColHeader}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#aaa" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                  </svg>
-                </th>
-                {DAYS.map((d, i) => {
-                  const dt = weekDates[i];
-                  const isToday = dt?.toDateString() === new Date().toDateString();
-                  return (
-                    <th key={d} className={styles.dayHeader}>
-                      <span className={styles.dayName}>{d}</span>
-                      <span className={`${styles.dayNum} ${isToday ? styles.today : ""}`}>
-                        {dt ? dt.getDate() : ""}
-                      </span>
-                    </th>
-                  );
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {HOURS.map((hour) => (
-                <tr key={hour}>
-                  <td className={styles.timeCell}>{hour}</td>
-                  {DAYS.map((_, di) => {
-                    const cellKey = `${di}-${hour}`;
-                    const cellPosts = postsByCell[cellKey] || [];
-                    
-                    return (
-                      <td
-                        key={di}
-                        className={`${styles.calCell} ${dragOverCell === cellKey ? styles.dragOver : ""}`}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverCell(cellKey); }}
-                        onDragLeave={() => setDragOverCell(null)}
-                        onDrop={(e) => handleDrop(e, di, hour)}
-                        onClick={() => {
-                          const targetDate = new Date(weekDates[di]);
-                          let hourNum = parseInt(hour.split(" ")[0]);
-                          if (hour.includes("PM") && hourNum !== 12) hourNum += 12;
-                          if (hour.includes("AM") && hourNum === 12) hourNum = 0;
-                          targetDate.setHours(hourNum, 0, 0, 0);
-
-                          if (targetDate < new Date()) {
-                            alert("You cannot schedule a post in the past!");
-                            return; 
-                          }
-
-                          const localTime = toLocalInput(targetDate.toISOString());
-                          setModal({ type: 'create', initialDate: localTime });
-                        }}
-                      >
-                        {cellPosts.map((post: any) => (
-                          <PostCard 
-                            key={post.id} 
-                            post={post} 
-                            onEdit={(p: any) => {
-                              // ✅ Robust mapper to ensure URLs hit the Content Editor perfectly
-                              const mappedFiles = p.mediaItems ? p.mediaItems.map((item: any) => ({
-                                ...item,
-                                type: item.type || item.mimeType, 
-                                mediaUrl: item.secureUrl || item.fileUrl || item.mediaUrl,
-                                preview: item.secureUrl || item.fileUrl || item.mediaUrl,
-                                url: item.secureUrl || item.fileUrl || item.mediaUrl
-                              })) : [];
-                              
-                              setModal({ 
-                                type: "edit", 
-                                post: { ...p, files: mappedFiles },
-                                isReadOnly: p.status === 'published' // ✅ Toggle the freeze state
-                              });
-                            }} 
-                          />
-                        ))}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {renderCalendarView()}
       </div>
 
       {modal && (

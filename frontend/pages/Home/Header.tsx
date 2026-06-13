@@ -1,14 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import styles from "../../styles/HomeCSS/Header.module.css";
-import Chatbot from "../../components/Chatbot";
 import { useRouter } from "next/router";
+
+const Chatbot = dynamic(() => import("../../components/Chatbot"), {
+  ssr: false,
+});
 
 export default function Header() {
   const router = useRouter();
 
-  const showLandingChatbot = router.pathname === "/" || router.pathname === "/home";
+  const showLandingChatbot = router.pathname === "/" || router.pathname === "/Home";
 
   return (
     <>

@@ -1,0 +1,101 @@
+import { MediaItem } from "../../types";
+
+interface MediaPreviewGridProps {
+  files: MediaItem[];
+  limit?: number;
+  variant?: "default" | "instagram" | "instagram-story" | "instagram-reel" | "facebook-reel" | "linkedin" | "youtube";
+}
+
+export default function MediaPreviewGrid({ files, limit, variant = "default" }: MediaPreviewGridProps) {
+  const visibleFiles = typeof limit === "number" ? files.slice(0, limit) : files;
+
+  if (visibleFiles.length === 0) {
+    return (
+      <div
+        style={{
+          aspectRatio:
+            variant === "youtube"
+              ? "16 / 9"
+              : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
+                ? "9 / 16"
+                : "1 / 1",
+          background: variant === "youtube" ? "#111" : "#eef2f7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: variant === "youtube" ? "#fff" : "#64748b",
+          fontSize: 14,
+        }}
+      >
+        Media preview
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: visibleFiles.length === 1 ? "1fr" : "repeat(2, minmax(0, 1fr))",
+        gap: variant === "default" ? 6 : 0,
+        overflow: "hidden",
+        borderRadius: variant === "default" ? 10 : 0,
+        background: variant === "youtube" ? "#000" : "#f1f5f9",
+        width: "100%",
+        height:
+          variant === "instagram" ||
+          variant === "instagram-story" ||
+          variant === "instagram-reel" ||
+          variant === "facebook-reel" ||
+          variant === "linkedin" ||
+          variant === "youtube"
+            ? "100%"
+            : "auto",
+      }}
+    >
+      {visibleFiles.map((item) => {
+        const src = item.url as string;
+
+        return item.type === "video" ? (
+          <video
+            key={item.id}
+            src={src}
+            controls
+            muted
+            playsInline
+            style={{
+              width: "100%",
+              aspectRatio:
+                variant === "youtube"
+                  ? "16 / 9"
+                  : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
+                    ? "9 / 16"
+                    : "1 / 1",
+              objectFit: "cover",
+              background: "#000",
+              display: "block",
+            }}
+          />
+        ) : (
+          <img
+            key={item.id}
+            src={src}
+            alt={item.name || "Uploaded media preview"}
+            style={{
+              width: "100%",
+              aspectRatio:
+                variant === "youtube"
+                  ? "16 / 9"
+                  : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
+                    ? "9 / 16"
+                    : "1 / 1",
+              objectFit: "cover",
+              background: "#f1f5f9",
+              display: "block",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}

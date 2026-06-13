@@ -1,15 +1,17 @@
 /* ===== PAGE LAYOUT ===== */
 .container {
-  min-height: 100vh;
+  min-height: 100%;
   background-color: none;
   padding: 0;
 }
 
 .pageTitle {
-  font-size: 1.75rem;
+  margin: 0 0 22px;
   font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.12;
   color: #0f172a;
-  margin-bottom: 2rem;
+  letter-spacing: 0;
 }
 
 /* ===== LOADING STATE ===== */
@@ -54,14 +56,23 @@
 }
 
 .platformIcon {
-  width: 42px;
-  height: 42px;
-  border-radius: 10px;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
   color: white;
+}
+
+.connectedIconFallback {
+  border: 1px solid #e5e7eb;
+}
+
+.hiddenIcon {
+  display: none;
 }
 
 .platformName {
@@ -136,6 +147,10 @@
   background: none;
 }
 
+.notConnectedBadge {
+  color: #b45309;
+}
+
 .emptyText {
   font-size: 0.875rem;
   color: #94a3b8;
@@ -193,78 +208,4 @@
 
 .disconnectBtn:hover {
   background: #fee2e2;
-}
-
-:global([data-theme="dark"]) .container {
-  background: transparent;
-  color: var(--app-text);
-}
-
-:global([data-theme="dark"]) .pageTitle {
-  color: var(--app-text);
-}
-
-:global([data-theme="dark"]) .loadingText,
-:global([data-theme="dark"]) .emptyText {
-  color: var(--app-text-muted);
-}
-
-:global([data-theme="dark"]) .platformCard {
-  background: #0b0b0f;
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: none;
-}
-
-:global([data-theme="dark"]) .platformCard:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
-}
-
-:global([data-theme="dark"]) .cardFooter {
-  background: #121218;
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-:global([data-theme="dark"]) .platformName,
-:global([data-theme="dark"]) .userName {
-  color: var(--app-text);
-}
-
-:global([data-theme="dark"]) .avatar {
-  border-color: rgba(255, 255, 255, 0.22);
-}
-
-:global([data-theme="dark"]) .statusBadge {
-  color: #86efac;
-  background: rgba(34, 197, 94, 0.16);
-}
-
-:global([data-theme="dark"]) .connectBtn {
-  background: #111827;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .connectBtn:hover {
-  background: #0b1220;
-}
-
-:global([data-theme="dark"]) .reconnectBtn {
-  background: #f8fafc;
-  border-color: #f8fafc;
-  color: #334155;
-}
-
-:global([data-theme="dark"]) .reconnectBtn:hover {
-  background: #e2e8f0;
-}
-
-:global([data-theme="dark"]) .disconnectBtn {
-  background: #f8fafc;
-  border-color: #f8fafc;
-  color: #dc2626;
-}
-
-:global([data-theme="dark"]) .disconnectBtn:hover {
-  background: #fee2e2;
-  border-color: #fecaca;
 }

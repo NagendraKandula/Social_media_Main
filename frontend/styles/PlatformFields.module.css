@@ -75,24 +75,3 @@
     font-size: 14px;
   }
 }
-
-:global([data-theme="dark"]) .platform {
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .textOnly {
-  color: #a1a1aa;
-}
-
-:global([data-theme="dark"]) .field select,
-:global([data-theme="dark"]) .field input {
-  background-color: #121218;
-  border-color: rgba(255, 255, 255, 0.16);
-  color: #f9fafb;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23d1d5db' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-}
-
-:global([data-theme="dark"]) .field select:focus,
-:global([data-theme="dark"]) .field input:focus {
-  border-color: #ff4d4f;
-}

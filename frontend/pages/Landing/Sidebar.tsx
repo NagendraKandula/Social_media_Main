@@ -8,7 +8,7 @@ import {
   FaChartBar,
   FaRegLightbulb,
 } from "react-icons/fa";
-import styles from "../styles/sidebar.module.css";
+import styles from "../../styles/sidebar.module.css";
 
 interface SidebarProps {
   activeSegment: string;

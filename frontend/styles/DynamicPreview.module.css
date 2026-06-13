@@ -1,47 +1,44 @@
 /* DynamicPreview.module.css */
 
 .previewContainer {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
-.previewCard {
-  background: white;
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e7eb;
-  transition: box-shadow 0.2s;
+.previewScroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
 }
 
-.previewCard:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+.previewItem {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
-.previewHeader {
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #374151;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+.previewItem > :global(*) {
+  width: fit-content;
+  max-width: 100%;
 }
 
-/* Platform-specific header colors (subtle branding) */
-.previewCard[data-platform="twitter"] .previewHeader { background: #f7f9fa; }
-.previewCard[data-platform="facebook"] .previewHeader { background: #f0f2f5; }
-.previewCard[data-platform="instagram"] .previewHeader { background: #fafafa; }
-.previewCard[data-platform="linkedin"] .previewHeader { background: #f7f9fc; }
-.previewCard[data-platform="youtube"] .previewHeader { background: #f9f9f9; }
-.previewCard[data-platform="threads"] .previewHeader { background: #f7f7f7; }
-
-/* Empty state */
+.welcomeMessage,
 .empty {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  min-height: 260px;
   background: #f9fafb;
   border-radius: 12px;
   color: #6b7280;
@@ -51,28 +48,20 @@
   border: 1px dashed #d1d5db;
 }
 
-/* Ensure preview content fills card */
-.previewCard > div:last-child {
-  padding: 16px;
+.welcomeMessage p {
+  margin: 0;
+  font-weight: 600;
+  color: #334155;
+}
+
+.welcomeMessage span {
+  font-size: 13px;
 }
 
 /* Responsive */
 @media (max-width: 640px) {
-  .previewContainer {
-    gap: 16px;
+  .previewScroll {
+    padding: 0;
+    gap: 20px;
   }
-
-  .previewCard {
-    border-radius: 10px;
-  }
-
-  .previewHeader {
-    font-size: 13px;
-    padding: 10px 14px;
-  }
-}
-
-/* Optional: Add subtle divider between multi-preview cards */
-.previewCard:not(:last-child) {
-  margin-bottom: 8px;
 }

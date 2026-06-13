@@ -20,13 +20,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 56px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 16px;
-  border: 1px solid #e5e7eb;
+  gap: 20px;
+  min-height: 44px;
+  padding: 0;
+  margin-bottom: 22px;
 }
 
 .topLeft {
@@ -36,9 +33,12 @@
 }
 
 .topTitle {
-  font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  font-size: 1.75rem;
+  line-height: 1.12;
+  color: #0f172a;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 
 /* Platform selector */
@@ -524,148 +524,6 @@
 /* ===============================
    Dark Mode
 ================================ */
-
-:global([data-theme="dark"]) .root {
-  background: #000000;
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .topbar,
-:global([data-theme="dark"]) .tabBar,
-:global([data-theme="dark"]) .sidebar,
-:global([data-theme="dark"]) .canvasArea,
-:global([data-theme="dark"]) .rightSidebar {
-  background: #0b0b0f;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #f9fafb;
-  box-shadow: none;
-}
-
-:global([data-theme="dark"]) .topTitle,
-:global([data-theme="dark"]) .sidebarTitle {
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .sidebarHeader {
-  border-bottom-color: rgba(255, 255, 255, 0.12);
-}
-
-:global([data-theme="dark"]) .iconBtn {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #d1d5db;
-}
-
-:global([data-theme="dark"]) .iconBtn:hover {
-  background: #1a1a22;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .platformBtn {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #d1d5db;
-}
-
-:global([data-theme="dark"]) .platformBtn:hover {
-  background: #1a1a22;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .platformActive {
-  background: #ff4d4f;
-  border-color: #ff4d4f;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .tabBtn {
-  color: #a1a1aa;
-}
-
-:global([data-theme="dark"]) .tabBtn:hover {
-  background: #1a1a22;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .tabActive {
-  background: rgba(255, 77, 79, 0.16);
-  color: #ff7a7b;
-}
-
-:global([data-theme="dark"]) .sideSectionLabel,
-:global([data-theme="dark"]) .rightSectionTitle,
-:global([data-theme="dark"]) .canvasMeta,
-:global([data-theme="dark"]) .inputGrid label {
-  color: #a1a1aa;
-}
-
-:global([data-theme="dark"]) .addTextBtn,
-:global([data-theme="dark"]) .uploadBtn {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.18);
-  color: #d1d5db;
-}
-
-:global([data-theme="dark"]) .addTextBtn:hover,
-:global([data-theme="dark"]) .uploadBtn:hover {
-  border-color: rgba(255, 77, 79, 0.65);
-  color: #ff7a7b;
-  background: rgba(255, 77, 79, 0.12);
-}
-
-:global([data-theme="dark"]) .textPreset,
-:global([data-theme="dark"]) .shapeBtn,
-:global([data-theme="dark"]) .fmtBtn,
-:global([data-theme="dark"]) .layerBtn,
-:global([data-theme="dark"]) .inputGrid input[type="number"] {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .textPreset:hover,
-:global([data-theme="dark"]) .shapeBtn:hover,
-:global([data-theme="dark"]) .fmtBtn:hover,
-:global([data-theme="dark"]) .layerBtn:hover {
-  background: #1a1a22;
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.24);
-}
-
-:global([data-theme="dark"]) .fmtActive {
-  background: rgba(255, 77, 79, 0.16);
-  color: #ff7a7b;
-  border-color: rgba(255, 77, 79, 0.48);
-}
-
-:global([data-theme="dark"]) .thumbBtn {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.14);
-}
-
-:global([data-theme="dark"]) .thumbBtn:hover {
-  border-color: rgba(255, 77, 79, 0.65);
-}
-
-:global([data-theme="dark"]) .canvas {
-  background: #ffffff;
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38);
-}
-
-:global([data-theme="dark"]) .colorInput {
-  background: #121218 !important;
-  border-color: rgba(255, 255, 255, 0.14) !important;
-}
-
-:global([data-theme="dark"]) .rightEmpty,
-:global([data-theme="dark"]) .uploadHint {
-  color: #71717a;
-}
-
-:global([data-theme="dark"]) .formatDivider {
-  background: rgba(255, 255, 255, 0.14);
-}
 
 /* ===============================
    Responsive

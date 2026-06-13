@@ -1,190 +1,232 @@
-.youtubeCard {
-  width: 100%;
-  max-width: 180px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  padding: 14px;
-  font-family: Roboto, Arial, sans-serif;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+.wrap {
+  width: min(350px, 100%);
+  color: #2b2b2b;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* --- Thumbnail --- */
-.thumbnailContainer {
+.platformLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+  font-size: 15px;
+  line-height: 1;
+  margin-bottom: 18px;
+}
+
+.platformLabel svg {
+  width: 15px;
+  height: 15px;
+}
+
+.warning {
+  width: 100%;
+  margin: 0 auto 12px;
+  border: 1px solid #f2c94c;
+  border-radius: 8px;
+  background: #fff8df;
+  color: #7a4f00;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.shortsFrame {
   position: relative;
   width: 100%;
-  height: 0;
-  padding-bottom: 56.25%; /* 16:9 aspect ratio */
-  border-radius: 10px;
+  height: 550px;
+  margin: 0 auto;
   overflow: hidden;
-  background: #f4f4f4;
-  margin-bottom: 10px;
-  transition: transform 0.25s ease;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  background: #090b0b;
+  color: #ffffff;
 }
 
-.thumbnailContainer:hover {
-  transform: scale(1.01);
-}
-
-.thumbnailImage {
+.shortsMedia {
   position: absolute;
-  top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  z-index: 1; /* Optional: ensure image is above background but below overlays */
+  right: 0;
+  top: 180px;
+  height: 200px;
+  background: #000000;
 }
 
-/* --- YouTube Header Overlay (Text-only, LinkedIn style) --- */
-.youtubeHeader {
+.shortsMedia :global(img),
+.shortsMedia :global(video) {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+}
+
+.shortsPlay {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  z-index: 10; /* Must be higher than playOverlay */
-}
-
-.playOverlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 5; /* Lower than .youtubeHeader but above image */
-}
-
-.playButton {
-  width: 56px;
-  height: 56px;
-  background: white;
+  top: 280px;
+  left: 50%;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
+  transform: translate(-50%, -50%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s ease, background 0.2s ease;
-  z-index: 6; /* Above playOverlay background */
-}
-
-.playButton:hover {
-  background: #f8f8f8;
-  transform: scale(1.05);
-}
-
-.playButton svg {
-  color: #000;
-  width: 22px;
-  height: 22px;
-}
-
-/* --- Info --- */
-.info {
-  margin-bottom: 10px;
-}
-
-.title {
+  background: rgba(255, 255, 255, 0.74);
+  color: #1f2933;
   font-size: 15px;
-  font-weight: 500;
-  color: #111;
-  line-height: 1.4;
-  margin: 0 0 6px 0;
-  word-break: break-word;
+  pointer-events: none;
 }
 
-.channelInfo {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #666;
+.shortsPlay svg {
+  margin-left: 4px;
 }
 
-.channelName {
-  font-weight: 500;
-  color: #000;
-}
-
-.dot {
-  color: #aaa;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.views,
-.timeAgo {
-  color: #666;
-}
-
-/* --- Actions --- */
-.actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 10px;
-  border-top: 1px solid #eee;
-  gap: 4px;
-}
-
-.action {
+.shortsActions {
+  position: absolute;
+  right: 16px;
+  top: 280px;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  transition: background 0.2s, transform 0.2s;
-  color: #555;
-  font-size: 11px;
+  gap: 10px;
+  text-align: center;
+  font-size: 12px;
 }
 
-.action:hover {
-  background: #f5f5f5;
-  transform: translateY(-1px);
+.shortsActions span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: #ffffff;
+  line-height: 1.1;
 }
 
-.action svg {
-  stroke-width: 1.8;
+.shortsActions svg {
+  width: 20px;
+  height: 20px;
+  color: #ffffff;
 }
 
-.moreAction {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
+.shortsFooter {
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  bottom: 38px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.channelAvatar,
+.channelFallback {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border-radius: 50%;
-  transition: background 0.2s;
-  color: #555;
+  background: #ffffff;
+  object-fit: cover;
 }
 
-.moreAction:hover {
-  background: #f5f5f5;
+.channelFallback {
+  color: #4b4b72;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
 }
 
-/* --- Responsive: Small Screens --- */
-@media (max-width: 420px) {
-  .youtubeCard {
-    padding: 12px;
-    max-width: 100%;
+.shortsFooter strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.shortsFooter button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111111;
+  padding: 8px 10px;
+  font-size: 10px;
+  font-weight: 550;
+}
+
+.shortBadge {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  margin-left: auto;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #4b4b72;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.videoWarningCard {
+  width: 100%;
+  min-height: 230px;
+  margin: 0 auto;
+  border: 1px solid #f3d6d6;
+  border-radius: 12px;
+  background: #fff7f7;
+  color: #2b2b2b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.videoWarningIcon {
+  width: 34px;
+  height: 34px;
+  color: #ff0000;
+}
+
+.videoWarningCard h3 {
+  margin: 0;
+  color: #1f1f1f;
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.videoWarningCard p {
+  margin: 0;
+  color: #5f5f5f;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.videoWarningCard strong {
+  color: #2b2b2b;
+}
+
+@media (max-width: 520px) {
+  .platformLabel {
+    font-size: 18px;
+    margin-bottom: 14px;
   }
 
-  .title {
-    font-size: 14px;
+  .platformLabel svg {
+    width: 20px;
+    height: 20px;
   }
 
-  .action span {
-    display: none; /* Icons only on small screens */
+  .videoWarningCard {
+    width: min(350px, 100%);
   }
 }

@@ -1,4 +1,7 @@
 import { MediaItem } from "../../types";
+import MediaPreviewGrid from "./MediaPreviewGrid";
+import { toPreviewText } from "./previewText";
+import styles from "../../styles/TwitterPreview.module.css";
 
 interface Props {
   content: string;
@@ -7,28 +10,17 @@ interface Props {
 
 export default function TwitterPreview({ content, files }: Props) {
   const media = files.slice(0, 4);
+  const captionText = toPreviewText(content);
 
   return (
-    <div>
-      <p>{content}</p>
+    <article className={styles.card}>
+      <div className={styles.content}>
+        {captionText && <p className={styles.caption}>{captionText}</p>}
 
-      <div>
-        {media.map((item) =>
-          item.type === "image" ? (
-            <img
-              key={item.id}
-              src={item.url as string}
-              alt="preview"
-            />
-          ) : (
-            <video
-              key={item.id}
-              src={item.url as string}
-              muted
-            />
-          )
-        )}
+        <div className={styles.media}>
+          <MediaPreviewGrid files={media} />
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

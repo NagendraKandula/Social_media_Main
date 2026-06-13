@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { GetServerSideProps } from 'next';
 import { useRouter } from 'next/router';
+import dynamic from 'next/dynamic';
 import axios from '../../../lib/axios';
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
 import styles from '../../../styles/LandingCSS/Analytics/Analytics.module.css';
 import { withAuth } from '../../../utils/withAuth';
+
+const AreaChart = dynamic<any>(() => import('recharts').then((mod) => mod.AreaChart), { ssr: false });
+const Area = dynamic<any>(() => import('recharts').then((mod) => mod.Area), { ssr: false });
+const XAxis = dynamic<any>(() => import('recharts').then((mod) => mod.XAxis), { ssr: false });
+const YAxis = dynamic<any>(() => import('recharts').then((mod) => mod.YAxis), { ssr: false });
+const CartesianGrid = dynamic<any>(() => import('recharts').then((mod) => mod.CartesianGrid), { ssr: false });
+const Tooltip = dynamic<any>(() => import('recharts').then((mod) => mod.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic<any>(() => import('recharts').then((mod) => mod.ResponsiveContainer), { ssr: false });
 
 const FacebookAnalytics = () => {
   const router = useRouter();

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../lib/axios'; // ✅ Import the centralized apiClient
-import styles from '../styles/ForgotPassword.module.css';
+import apiClient from '../../lib/axios'; // ✅ Import the centralized apiClient
+import styles from '../../styles/ForgotPassword.module.css';
 import Link from 'next/link';
 import { useRouter } from 'next/router'; // Import useRouter
 
@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
       setMessage('A new OTP has been sent.');
       setCanResend(false);
       setResendTimer(60); // Reset timer
-    } catch (err) {
+    } catch (err: any) {
       if (err.response?.status === 401) {
          window.location.href = '/Auth/login';
          return;

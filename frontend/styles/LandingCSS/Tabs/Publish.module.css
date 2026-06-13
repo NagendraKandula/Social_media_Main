@@ -1,279 +1,221 @@
 /* ===============================
-   Page Wrapper
+   Page
 ================================ */
 
 .publishPage {
-  background: var(--app-bg);
   min-height: 100%;
-  padding: 0;
   color: var(--app-text);
 }
 
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.pageHeader h1 {
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.12;
+  color: #0f172a;
+  letter-spacing: 0;
+}
+
+.pageHeader p {
+  margin: 6px 0 0;
+  font-size: 0.92rem;
+  color: #64748b;
+}
+
+.headerMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.headerMeta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
 /* ===============================
-   Main Layout (Left | Divider | Right)
-   👉 FIXED HEIGHT SHELL
+   Layout
 ================================ */
 
 .mainLayout {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) 2px minmax(0, 1fr);
-  gap: 24px;
-
-  height: calc(100vh - 190px);
+  grid-template-columns: minmax(0, 1.75fr) minmax(340px, 0.85fr);
+  gap: 22px;
   align-items: stretch;
-  min-height: 560px;
 }
 
-/* ===============================
-   Left Column
-================================ */
+.leftColumn,
+.rightColumn {
+  min-width: 0;
+}
 
-.leftColumn {
-  display: flex;
-  height: 100%;
+.leftCard,
+.rightCard {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
 }
 
 .leftCard {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 16px;
-
-  flex: 1;
-  height: 100%;                /* ✅ LOCK HEIGHT */
   display: flex;
   flex-direction: column;
   gap: 18px;
-  overflow: auto;
+  padding: 18px;
+}
+
+.rightCard {
+  position: sticky;
+  top: 132px;
+  display: flex;
+  flex-direction: column;
+  min-height: 620px;
+  max-height: calc(100vh - 170px);
+  padding: 14px;
+  overflow: hidden;
+}
+
+.divider {
+  display: none;
 }
 
 /* ===============================
-   Top Row (Channels + Actions)
+   Composer Header
 ================================ */
 
 .topRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #eef2f7;
 }
 
 .topActions {
   display: flex;
-  gap: 16px;
   align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
-
-/* ===============================
-   Editor Slot
-================================ */
 
 .editorSlot {
-  flex: 1;                     /* ✅ FIXED AREA */
   min-height: 260px;
-  overflow: hidden;
 }
-
-/* ===============================
-   Platform Fields Slot
-   👉 RESERVED SPACE (NO LAYOUT SHIFT)
-================================ */
 
 .platformSlot {
-  height: 220px;               /* ✅ ALWAYS RESERVED */
+  max-height: 220px;
   overflow-y: auto;
-  border-top: 1px solid #e5e7eb;
-  padding-top: 12px;
+  border-top: 1px solid #eef2f7;
+  padding-top: 14px;
 }
 
 /* ===============================
-   Divider
+   Right Panel
 ================================ */
 
-.divider {
-  width: 1px;
-  background: #283041;
-  border-radius: 1px;
-}
-
-/* ===============================
-   Right Column
-================================ */
-
-.rightColumn {
-  display: flex;
-  height: 100%;
-}
-
-.rightCard {
-  width: 100%;
-
-  height: 100%;                /* ✅ MATCH LEFT */
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  background: #ffffff;
-
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-  overflow: hidden;            /* ✅ NO GROWTH */
-}
-
-/* ===============================
-   Right Tabs
-================================ */
 .rightHeader {
-  display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
   flex-shrink: 0;
-  margin-top: 10px;
 }
 
 .rightHeader button {
-  padding: 8px 16px;
-  font-size: 14px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
-  background: #f9fafb;
-  color: #6b7280;
-  transition: all 0.2s ease; /* Added for smoother tab switching */
 }
 
-/* 🟢 FIX: Target the button with the active class specifically */
 .rightHeader button.activeTab {
-  background: #3371f8;
-  color: #ffffff;
-  border-color: #3371f8; /* Match border to background */
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
-/* Optional: Add a hover state for non-active buttons */
 .rightHeader button:hover:not(.activeTab) {
-  background: #f3f4f6;
-  color: #374151;
+  color: #0f172a;
 }
-
-/* ===============================
-   Right Panel Content
-================================ */
 
 .rightPanel {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-
-  min-height: 0;     /* 🔥 REQUIRED */
-  overflow: hidden; /* 🔒 prevents expansion */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .previewPlaceholder {
-  flex: 1;
-  border: 1px dashed #d1d5db;
+  min-height: 420px;
+  border: 1px dashed #cbd5e1;
   border-radius: 8px;
+  background: #f8fafc;
 }
 
 /* ===============================
    Buttons
 ================================ */
 
-.secondaryBtn {
-  padding: 8px 15px;
+.secondaryBtn,
+.primaryBtn {
+  min-height: 38px;
+  padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
-  font-size: 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.secondaryBtn {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #475569;
 }
 
 .secondaryBtn:hover {
-  background: #f9fafb;
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 .primaryBtn {
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: none;
-  background: #3371f8;
-  color: #ffffff;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-:global([data-theme="dark"]) .publishPage {
-  background: #000000;
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .leftCard,
-:global([data-theme="dark"]) .rightCard,
-:global([data-theme="dark"]) .scheduleModal {
-  background: #0b0b0f;
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #f9fafb;
-}
-
-:global([data-theme="dark"]) .topRow {
-  border-bottom-color: rgba(255, 255, 255, 0.12);
-}
-
-:global([data-theme="dark"]) .divider {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-:global([data-theme="dark"]) .rightHeader button,
-:global([data-theme="dark"]) .secondaryBtn,
-:global([data-theme="dark"]) .modalActions button:first-child,
-:global([data-theme="dark"]) .scheduleModal input {
-  background: #121218;
-  border-color: rgba(255, 255, 255, 0.16);
-  color: #d1d5db;
-}
-
-:global([data-theme="dark"]) .rightHeader button.activeTab,
-:global([data-theme="dark"]) .primaryBtn,
-:global([data-theme="dark"]) .modalActions button:last-child {
-  background: #ff4d4f;
-  border-color: #ff4d4f;
+  border: 1px solid #ff5e45;
+  background: #ff5e45;
   color: #ffffff;
 }
 
-:global([data-theme="dark"]) .rightHeader button:hover:not(.activeTab),
-:global([data-theme="dark"]) .secondaryBtn:hover {
-  background: #1a1a22;
-  color: #ffffff;
-}
-
-:global([data-theme="dark"]) .previewPlaceholder {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: #000000;
-}
-
-:global([data-theme="dark"]) .scheduleOverlay {
-  background: rgba(0, 0, 0, 0.72);
-}
-
-@media (max-width: 1100px) {
-  .mainLayout {
-    grid-template-columns: 1fr;
-    height: auto;
-    min-height: 0;
-  }
-
-  .divider {
-    display: none;
-  }
-
-  .rightCard {
-    min-height: 520px;
-  }
+.primaryBtn:hover {
+  background: #ef4f39;
+  border-color: #ef4f39;
 }
 
 .primaryBtn:disabled {
-  opacity: 0.6;
+  opacity: 0.62;
   cursor: not-allowed;
 }
 
@@ -281,34 +223,42 @@
    Schedule Modal
 ================================ */
 
-.scheduleOverlay {
+.scheduleOverlay,
+.reviewOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
 }
 
 .scheduleModal {
-  background: #ffffff;
-  border-radius: 8px;
+  width: min(360px, 100%);
   padding: 20px;
-  width: 320px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
 }
 
 .scheduleModal h3 {
-  margin-bottom: 12px;
-  font-size: 16px;
+  margin: 0 0 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .scheduleModal input {
   width: 100%;
-  padding: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
-  margin-bottom: 14px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  color: #0f172a;
 }
 
 .modalActions {
@@ -318,18 +268,205 @@
 }
 
 .modalActions button {
-  padding: 6px 14px;
-  border-radius: 6px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
 }
 
 .modalActions button:first-child {
   background: #ffffff;
   border: 1px solid #d1d5db;
+  color: #475569;
 }
 
 .modalActions button:last-child {
-  background: #111827;
+  background: #ff5e45;
+  border: 1px solid #ff5e45;
   color: #ffffff;
-  border: none;
+}
+
+/* ===============================
+   Review Modal
+================================ */
+
+.reviewOverlay {
+  z-index: 110;
+}
+
+.reviewModal {
+  width: min(980px, 100%);
+  max-height: min(760px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+}
+
+.reviewHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.reviewHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.reviewHeader p {
+  margin: 5px 0 0;
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+.closeReviewBtn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.reviewBody {
+  min-height: 0;
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
+  gap: 18px;
+  padding: 18px;
+  overflow: hidden;
+}
+
+.reviewSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.reviewLabel {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.reviewSummary p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.channelPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.channelPills span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.captionPreview {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.reviewPreview {
+  min-width: 0;
+  min-height: 460px;
+  height: 100%;
+  border: 1px solid #eef2f7;
+  border-radius: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.reviewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 20px;
+  border-top: 1px solid #eef2f7;
+  background: #ffffff;
+}
+
+/* ===============================
+   Dark Theme
+================================ */
+
+/* ===============================
+   Responsive
+================================ */
+
+@media (max-width: 1180px) {
+  .mainLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .rightCard {
+    position: static;
+    min-height: 540px;
+    max-height: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .pageHeader,
+  .topRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerMeta,
+  .topActions {
+    justify-content: flex-start;
+  }
+
+  .topActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .primaryBtn {
+    grid-column: 1 / -1;
+  }
+
+  .reviewBody {
+    grid-template-columns: 1fr;
+  }
+
+  .reviewActions {
+    flex-direction: column-reverse;
+  }
 }

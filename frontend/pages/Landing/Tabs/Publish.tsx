@@ -1,14 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
-import ContentEditor from '../../../components/ContentEditor';
-import PlatformFields, { PlatformState } from '../../../components/PlatformFields';
-import AIAssistant from '../../../components/AIAssistant';
+import { PlatformState } from '../../../components/PlatformFields';
 
 import { usePostCreation } from '../../../hooks/usePostCreation';
 import apiClient from '../../../lib/axios';
+import { validateInstagramMediaSpecs } from '../../../utils/instagramMediaSpecs';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
+
+const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
+  loading: () => <p>Loading editor...</p>,
+});
+const LazyPlatformFields = dynamic(() => import('../../../components/PlatformFields'), {
+  loading: () => <p>Loading platform options...</p>,
+});
+const LazyAIAssistant = dynamic(() => import('../../../components/AIAssistant'), {
+  loading: () => <p>Loading AI assistant...</p>,
+});
+const LazyDynamicPreview = dynamic(() => import('../../../components/DynamicPreview'), {
+  loading: () => <p>Loading preview...</p>,
+});
 
 /* ===============================
    Types
@@ -17,6 +30,12 @@ import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 interface FacebookPage {
   id: string;
   name: string;
+  pictureUrl?: string | null;
+  picture?: {
+    data?: {
+      url?: string;
+    };
+  };
 }
 
 interface SocialAccount {
@@ -50,6 +69,8 @@ export default function Publish() {
   const [accounts, setAccounts] = useState<Partial<Record<Channel, SocialAccount>>>({});
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewMode, setReviewMode] = useState<'publish' | 'schedule'>('publish');
   const [scheduleDate, setScheduleDate] = useState('');
 
   const { uploadMultipleMedia, createPost, uploading, publishing } = usePostCreation();
@@ -66,72 +87,90 @@ export default function Publish() {
     () => resolveEditorRules(selectedChannelList),
     [selectedChannelList]
   );
-// LOGIC: Calculate which channels are disabled based on files
-  
-  // LOGIC: Calculate which channels are disabled based on files
+
+  const selectedFacebookPage = useMemo(
+    () =>
+      facebookPages.find(
+        (page) => page.id === platformState.facebookPageId
+      ),
+    [facebookPages, platformState.facebookPageId]
+  );
+
   const disabledChannels = useMemo(() => {
     const disabled = new Set<Channel>();
-    
-    if (files.length > 1) {
-      // 1. YouTube only supports 1 video at a time
-      disabled.add('youtube');
 
-      // 2. Twitter restricts threads/single tweets to a max of 4 images
-      if (files.length > 4) {
-        disabled.add('twitter');
-      }
+    const imageCount = files.filter((file) => file.type.startsWith('image/')).length;
+    const videoCount = files.filter((file) => file.type.startsWith('video/')).length;
+    const hasImages = imageCount > 0;
+    const hasVideos = videoCount > 0;
+    const hasMixedMedia = hasImages && hasVideos;
+    const totalItems = files.length;
+    const isInstagramStory = platformState.instagramPostType === 'story';
 
-      // 3. LinkedIn supports up to 9 images in a gallery
-      if (files.length > 9) {
-        disabled.add('linkedin');
-      }
-
-      // 4. Instagram carousels maximize at 10 items
-      if (files.length > 10) {
-        disabled.add('instagram');
-      }
-
-      // 5. Threads carousels maximize at 20 items
-      if (files.length > 20) {
-        disabled.add('threads');
-      }
-
-      // 6. Facebook Graph API does not support mixing images & videos in single album requests
-      const hasVideo = files.some(f => f.type.startsWith('video/'));
-      if (hasVideo) {
-        disabled.add('facebook');
-      }
+    if (totalItems === 0) {
+      return disabled;
     }
-    
+
+    if (isInstagramStory && totalItems > 1) {
+      disabled.add('instagram');
+    } else if (totalItems > 10) {
+      disabled.add('instagram');
+    }
+
+    if (totalItems > 10) {
+      disabled.add('threads');
+    }
+
+    if (hasMixedMedia || videoCount > 1 || imageCount > 4) {
+      disabled.add('twitter');
+    }
+
+    if (hasMixedMedia || videoCount > 1 || (hasVideos && imageCount > 0) || imageCount > 9) {
+      disabled.add('linkedin');
+    }
+
+    if (hasMixedMedia || videoCount > 1) {
+      disabled.add('facebook');
+    }
+
+    if (hasImages || videoCount > 1 || totalItems > 1) {
+      disabled.add('youtube');
+    }
+
     return disabled;
-  }, [files]);
+  }, [files, platformState.instagramPostType]);
 
-  // LOGIC: Automatically deselect channels if media rules are violated
   useEffect(() => {
-    if (files.length > 1) {
-      let changed = false;
-      const nextChannels = new Set(selectedChannels);
+    let changed = false;
+    const nextChannels = new Set(selectedChannels);
 
-      // Force deselect unsupported channels
-      disabledChannels.forEach(ch => {
-        if (nextChannels.has(ch)) {
-          nextChannels.delete(ch);
-          changed = true;
-        }
-      });
-
-      if (changed) {
-        setSelectedChannels(nextChannels);
-        const hasVideo = files.some(f => f.type.startsWith('video/'));
-        
-        if (hasVideo && selectedChannels.has('facebook')) {
-          alert('Facebook has been deselected: it does not support mixed albums containing videos. Try posting videos individually or use Instagram Carousels.');
-        } else {
-          alert('Some platforms were deselected because your media count exceeds their maximum gallery limit (e.g. Twitter max is 4).');
-        }
+    disabledChannels.forEach((channel) => {
+      if (nextChannels.has(channel)) {
+        nextChannels.delete(channel);
+        changed = true;
       }
+    });
+
+    if (changed) {
+      setSelectedChannels(nextChannels);
+      alert('Some selected channels were removed because the current media does not match their publishing limits.');
     }
   }, [files, selectedChannels, disabledChannels]);
+
+  const getInstagramValidationErrors = async () => {
+    if (!selectedChannels.has('instagram') || files.length === 0) {
+      return [];
+    }
+
+    return validateInstagramMediaSpecs(
+      files,
+      platformState.instagramPostType || 'post'
+    );
+  };
+
+  const alertInstagramValidationErrors = (errors: string[]) => {
+    alert(`Instagram media does not match the required specs:\n\n${errors.join('\n')}`);
+  };
 
   /* ===============================
      Fetch Connected Accounts
@@ -151,7 +190,7 @@ export default function Publish() {
   ================================ */
 
   useEffect(() => {
-    if (!selectedChannels.has('facebook')) return;
+    if (!accounts.facebook) return;
 
     apiClient
       .get('/facebook/pages')
@@ -165,7 +204,7 @@ export default function Publish() {
         }
       })
       .catch((err) => console.error('FB Pages Error:', err));
-  }, [selectedChannels]);
+  }, [accounts.facebook, platformState.facebookPageId]);
 
   /* ===============================
      Submit
@@ -183,6 +222,12 @@ const handleSubmit = async (isScheduled: boolean) => {
     }
 
     try {
+      const instagramErrors = await getInstagramValidationErrors();
+      if (instagramErrors.length > 0) {
+        alertInstagramValidationErrors(instagramErrors);
+        return;
+      }
+
       // ✅ 1. Use YOUR existing hook to upload all files at once!
       let uploadedMediaItems: any[] = [];
 
@@ -234,10 +279,38 @@ const handleSubmit = async (isScheduled: boolean) => {
       setSelectedChannels(new Set());
       setScheduleDate('');
       setShowScheduleModal(false);
+      setShowReviewModal(false);
     } catch (err: any) {
       console.error(err);
       alert(err.message || 'Failed to create post');
     }
+  };
+
+  const openReview = async (mode: 'publish' | 'schedule') => {
+    if (selectedChannels.size === 0) {
+      alert('Select at least one channel.');
+      return;
+    }
+
+    if (!content && files.length === 0) {
+      alert('Add content or media.');
+      return;
+    }
+
+    if (mode === 'schedule' && !scheduleDate) {
+      alert('Pick a schedule date and time.');
+      return;
+    }
+
+    const instagramErrors = await getInstagramValidationErrors();
+    if (instagramErrors.length > 0) {
+      alertInstagramValidationErrors(instagramErrors);
+      return;
+    }
+
+    setReviewMode(mode);
+    setShowScheduleModal(false);
+    setShowReviewModal(true);
   };
 
   /* ===============================
@@ -246,6 +319,18 @@ const handleSubmit = async (isScheduled: boolean) => {
 
   return (
     <div className={styles.publishPage}>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1>Publish</h1>
+          <p>Create once, tailor by platform, and publish when it is ready.</p>
+        </div>
+
+        <div className={styles.headerMeta}>
+          <span>{selectedChannels.size} channel{selectedChannels.size === 1 ? '' : 's'}</span>
+          <span>{files.length} media</span>
+        </div>
+      </div>
+
       <div className={styles.mainLayout}>
         {/* LEFT COLUMN */}
         <div className={styles.leftColumn}>
@@ -256,6 +341,12 @@ const handleSubmit = async (isScheduled: boolean) => {
     accounts={accounts}
     selectedChannels={selectedChannels}
     onSelectionChange={setSelectedChannels}
+    disabledChannels={disabledChannels}
+    facebookPages={facebookPages}
+    selectedFacebookPageId={platformState.facebookPageId}
+    onFacebookPageSelect={(pageId) =>
+      setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
+    }
   />
 
   <div className={styles.topActions}>
@@ -268,17 +359,17 @@ const handleSubmit = async (isScheduled: boolean) => {
     </button>
     <button
       className={styles.primaryBtn}
-      onClick={() => handleSubmit(false)}
+      onClick={() => openReview('publish')}
       disabled={uploading || publishing}
     >
-      Publish
+      {uploading || publishing ? 'Publishing...' : 'Publish'}
     </button>
   </div>
 </div>
 
 
             {/* Content Editor */}
-            <ContentEditor
+            <LazyContentEditor
               content={content}
               onContentChange={setContent}
               files={files}
@@ -288,7 +379,7 @@ const handleSubmit = async (isScheduled: boolean) => {
             />
 
             {/* Platform Fields */}
-            <PlatformFields
+            <LazyPlatformFields
               selectedChannels={selectedChannels}
               platformState={platformState}
               setPlatformState={setPlatformState}
@@ -323,9 +414,18 @@ const handleSubmit = async (isScheduled: boolean) => {
     {/* Content */}
     <div className={styles.rightPanel}>
       {rightTab === 'ai' ? (
-        <AIAssistant />
+        <LazyAIAssistant />
       ) : (
-        <div className={styles.previewPlaceholder} />
+        <LazyDynamicPreview
+          selectedPlatforms={selectedChannelList}
+          content={content}
+          mediaFiles={files}
+          facebookPostType={platformState.facebookPostType}
+          instagramPostType={platformState.instagramPostType}
+          youtubeType={platformState.youtubeType}
+          accounts={accounts}
+          facebookPage={selectedFacebookPage}
+        />
       )}
     </div>
 
@@ -348,8 +448,92 @@ const handleSubmit = async (isScheduled: boolean) => {
               <button onClick={() => setShowScheduleModal(false)}>
                 Cancel
               </button>
-              <button onClick={() => handleSubmit(true)}>
-                Confirm
+              <button onClick={() => openReview('schedule')}>
+                Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReviewModal && (
+        <div className={styles.reviewOverlay}>
+          <div className={styles.reviewModal}>
+            <div className={styles.reviewHeader}>
+              <div>
+                <h3>Review post</h3>
+                <p>
+                  {reviewMode === 'schedule'
+                    ? `Scheduled for ${new Date(scheduleDate).toLocaleString()}`
+                    : 'Ready to publish now'}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className={styles.closeReviewBtn}
+                onClick={() => setShowReviewModal(false)}
+                aria-label="Close review"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className={styles.reviewBody}>
+              <section className={styles.reviewSummary}>
+                <div>
+                  <span className={styles.reviewLabel}>Channels</span>
+                  <div className={styles.channelPills}>
+                    {selectedChannelList.map((channel) => (
+                      <span key={channel}>{channel}</span>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className={styles.reviewLabel}>Media</span>
+                  <p>{files.length > 0 ? `${files.length} file${files.length === 1 ? '' : 's'} attached` : 'No media attached'}</p>
+                </div>
+
+                <div>
+                  <span className={styles.reviewLabel}>Caption</span>
+                  <p className={styles.captionPreview}>{content || 'No caption added.'}</p>
+                </div>
+              </section>
+
+              <section className={styles.reviewPreview}>
+                <LazyDynamicPreview
+                  selectedPlatforms={selectedChannelList}
+                  content={content}
+                  mediaFiles={files}
+                  facebookPostType={platformState.facebookPostType}
+                  instagramPostType={platformState.instagramPostType}
+                  youtubeType={platformState.youtubeType}
+                  accounts={accounts}
+                  facebookPage={selectedFacebookPage}
+                />
+              </section>
+            </div>
+
+            <div className={styles.reviewActions}>
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => setShowReviewModal(false)}
+              >
+                Back to edit
+              </button>
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                onClick={() => handleSubmit(reviewMode === 'schedule')}
+                disabled={uploading || publishing}
+              >
+                {uploading || publishing
+                  ? 'Sending...'
+                  : reviewMode === 'schedule'
+                    ? 'Confirm schedule'
+                    : 'Confirm publish'}
               </button>
             </div>
           </div>

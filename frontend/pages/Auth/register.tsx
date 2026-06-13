@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import styles from "../../styles/AuthCSS/Register.module.css";
 import apiClient from "../../lib/axios";
-import Chatbot from "../../components/Chatbot"; // ✅ correct import
+
+const Chatbot = dynamic(() => import("../../components/Chatbot"), {
+  ssr: false,
+});
 
 export default function SignupPage() {
   const router = useRouter();
@@ -111,7 +115,7 @@ export default function SignupPage() {
           {/* LEFT FORM */}
           <section className={styles.formSection}>
             <div className={styles.titleRow}>
-              <Link href="/home" className={styles.backHome} aria-label="Back to home">
+              <Link href="/Home" className={styles.backHome} aria-label="Back to home">
                 ←
               </Link>
               <h1 className={styles.title}>Create an account</h1>
@@ -192,7 +196,7 @@ export default function SignupPage() {
 
           {/* RIGHT */}
           <section className={styles.illustrationSection}>
-            <img src="registerimg.png" alt="Register illustration" />
+            <img src="/registerimg.png" alt="Register illustration" />
           </section>
         </main>
 

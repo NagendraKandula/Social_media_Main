@@ -8,8 +8,6 @@ import {
   FaYoutube,
   FaBell,
   FaCog,
-  FaMoon,
-  FaSun,
 } from "react-icons/fa";
 import { SiThreads } from "react-icons/si";
 import { useRouter } from "next/router";
@@ -54,20 +52,12 @@ const LHeader: React.FC<LHeaderProps> = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [activePopup, setActivePopup] = useState<PopupType>(null);
   const [profileInitial, setProfileInitial] = useState("A");
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] =
     useState<ConnectedMap>({});
 
   const getInitialFromEmail = (email?: string) => {
     const firstCharacter = email?.trim().charAt(0);
     return firstCharacter ? firstCharacter.toUpperCase() : "A";
-  };
-
-  const applyTheme = (useDarkMode: boolean) => {
-    const theme = useDarkMode ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-    setIsDarkMode(useDarkMode);
   };
 
   const fetchUserProfile = async () => {
@@ -112,14 +102,6 @@ const LHeader: React.FC<LHeaderProps> = () => {
     return () => {
       window.removeEventListener("social-accounts-updated", handleUpdate);
     };
-  }, []);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldUseDarkMode = savedTheme ? savedTheme === "dark" : prefersDark;
-
-    applyTheme(shouldUseDarkMode);
   }, []);
 
   const handleLogout = async () => {
@@ -239,15 +221,6 @@ const LHeader: React.FC<LHeaderProps> = () => {
       <div className={styles.actions}>
         <button className={styles.notification}>
           <FaBell />
-        </button>
-
-        <button
-          className={styles.themeToggle}
-          onClick={() => applyTheme(!isDarkMode)}
-          aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-          title={isDarkMode ? "Light mode" : "Dark mode"}
-        >
-          {isDarkMode ? <FaSun /> : <FaMoon />}
         </button>
 
         <button className={styles.settings}>

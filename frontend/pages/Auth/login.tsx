@@ -1,9 +1,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import apiClient from "../../lib/axios";
 import styles from "../../styles/AuthCSS/login.module.css";
-import Chatbot from "../../components/Chatbot"; 
+
+const Chatbot = dynamic(() => import("../../components/Chatbot"), {
+  ssr: false,
+});
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -31,7 +35,7 @@ try {
 
   setMessage("Login successful!");
 
-  router.push("/Landing");
+    router.push("/Landing");
 
 } catch (error: any) {
   const errorMessage =
@@ -56,7 +60,7 @@ try {
           {/* LEFT FORM */}
           <section className={styles.formSection}>
             <div className={styles.titleRow}>
-  <Link href="/home" className={styles.backHome}>
+  <Link href="/Home" className={styles.backHome}>
     ←
   </Link>
 
@@ -108,7 +112,7 @@ try {
                   <input type="checkbox" /> Remember me
                 </label>
 
-                <Link href="/forgot-password" className={styles.forgotLink}>
+                <Link href="/Auth/forgot-password" className={styles.forgotLink}>
                   Forgot password?
                 </Link>
               </div>
@@ -156,7 +160,7 @@ try {
 
           {/* RIGHT IMAGE */}
           <section className={styles.illustrationSection}>
-            <img src="loginimg.png" alt="Dashboard illustration" />
+            <img src="/loginimg.png" alt="Dashboard illustration" />
           </section>
         </main>
 
