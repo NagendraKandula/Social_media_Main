@@ -28,7 +28,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         
  ]
       ,
-      profileFields: ['id', 'name','emails','photos'],
+      profileFields: ['id', 'name', 'emails', 'photos', 'picture.type(large)'],
     });
   }
 
@@ -39,13 +39,13 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
     done: (err: any, user: any, info?: any) => void,
   ): Promise<any> {
     // Safely access potentially undefined properties
-    const {id,name,emails,photos} = profile;
+    const { id, photos } = profile;
     const user = {
       id,
       email: profile.emails?.[0]?.value ?? null, // Use optional chaining and fallback to empty string
       firstName: profile.name?.givenName ?? null, // Use optional chaining and fallback
       lastName: profile.name?.familyName ?? null, // Use optional chaining and fallback
-      picture : photos?.[0]?.value ?? null ,// Use optional chaining and fallback
+      picture: photos?.[0]?.value ?? null, // Use optional chaining and fallback
       accessToken,
       refreshToken,
     };

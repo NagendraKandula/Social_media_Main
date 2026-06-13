@@ -53,7 +53,7 @@
 
 /* ✅ ONLY when selected */
 .selected {
-  border-color: #22c55e; /* green */
+  border-color: #ff4d4f; /* green */
 }
 
 /* 🚫 Disabled / reconnect needed */

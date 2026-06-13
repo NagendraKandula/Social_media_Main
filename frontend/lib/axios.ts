@@ -52,7 +52,7 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
         failedQueue = []; // Clear queue on hard failure
 if (typeof window !== 'undefined') {
-    window.location.href = '/login';
+    window.location.href = '/Auth/login';
 }
 return Promise.reject(refreshError);
       }

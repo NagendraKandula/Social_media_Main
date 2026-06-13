@@ -7,6 +7,20 @@
 
 html {
   overflow-x: hidden;
+  color-scheme: light;
+  --app-bg: #ffffff;
+  --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
+  --app-surface-muted: #f1f5f9;
+  --app-text: #111827;
+  --app-text-muted: #595f6c;
+  --app-border: #e5e7eb;
+  --app-shadow: rgba(0, 0, 0, 0.1);
+  --app-accent: #ff4d4f;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -15,4 +29,14 @@ body {
   overflow-x: hidden;
   min-height: 100vh;
   font-family: "Inter", sans-serif;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+input,
+textarea,
+select,
+button {
+  font: inherit;
 }

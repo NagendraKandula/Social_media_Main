@@ -1,0 +1,193 @@
+.header {
+  --header-bg: var(--app-surface);
+  --header-text: var(--app-text);
+  --header-muted: var(--app-text-muted);
+  --header-border: var(--app-border);
+  --header-hover: rgba(255, 77, 79, 0.08);
+  --header-primary: #ff4d4f;
+  --header-dropdown-bg: var(--app-surface);
+  --header-dropdown-shadow: var(--app-shadow);
+  position: sticky;
+  top: 0;
+  z-index: 1000;          /* highest */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  background: var(--header-bg);
+  width: 100%;
+  height: 70px;
+  border-bottom: 1px solid var(--header-border); /* optional but recommended */
+  overflow: visible; 
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Logo */
+.logo {
+  font-size: 30px;
+  font-weight: 500;
+  font-family: "Georgia", serif;
+  color: var(--header-text);
+  line-height: 1;
+}
+
+.dot {
+  color: var(--header-primary);
+}
+
+/* Channels (platform icons) */
+.channels {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+  gap: 35px;
+}
+
+
+
+/* Platform icon wrapper */
+.instagramWrapper {
+  position: relative;
+  overflow: visible;
+}
+
+/* Platform icons */
+.channelIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 45px;
+  border-radius: 30%;
+  border: 1px solid var(--header-border);
+  cursor: pointer;
+  font-size: 17px;
+  background: none;
+  color: var(--header-muted);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+
+.channelIcon:hover {
+  background: var(--header-hover);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* Platform brand colors */
+.channelIcon[data-platform="instagram"] { color: #ab1530; }
+.channelIcon[data-platform="twitter"]   { color: #1da1f2; }
+.channelIcon[data-platform="youtube"]   { color: #ff0000; }
+.channelIcon[data-platform="linkedin"]  { color: #0077b5; }
+.channelIcon[data-platform="pinterest"] { color: #bd081c; }
+.channelIcon[data-platform="facebook"]  { color: #1877f2; }
+.channelIcon[data-platform="threads"]   { color: #000000; }
+
+/* Connected state */
+.connected {
+  border: 1.5px solid var(--header-primary);
+  background: none;
+}
+
+
+/* Right actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* Notification icon */
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--header-muted);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.notification:hover {
+  color: var(--header-primary);
+  background: var(--header-hover);
+}
+
+.settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: var(--header-muted);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.settings:hover {
+  color: var(--header-primary);
+  background: var(--header-hover);
+}
+
+/* Profile */
+.profileContainer {
+  position: relative;
+}
+
+.profilePic {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--header-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--header-bg);
+  font-size: 14px;
+}
+
+.profileInitial {
+  color: white;
+}
+
+/* Dropdown */
+.profileDropdown {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  background: var(--header-dropdown-bg);
+  border: 1px solid var(--header-border);
+  box-shadow: 0 8px 24px var(--header-dropdown-shadow);
+  border-radius: 10px;
+  width: 160px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 0;
+}
+
+.profileDropdown button {
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--header-text);
+}
+
+.profileDropdown button:hover {
+  background: var(--header-hover);
+  color: var(--header-primary);
+}

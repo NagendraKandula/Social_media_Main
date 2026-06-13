@@ -1,10 +1,23 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { Bold, Italic, Underline, Smile, Link as LinkIcon } from "lucide-react";
-import EmojiPicker from "emoji-picker-react";
+import dynamic from "next/dynamic";
+import { Bold, Crop, Italic, Underline, Smile, Link as LinkIcon } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
+import { getStableObjectUrl } from "../utils/mediaObjectUrl";
+
+const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
+  ssr: false,
+  loading: () => <div>Loading emojis...</div>,
+});
 
 type ValidationMap = Record<string, string[]>;
+
+const CROP_RATIOS = [
+  { label: "Square", value: 1, outputWidth: 1080, outputHeight: 1080 },
+  { label: "Feed 4:5", value: 4 / 5, outputWidth: 1080, outputHeight: 1350 },
+  { label: "Landscape", value: 1.91, outputWidth: 1080, outputHeight: 566 },
+  { label: "Story/Reel", value: 9 / 16, outputWidth: 1080, outputHeight: 1920 },
+];
 
 export interface ContentEditorProps {
   content: string;
@@ -25,6 +38,11 @@ export default function ContentEditor({
   isReadOnly = false, 
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
+  const [cropRatio, setCropRatio] = useState(CROP_RATIOS[0]);
+  const [cropZoom, setCropZoom] = useState(1);
+  const [cropX, setCropX] = useState(50);
+  const [cropY, setCropY] = useState(50);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,29 +104,124 @@ export default function ContentEditor({
       const isNativeFile = typeof File !== 'undefined' && (file instanceof File || file instanceof Blob);
       
       const fileUrl = isNativeFile 
-        ? URL.createObjectURL(file) 
-        : (file.url || file.preview || file.mediaUrl || file.secureUrl);
+        ? getStableObjectUrl(file) 
+        : (file.url || file.preview || file.mediaUrl || file.secureUrl || file.fileUrl || file.downloadUrl || file.publicUrl || file.assetUrl);
 
-      const mimeType = file.type || file.mimeType || '';
+      const type = (file.type || '').toString().toLowerCase();
+      const mimeType = (file.mimeType || '').toString().toLowerCase();
+      const mediaType = (file.mediaType || '').toString().toLowerCase();
+      const isVideo = type === "video" || type.startsWith("video/") || mimeType.startsWith("video/") || mediaType === "video";
 
       return {
         file,
         url: fileUrl,
-        isImage: mimeType.startsWith("image/"),
+        isImage: !isVideo,
       };
     });
   }, [files]);
 
-  // ✅ MEMORY LEAK FIX: Revoke Blob URLs when component unmounts or files change
-  useEffect(() => {
-    return () => {
-      filePreviews.forEach((preview) => {
-        if (preview.url && preview.url.startsWith('blob:')) {
-          URL.revokeObjectURL(preview.url);
+  const cropTargetPreview =
+    cropTargetIndex !== null ? filePreviews[cropTargetIndex] : undefined;
+
+  const openCrop = (index: number) => {
+    setCropTargetIndex(index);
+    setCropRatio(CROP_RATIOS[0]);
+    setCropZoom(1);
+    setCropX(50);
+    setCropY(50);
+  };
+
+  const closeCrop = () => {
+    setCropTargetIndex(null);
+  };
+
+  const applyCrop = async () => {
+    if (cropTargetIndex === null) return;
+
+    const file = files[cropTargetIndex];
+    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
+      closeCrop();
+      return;
+    }
+
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const outputWidth = cropRatio.outputWidth;
+      const outputHeight = cropRatio.outputHeight;
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        URL.revokeObjectURL(url);
+        closeCrop();
+        return;
+      }
+
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+
+      const sourceRatio = image.naturalWidth / image.naturalHeight;
+      const targetRatio = outputWidth / outputHeight;
+      let sourceWidth = image.naturalWidth;
+      let sourceHeight = image.naturalHeight;
+
+      if (sourceRatio > targetRatio) {
+        sourceWidth = image.naturalHeight * targetRatio;
+      } else {
+        sourceHeight = image.naturalWidth / targetRatio;
+      }
+
+      sourceWidth /= cropZoom;
+      sourceHeight /= cropZoom;
+
+      const maxX = Math.max(0, image.naturalWidth - sourceWidth);
+      const maxY = Math.max(0, image.naturalHeight - sourceHeight);
+      const sourceX = (cropX / 100) * maxX;
+      const sourceY = (cropY / 100) * maxY;
+
+      context.drawImage(
+        image,
+        sourceX,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        outputWidth,
+        outputHeight
+      );
+
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (!blob) {
+          closeCrop();
+          return;
         }
-      });
+
+        const extension = file.type === "image/png" ? "png" : "jpg";
+        const croppedFile = new File(
+          [blob],
+          file.name.replace(/\.[^.]+$/, `-${cropRatio.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${extension}`),
+          { type: file.type === "image/png" ? "image/png" : "image/jpeg" }
+        );
+
+        const nextFiles = [...files];
+        nextFiles[cropTargetIndex] = croppedFile;
+        onFilesChange(nextFiles);
+        closeCrop();
+      }, file.type === "image/png" ? "image/png" : "image/jpeg", 0.92);
     };
-  }, [filePreviews]);
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      alert("Could not crop this image.");
+      closeCrop();
+    };
+
+    image.src = url;
+  };
 
   /* ---------- Counts ---------- */
   const charCount = getPlainTextLength();
@@ -134,7 +247,7 @@ export default function ContentEditor({
 
       {showEmojiPicker && !isReadOnly && (
         <div className={styles.emojiPopover}>
-          <EmojiPicker
+          <LazyEmojiPicker
             onEmojiClick={(e) => {
               insertText(e.emoji);
               setShowEmojiPicker(false);
@@ -172,12 +285,121 @@ export default function ContentEditor({
               )}
 
               {!isReadOnly && (
-                <button onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))}>
-                  ×
-                </button>
+                <>
+                  {p.isImage && p.file instanceof File && (
+                    <button
+                      type="button"
+                      className={styles.cropButton}
+                      onClick={() => openCrop(i)}
+                      aria-label="Crop image"
+                      title="Crop image"
+                    >
+                      <Crop size={12} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={styles.removeButton}
+                    onClick={() => onFilesChange(files.filter((_, idx) => idx !== i))}
+                    aria-label="Remove media"
+                  >
+                    ×
+                  </button>
+                </>
               )}
             </div>
           ))}
+        </div>
+      )}
+
+      {cropTargetPreview?.isImage && cropTargetPreview.url && (
+        <div className={styles.cropOverlay}>
+          <div className={styles.cropModal}>
+            <div className={styles.cropHeader}>
+              <h3>Crop Image</h3>
+              <button type="button" onClick={closeCrop} aria-label="Close crop">
+                ×
+              </button>
+            </div>
+
+            <div className={styles.cropStage}>
+              <div
+                className={styles.cropPreview}
+                style={{ aspectRatio: `${cropRatio.outputWidth} / ${cropRatio.outputHeight}` }}
+              >
+                <img
+                  src={cropTargetPreview.url}
+                  alt="Crop preview"
+                  style={{
+                    transform: `scale(${cropZoom})`,
+                    objectPosition: `${cropX}% ${cropY}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className={styles.cropControls}>
+              <label>
+                Ratio
+                <select
+                  value={cropRatio.label}
+                  onChange={(event) => {
+                    const selected = CROP_RATIOS.find((ratio) => ratio.label === event.target.value);
+                    if (selected) setCropRatio(selected);
+                  }}
+                >
+                  {CROP_RATIOS.map((ratio) => (
+                    <option key={ratio.label} value={ratio.label}>
+                      {ratio.label} ({ratio.outputWidth}x{ratio.outputHeight})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Zoom
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.05"
+                  value={cropZoom}
+                  onChange={(event) => setCropZoom(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                Horizontal
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={cropX}
+                  onChange={(event) => setCropX(Number(event.target.value))}
+                />
+              </label>
+
+              <label>
+                Vertical
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={cropY}
+                  onChange={(event) => setCropY(Number(event.target.value))}
+                />
+              </label>
+            </div>
+
+            <div className={styles.cropActions}>
+              <button type="button" onClick={closeCrop}>
+                Cancel
+              </button>
+              <button type="button" onClick={applyCrop}>
+                Apply crop
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

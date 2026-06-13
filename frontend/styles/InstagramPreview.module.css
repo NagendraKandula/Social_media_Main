@@ -1,120 +1,404 @@
+.wrap {
+  width: min(350px, 100%);
+  color: #2b2b2b;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.platformLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+  font-size: 15px;
+  line-height: 1;
+  margin-bottom: 18px;
+}
+
+.platformLabel svg {
+  width: 15px;
+  height: 15px;
+}
+
 .card {
   width: 100%;
-  max-width: 552px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
 }
 
-/* --- Header --- */
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  gap: 12px;
-  border-bottom: 1px solid #eee;
-}
-
-.headerLeft {
+.postHeader {
+  height: 50px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 16px 22px;
 }
 
-.logo {
-  width: 24px;
-  height: 24px;
+.avatar {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
   border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #7f8ef1;
+  object-fit: cover;
 }
 
 .username {
-  font-weight: 600;
-  font-size: 14px;
-  color: #000;
-}
-
-.moreIcon {
-  color: #777;
-  cursor: pointer;
-}
-
-/* --- Media --- */
-.media {
-  position: relative;
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #2b2b2b;
+  white-space: nowrap;
   overflow: hidden;
-  /* No margin — image starts immediately after header */
+  text-overflow: ellipsis;
 }
 
-.mediaItem {
-  /* Remove margin-top — Instagram has no gap */
+.menu {
+  color: #555;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 2px;
 }
 
-.image {
+.mediaFrame {
   width: 100%;
-  height: auto;
-  display: block;
-  object-fit: cover;
-  border-radius: 0;
+  height: 300px;
+  background: #eef2f7;
+  overflow: hidden;
 }
 
-.video {
-  width: 100%;
-  height: auto;
+.mediaFrame :global(img),
+.mediaFrame :global(video) {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
   display: block;
-  border-radius: 0;
 }
 
-/* --- Actions --- */
 .actions {
+  height: 50px;
   display: flex;
   align-items: center;
-  padding: 10px 10px;
-  gap: 7px;
-  background: #fff;
+  gap: 15px;
+  padding: 15px 20px 18px;
+  background: white;
+  color: #111111;
+  font-size: 20px;
 }
 
-.actions button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #222;
-  transition: transform 0.2s;
+.actions svg {
+  width: 20px;
+  height: 20px;
+  color: #111111;
+  stroke-width: 2.2;
 }
 
-.actions button:hover {
-  transform: scale(1.1);
+.save {
+  margin-left: auto;
 }
 
-.actions button svg {
-  stroke-width: 1.5;
+.caption {
+  margin: 0 20px 18px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #2b2b2b;
+  white-space: pre-wrap;
 }
 
-.spacer {
+/* ===== Instagram Story ===== */
+
+.storyWrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.storyFrame {
+  position: relative;
+  width: 350px;
+  height: 560px;
+  overflow: hidden;
+  border-radius: 0;
+  border: 1px solid #e2e2e2;
+  background: #050505;
+  color: #ffffff;
+}
+
+.storyMedia {
+  position: absolute;
+  inset: 0;
+}
+
+.storyMedia :global(img),
+.storyMedia :global(video) {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+}
+
+
+.storyProgress {
+  position: absolute;
+  top: 28px;
+  left: 18px;
+  right: 18px;
+  z-index: 2;
+}
+
+.storyProgress span {
+  display: block;
+  height: 3px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.storyHeader {
+  position: absolute;
+  top: 50px;
+  left: 18px;
+  right: 18px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #ffffff;
+}
+
+.storyHeader strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.storyHeader span {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.storyAvatar {
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 50%;
+  color: #9aa7ff;
+  object-fit: cover;
+}
+
+.storyCaption {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 82px;
+  z-index: 2;
+  margin: 0;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1.4;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
+  white-space: pre-wrap;
+}
+
+.storyActions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 16px 18px;
+  background: #000000;
+}
+
+.replyBox {
   flex: 1;
+  height: 30px;
+  border: 1px solid #ffffff;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-/* --- Footer --- */
-.footer {
-  padding: 12px 15px 15px;
-  color: #000;
+.storyActions svg {
+  width: 25px;
+  height: 25px;
+  color: #ffffff;
+  stroke-width: 1.9;
 }
 
-.likes {
-  font-weight: 600;
-  font-size: 10px;
-  margin-bottom: 4px; /* Reduced space */
+.storyHeart {
+  color: #ffffff !important;
+  stroke: #ffffff;
 }
 
-.time {
-  font-size: 10px; /* Increased from 8px */
-  color: #8e8e8e;
+/* ===== Instagram Reel ===== */
+
+.reelWrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.reelFrame {
+  position: relative;
+  width: 350px;
+  height: 550px;
+  overflow: hidden;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+  background: #090b0b;
+  color: #ffffff;
+}
+
+.reelMedia {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 180px;
+  height: 200px;
+  background: #000000;
+}
+
+.reelMedia :global(img),
+.reelMedia :global(video) {
+  width: 100% !important;
+  height: 100% !important;
+  aspect-ratio: auto !important;
+  object-fit: cover !important;
+}
+
+.reelPlay {
+  position: absolute;
+  top: 280px;
+  left: 50%;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.74);
+  color: #1f2933;
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.reelPlay svg {
+  margin-left: 4px;
+}
+
+.reelActions {
+  position: absolute;
+  right: 18px;
+  top: 300px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.reelActions svg {
+  width: 25px;
+  height: 25px;
+  stroke-width: 2.2;
+}
+
+.reelMiniAvatar {
+  width: 25px !important;
+  height: 25px !important;
+  color: #9aa7ff !important;
+  background: white;
+  border-radius: 5px;
+  margin-bottom: 4px;
+  object-fit: cover;
+}
+
+.reelAccount {
+  position: absolute;
+  left: 22px;
+  bottom: 38px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 230px;
+}
+
+.reelAccountAvatar {
+  width: 20px;
+  height: 20px;
+  color: #9aa7ff;
+  flex: 0 0 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reelAccount strong {
+  color: #ffffff;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reelCaption {
+  position: absolute;
+  left: 22px;
+  right: 80px;
+  bottom: 86px;
+  z-index: 3;
+  margin: 0;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 520px) {
+  .platformLabel {
+    font-size: 18px;
+    margin-bottom: 14px;
+  }
+
+  .postHeader {
+    min-height: 72px;
+    height: auto;
+    padding: 12px 16px;
+  }
+
+  .avatar {
+    width: 46px;
+    height: 46px;
+    flex-basis: 46px;
+  }
+
+  .username {
+    font-size: 17px;
+  }
+
+  .actions {
+    min-height: 64px;
+    height: auto;
+    gap: 16px;
+    padding: 14px 16px;
+    font-size: 22px;
+  }
+
+  .actions svg {
+    width: 23px;
+    height: 23px;
+  }
 }

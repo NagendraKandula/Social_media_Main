@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { FaComments, FaPaperPlane, FaRobot, FaTimes } from "react-icons/fa";
+import styles from "../styles/Chatbot.module.css";
 
 type Message = {
   sender: "user" | "bot";
@@ -123,16 +125,6 @@ const chatbotData = {
   - Descriptions
 • Edit the generated content if needed
 • Use it directly in your post to save time and improve quality`
-},
-  {
-  q: "How to use templates",
-  a: `🎨 Using Templates:
-• Go to the "Templates" section
-• Browse available templates for different platforms
-• Click on the template you want to use
-• Customize it by adding your content and media
-• Edit text, colors, and design elements
-• Use it to create your post easily`
 },{
   q: "How to publish post",
   a: `🚀 Publish a Post:
@@ -218,101 +210,63 @@ export default function Chatbot({
 
   return (
     <>
-      {/* ICON */}
-      <div
+      <button
+        type="button"
+        aria-label={open ? "Close assistant" : "Open assistant"}
         onClick={() => setOpen(!open)}
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          background: "linear-gradient(45deg, #7b2ff7, #f107a3)",
-          color: "white",
-          padding: "14px",
-          borderRadius: "50%",
-          cursor: "pointer",
-          zIndex: 9999
-        }}
+        className={`${styles.launcher} ${open ? styles.launcherOpen : ""}`}
       >
-        💬
-      </div>
+        {open ? <FaTimes size={17} /> : <FaComments size={19} />}
+      </button>
 
       {open && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: "80px",
-            right: "20px",
-            width: "340px",
-            height: "460px",
-            background: "white",
-            borderRadius: "16px",
-            display: "flex",
-            flexDirection: "column",
-            boxShadow: "0 8px 25px rgba(0,0,0,0.2)"
-          }}
-        >
-          {/* HEADER */}
-          <div style={{ padding: "12px", background: "#7b2ff7", color: "white" }}>
-            🤖 Assistant
+        <section className={styles.panel} aria-label="Chat assistant">
+          <div className={styles.header}>
+            <div className={styles.identity}>
+              <span className={styles.avatar}>
+                <FaRobot size={15} />
+              </span>
+              <div>
+                <h2 className={styles.title}>Assistant</h2>
+                <p className={styles.subtitle}>Quick help for Story</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className={styles.closeButton}
+              onClick={() => setOpen(false)}
+              aria-label="Close assistant"
+            >
+              <FaTimes size={13} />
+            </button>
           </div>
 
-          {/* QUESTIONS */}
-          <div style={{ padding: "6px", borderBottom: "1px solid #eee" }}>
+          <div className={styles.quickActions} aria-label="Suggested questions">
             {chatbotData[type].map((item, i) => (
               <button
                 key={i}
+                type="button"
                 onClick={() => handleSend(item.q)}
-                style={{
-                  margin: "3px",
-                  padding: "5px 8px",
-                  fontSize: "11px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: "#f0f0f0",
-                  cursor: "pointer"
-                }}
+                className={styles.chip}
               >
                 {item.q}
               </button>
             ))}
           </div>
 
-         
-          <div
-            style={{
-              flex: 1,
-              padding: "10px",
-              overflowY: "auto",
-              display: "flex",
-              flexDirection: "column-reverse"
-            }}
-          >
+          <div className={styles.messages}>
             {messages.map((msg, i) => (
               <div
                 key={i}
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    msg.sender === "user" ? "flex-end" : "flex-start",
-                  marginBottom: "10px"
-                }}
+                className={`${styles.messageRow} ${
+                  msg.sender === "user" ? styles.fromUser : styles.fromBot
+                }`}
               >
                 <div
-                  style={{
-                    background:
-                      msg.sender === "user"
-                        ? "linear-gradient(45deg, #7b2ff7, #f107a3)"
-                        : "#e4e6eb",
-                    color: msg.sender === "user" ? "white" : "black",
-                    padding: "10px",
-                    borderRadius: "16px",
-                    maxWidth: "75%",
-
-                    // IMPORTANT FIX
-                    whiteSpace: "pre-line",
-                    lineHeight: "1.8",
-                    fontSize: "13px"
-                  }}
+                  className={`${styles.bubble} ${
+                    msg.sender === "user" ? styles.userBubble : styles.botBubble
+                  }`}
                 >
                   {msg.text}
                 </div>
@@ -320,20 +274,26 @@ export default function Chatbot({
             ))}
           </div>
 
-          {/* INPUT */}
-          <div style={{ display: "flex", padding: "8px" }}>
+          <div className={styles.composer}>
             <input
               value={userInput}
-              placeholder="Type a message..."
+              placeholder="Ask a question..."
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={(e) =>
                 e.key === "Enter" && handleSend(userInput)
               }
-              style={{ flex: 1, padding: "8px" }}
+              className={styles.input}
             />
-            <button onClick={() => handleSend(userInput)}>➤</button>
+            <button
+              type="button"
+              onClick={() => handleSend(userInput)}
+              className={styles.sendButton}
+              aria-label="Send message"
+            >
+              <FaPaperPlane size={14} />
+            </button>
           </div>
-        </div>
+        </section>
       )}
     </>
   );

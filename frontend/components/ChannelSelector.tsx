@@ -23,11 +23,25 @@ interface Account {
   needsReconnect?: boolean;
 }
 
+interface FacebookPage {
+  id: string;
+  name: string;
+  pictureUrl?: string | null;
+  picture?: {
+    data?: {
+      url?: string;
+    };
+  };
+}
+
 interface Props {
   accounts: Partial<Record<Channel, Account>>;
   selectedChannels: Set<Channel>;
   onSelectionChange: (s: Set<Channel>) => void;
   disabledChannels?: Set<Channel>; // <-- ADDED: Track which channels are disabled by rules
+  facebookPages?: FacebookPage[];
+  selectedFacebookPageId?: string;
+  onFacebookPageSelect?: (pageId: string) => void;
 }
 
 const icons: Record<Channel, JSX.Element> = {
@@ -44,11 +58,21 @@ export default function ChannelSelector({
   selectedChannels,
   onSelectionChange,
   disabledChannels = new Set(), // <-- Default to empty set
+  facebookPages = [],
+  selectedFacebookPageId,
+  onFacebookPageSelect,
 }: Props) {
   const toggle = (channel: Channel) => {
     const next = new Set(selectedChannels);
     next.has(channel) ? next.delete(channel) : next.add(channel);
     onSelectionChange(next);
+  };
+
+  const selectFacebookPage = (pageId: string) => {
+    const next = new Set(selectedChannels);
+    next.add('facebook');
+    onSelectionChange(next);
+    onFacebookPageSelect?.(pageId);
   };
 
   return (
@@ -64,6 +88,50 @@ export default function ChannelSelector({
           
           // Disable if disconnected OR blocked by multi-file rules
           const disabled = account.needsReconnect || disabledChannels.has(channel);
+
+          if (channel === 'facebook' && facebookPages.length > 0) {
+            return (
+              <React.Fragment key={channel}>
+                {facebookPages.map((page) => {
+                  const pageImage =
+                    page.pictureUrl || page.picture?.data?.url || account.profilePic || '/profile.png';
+                  const isPageSelected =
+                    isSelected &&
+                    (selectedFacebookPageId ? selectedFacebookPageId === page.id : facebookPages[0]?.id === page.id);
+
+                  return (
+                    <button
+                      key={page.id}
+                      type="button"
+                      className={[
+                        styles.avatarBtn,
+                        isPageSelected && styles.selected,
+                        disabled && styles.disabled,
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => !disabled && selectFacebookPage(page.id)}
+                      title={disabled ? `${page.name} (Unavailable for current media)` : `Facebook: ${page.name}`}
+                      aria-pressed={isPageSelected}
+                      disabled={disabled}
+                      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+                    >
+                      <img
+                        src={pageImage}
+                        alt={page.name}
+                        onError={(e) => {
+                          e.currentTarget.src = '/profile.png';
+                        }}
+                      />
+                      <span className={styles.platformBadge}>
+                        {icons.facebook}
+                      </span>
+                    </button>
+                  );
+                })}
+              </React.Fragment>
+            );
+          }
 
           return (
             <button

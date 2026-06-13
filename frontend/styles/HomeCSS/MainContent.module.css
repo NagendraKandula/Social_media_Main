@@ -1,0 +1,129 @@
+/* styles/HomeCSS/MainContent.module.css */
+.mainContent {
+  min-height: calc(100vh - 70px);
+  padding: clamp(2rem, 5vh, 4.5rem) clamp(1.5rem, 4vw, 4rem) clamp(2rem, 5vh, 3.5rem);
+  background: white;
+  text-align: center;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  display: flex;
+  align-items: center;
+}
+
+.contentWrapper {
+  width: min(100%, 980px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+.heading {
+  font-family: "Georgia", serif;
+  font-size: 2.5rem;
+  font-weight: 500;
+  line-height: 1.1;
+  color: #0f0f0f;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+
+.subheading {
+  font-size: 1.25rem;
+  color: #4b5563;
+  line-height: 1.4;
+  font-weight: 500;
+  margin-bottom: 2rem;
+}
+
+
+.ctaButton {
+  display: inline-block;
+  background: #f63e22;
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 400;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.ctaButton:hover {
+  background: #f95c40;
+}
+
+.heroImage {
+  display: block;
+  width: min(100%, 760px);
+  max-height: min(58vh, 600px);
+  height: auto;
+  margin: clamp(2.25rem, 7vh, 5.5rem) auto 0;
+  object-fit: contain;
+  border-bottom:#fca104 solid 1px;
+}
+
+@media (min-width: 1440px) {
+  .contentWrapper {
+    width: min(100%, 1040px);
+  }
+ .ctaButton {
+      padding: 0.75rem 1.25rem;
+      font-size: 1.2rem;
+  }
+
+  .heroImage {
+    width: min(100%, 820px);
+    max-height: min(60vh, 600px);
+  }
+}
+
+@media (min-width: 1536px) {
+  .contentWrapper {
+    width: min(100%, 1120px);
+  }
+
+  .ctaButton {
+    padding: 0.75rem 1.25rem;
+    font-size: 1.2rem;
+  }
+
+  .heroImage {
+    width: min(100%, 900px);
+    margin-top: clamp(2.75rem, 7vh, 6rem);
+  }
+}
+
+@media (min-width: 1800px) {
+  .contentWrapper {
+    width: min(100%, 1220px);
+  }
+
+  .ctaButton{
+    padding: 0.75rem 1.25rem;
+    font-size: 1.3rem;
+  }
+
+  .heroImage {
+    width: min(100%, 1000px);
+    max-height: min(65vh, 660px);
+  }
+}
+
+@media (max-height: 820px) and (min-width: 1024px) {
+  .mainContent {
+    align-items: flex-start;
+  }
+
+  .ctaButton {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+  }
+
+  .heroImage {
+    width: min(100%, 800px);
+    max-height: 50vh;
+    margin-top: 2.25rem;
+  }
+}

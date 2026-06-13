@@ -1,4 +1,5 @@
 .card {
+  width: min(350px, 100%);
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -6,7 +7,6 @@
   flex-direction: column;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  height: 100%;
 }
 
 .header {
@@ -51,10 +51,17 @@
 
 .content {
   padding: 0.75rem 1rem;
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.caption {
+  margin: 0;
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 /* Updated media container */
