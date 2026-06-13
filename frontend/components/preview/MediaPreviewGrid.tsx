@@ -1,5 +1,38 @@
 import { MediaItem } from "../../types";
 
+const getFallbackUrls = (item: MediaItem) => {
+  const source = (item as any).source || {};
+  const candidates = [
+    source.secureUrl,
+    source.fileUrl,
+    source.mediaUrl,
+    source.url,
+    source.preview,
+    source.publicUrl,
+    source.downloadUrl,
+    source.assetUrl,
+  ];
+
+  return candidates.filter(
+    (url): url is string =>
+      typeof url === "string" && url.length > 0 && url !== item.url
+  );
+};
+
+const tryNextUrl = (
+  event: React.SyntheticEvent<HTMLImageElement | HTMLVideoElement>,
+  item: MediaItem
+) => {
+  const target = event.currentTarget;
+  const attempted = Number(target.dataset.fallbackIndex || "0");
+  const fallbackUrl = getFallbackUrls(item)[attempted];
+
+  if (!fallbackUrl) return;
+
+  target.dataset.fallbackIndex = String(attempted + 1);
+  target.src = fallbackUrl;
+};
+
 interface MediaPreviewGridProps {
   files: MediaItem[];
   limit?: number;
@@ -63,6 +96,7 @@ export default function MediaPreviewGrid({ files, limit, variant = "default" }: 
             controls
             muted
             playsInline
+            onError={(event) => tryNextUrl(event, item)}
             style={{
               width: "100%",
               aspectRatio:
@@ -81,6 +115,7 @@ export default function MediaPreviewGrid({ files, limit, variant = "default" }: 
             key={item.id}
             src={src}
             alt={item.name || "Uploaded media preview"}
+            onError={(event) => tryNextUrl(event, item)}
             style={{
               width: "100%",
               aspectRatio:

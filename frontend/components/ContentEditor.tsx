@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { Bold, Crop, Italic, Underline, Smile, Link as LinkIcon } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
+import { getStableObjectUrl } from "../utils/mediaObjectUrl";
 
 const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -103,15 +104,18 @@ export default function ContentEditor({
       const isNativeFile = typeof File !== 'undefined' && (file instanceof File || file instanceof Blob);
       
       const fileUrl = isNativeFile 
-        ? URL.createObjectURL(file) 
-        : (file.url || file.preview || file.mediaUrl || file.secureUrl);
+        ? getStableObjectUrl(file) 
+        : (file.url || file.preview || file.mediaUrl || file.secureUrl || file.fileUrl || file.downloadUrl || file.publicUrl || file.assetUrl);
 
-      const mimeType = file.type || file.mimeType || '';
+      const type = (file.type || '').toString().toLowerCase();
+      const mimeType = (file.mimeType || '').toString().toLowerCase();
+      const mediaType = (file.mediaType || '').toString().toLowerCase();
+      const isVideo = type === "video" || type.startsWith("video/") || mimeType.startsWith("video/") || mediaType === "video";
 
       return {
         file,
         url: fileUrl,
-        isImage: mimeType.startsWith("image/"),
+        isImage: !isVideo,
       };
     });
   }, [files]);
@@ -218,17 +222,6 @@ export default function ContentEditor({
 
     image.src = url;
   };
-
-  // ✅ MEMORY LEAK FIX: Revoke Blob URLs when component unmounts or files change
-  useEffect(() => {
-    return () => {
-      filePreviews.forEach((preview) => {
-        if (preview.url && preview.url.startsWith('blob:')) {
-          URL.revokeObjectURL(preview.url);
-        }
-      });
-    };
-  }, [filePreviews]);
 
   /* ---------- Counts ---------- */
   const charCount = getPlainTextLength();

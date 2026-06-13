@@ -1,8 +1,9 @@
 // components/DynamicPreview.tsx
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import styles from "../styles/DynamicPreview.module.css";
 import { MediaItem } from "../types";
+import { getStableObjectUrl } from "../utils/mediaObjectUrl";
 
 // Platform Previews
 const FacebookPreview = dynamic(() => import("./preview/FacebookPreview"));
@@ -33,7 +34,7 @@ const getMediaUrl = (file: any) => {
   if (!file) return "";
 
   if (typeof File !== "undefined" && (file instanceof File || file instanceof Blob)) {
-    return URL.createObjectURL(file);
+    return getStableObjectUrl(file);
   }
 
   const rawUrl =
@@ -41,7 +42,10 @@ const getMediaUrl = (file: any) => {
     file.preview ||
     file.mediaUrl ||
     file.secureUrl ||
+    file.fileUrl ||
+    file.downloadUrl ||
     file.publicUrl ||
+    file.assetUrl ||
     file.src ||
     "";
 
@@ -53,16 +57,23 @@ const getMediaUrl = (file: any) => {
     return rawUrl.src;
   }
 
+  if (rawUrl && typeof rawUrl.url === "string") {
+    return rawUrl.url;
+  }
+
   return "";
 };
 
 const getMediaType = (file: any): "image" | "video" => {
-  const mimeType = file?.type || file?.mimeType || "";
-  const mediaType = file?.mediaType || "";
+  const type = (file?.type || "").toString().toLowerCase();
+  const mimeType = (file?.mimeType || "").toString().toLowerCase();
+  const mediaType = (file?.mediaType || "").toString().toLowerCase();
 
   if (
+    type === "video" ||
+    type.startsWith("video/") ||
     mimeType.startsWith("video/") ||
-    mediaType.toString().toLowerCase() === "video"
+    mediaType === "video"
   ) {
     return "video";
   }
@@ -80,7 +91,6 @@ export default function DynamicPreview({
   accounts = {},
   facebookPage,
 }: DynamicPreviewProps) {
-
   const mediaPreviews: MediaItem[] = useMemo(() => {
     return mediaFiles
       .map((file, index) => ({
@@ -89,20 +99,10 @@ export default function DynamicPreview({
         type: getMediaType(file),
         name: file?.name || file?.fileName || "Uploaded media",
         size: file?.size,
+        source: file,
       }))
       .filter((preview) => Boolean(preview.url));
   }, [mediaFiles]);
-
-  useEffect(() => {
-    return () => {
-      mediaPreviews.forEach((preview) => {
-        const url = preview.url as string;
-        if (url.startsWith("blob:")) {
-          URL.revokeObjectURL(url);
-        }
-      });
-    };
-  }, [mediaPreviews]);
 
   const hasContent = content.trim() !== "" || mediaPreviews.length > 0;
 

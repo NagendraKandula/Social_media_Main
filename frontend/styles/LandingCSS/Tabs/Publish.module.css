@@ -227,11 +227,11 @@
 .reviewOverlay {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 2000;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 24px;
+  padding: 88px 24px 24px;
   background: rgba(15, 23, 42, 0.42);
 }
 
@@ -293,12 +293,12 @@
 ================================ */
 
 .reviewOverlay {
-  z-index: 110;
+  z-index: 2010;
 }
 
 .reviewModal {
   width: min(980px, 100%);
-  max-height: min(760px, calc(100vh - 48px));
+  max-height: calc(100vh - 112px);
   display: flex;
   flex-direction: column;
   border-radius: 8px;

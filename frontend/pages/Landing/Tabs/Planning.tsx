@@ -43,8 +43,8 @@ const HOURS = [
   "4 PM","5 PM","6 PM","7 PM","8 PM","9 PM","10 PM","11 PM"
 ];
 
-const PlatformIcon = ({ platform, size = 14 }: any) => {
-  const c = PLATFORMS[platform]?.color || "#000";
+const PlatformIcon = ({ platform, size = 14, color }: any) => {
+  const c = color || PLATFORMS[platform]?.color || "#000";
   const icons: Record<string, any> = {
     instagram: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -56,6 +56,27 @@ const PlatformIcon = ({ platform, size = 14 }: any) => {
     facebook: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
         <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+      </svg>
+    ),
+    twitter: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
+        <path d="M18.244 2H21.5l-7.11 8.13L22.75 22h-6.54l-5.12-6.69L5.23 22H1.97l7.61-8.7L1.56 2h6.7l4.63 6.12L18.24 2Zm-1.14 17.91h1.8L7.28 3.98H5.35l11.75 15.93Z" />
+      </svg>
+    ),
+    linkedin: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
+        <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.95v5.66H9.34V8.98h3.42v1.57h.05c.48-.9 1.64-1.85 3.37-1.85 3.61 0 4.27 2.37 4.27 5.46v6.29ZM5.32 7.42a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12Zm1.78 13.03H3.54V8.98H7.1v11.47ZM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.72V1.72C24 .77 23.21 0 22.23 0Z" />
+      </svg>
+    ),
+    youtube: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill={c}>
+        <path d="M23.5 6.2a3 3 0 0 0-2.11-2.12C19.52 3.58 12 3.58 12 3.58s-7.52 0-9.39.5A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.12c1.87.5 9.39.5 9.39.5s7.52 0 9.39-.5a3 3 0 0 0 2.11-2.12A31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8ZM9.55 15.57V8.43L15.82 12l-6.27 3.57Z" />
+      </svg>
+    ),
+    threads: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16.4 8.3c-.6-2.2-2-3.5-4.2-3.5-3 0-4.9 2.4-4.9 7.1 0 4.8 1.9 7.2 5 7.2 3.5 0 5.5-2 5.5-4.7 0-2.5-1.8-4-4.7-4.1-2.5-.1-3.9.9-3.9 2.5 0 1.4 1.1 2.4 2.7 2.4 1.7 0 2.7-1 2.7-2.6" />
+        <path d="M16.9 9.9c2.3.7 3.6 2.4 3.6 4.8 0 4-3.2 6.8-8.2 6.8-5.2 0-8.8-3.7-8.8-9.5S7.1 2.5 12.2 2.5c4 0 6.7 2.1 7.7 5.8" />
       </svg>
     ),
   };
@@ -298,8 +319,26 @@ const Planning = () => {
   const [modal, setModal] = useState<any>(null);
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
+  const [listAccounts, setListAccounts] = useState<Partial<Record<Channel, any>>>({});
+  const [listFacebookPages, setListFacebookPages] = useState<any[]>([]);
 
   const { uploadMedia } = usePostCreation();
+
+  useEffect(() => {
+    axios
+      .get('/auth/social/active-accounts')
+      .then((res) => setListAccounts(res.data))
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (!listAccounts.facebook) return;
+
+    axios
+      .get('/facebook/pages')
+      .then(({ data }) => setListFacebookPages(data))
+      .catch(console.error);
+  }, [listAccounts.facebook]);
 
   const getWeekDates = () => {
     const now = new Date();
@@ -373,6 +412,31 @@ const Planning = () => {
   };
 
   const getPostDate = (post: any) => new Date(post.scheduledAt);
+
+  const getPostPlatforms = (post: any) => {
+    const platforms = Array.isArray(post.platforms) && post.platforms.length > 0
+      ? post.platforms
+      : [post.platform];
+
+    return Array.from(new Set(platforms.filter(Boolean).map((platform: string) => platform.toLowerCase())));
+  };
+
+  const getPostAccountAvatar = (post: any, platform: Channel) => {
+    const account = listAccounts[platform];
+
+    if (platform === "facebook") {
+      const pageId = post.contentMetadata?.platformOverrides?.facebook?.pageId;
+      const page = listFacebookPages.find((item) => item.id === pageId);
+      return (
+        page?.pictureUrl ||
+        page?.picture?.data?.url ||
+        account?.profilePic ||
+        "/profile.png"
+      );
+    }
+
+    return account?.profilePic || "/profile.png";
+  };
 
   const isSameDay = (left: Date, right: Date) =>
     left.getFullYear() === right.getFullYear() &&
@@ -737,10 +801,11 @@ const Planning = () => {
         <div className={styles.emptyState}>No posts found for this filter.</div>
       ) : (
         [...filtered]
-          .sort((a: any, b: any) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+          .sort((a: any, b: any) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
           .map((post: any) => {
             const date = getPostDate(post);
             const platform = PLATFORMS[post.platform] || PLATFORMS.instagram;
+            const postPlatforms = getPostPlatforms(post);
 
             return (
               <button
@@ -749,12 +814,32 @@ const Planning = () => {
                 className={styles.listItem}
                 onClick={() => openEditPost(post)}
               >
-                <span className={styles.listPlatform} style={{ background: platform.color }}>
-                  <PlatformIcon platform={post.platform} size={14} />
+                <span className={styles.listAvatarGroup}>
+                  {postPlatforms.map((postPlatform: string) => {
+                    const itemPlatform = PLATFORMS[postPlatform] || PLATFORMS.instagram;
+
+                    return (
+                      <span className={styles.listAvatarWrap} key={postPlatform}>
+                        <img
+                          className={styles.listAvatar}
+                          src={getPostAccountAvatar(post, postPlatform as Channel)}
+                          alt={`${itemPlatform.label} account`}
+                          onError={(event) => {
+                            event.currentTarget.src = "/profile.png";
+                          }}
+                        />
+                        <span className={styles.listPlatformBadge} style={{ background: itemPlatform.color }}>
+                          <PlatformIcon platform={postPlatform} size={12} color="#ffffff" />
+                        </span>
+                      </span>
+                    );
+                  })}
                 </span>
                 <span className={styles.listMain}>
                   <strong>{post.content || "Media Post"}</strong>
-                  <span>{date.toLocaleString()}</span>
+                  <span>
+                    {date.toLocaleString()} · {postPlatforms.map((postPlatform: string) => PLATFORMS[postPlatform]?.label || postPlatform).join(", ")}
+                  </span>
                 </span>
                 <span className={styles.listStatus}>{post.status}</span>
               </button>
