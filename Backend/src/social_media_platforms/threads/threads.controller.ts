@@ -85,12 +85,7 @@ async postToThreads(
 
   } catch (error: any) {
     console.error('⚠️ Threads Controller Error:', error?.message);
-
-    // 🔥 KEY FIX: Treat unknown errors as success (Threads API quirk)
-    return {
-      postId: 'UNKNOWN',
-      message: 'Post created successfully (processing delay)',
-    };
+    throw error;
   }
 }
 }

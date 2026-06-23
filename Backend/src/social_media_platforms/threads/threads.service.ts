@@ -1,4 +1,9 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService  } from '@nestjs/config';
@@ -22,6 +27,27 @@ export class ThreadsService {
        this.CLIENT_ID = this.configService.get<string>('THREADS_APP_ID')!;
        this.CLIENT_SECRET = this.configService.get<string>('THREADS_APP_SECRET')!;
 
+  }
+
+  private getThreadsErrorMessage(err: any) {
+    return err.response?.data?.error?.message || err.response?.data?.message || err.message;
+  }
+
+  private isInvalidTokenError(err: any) {
+    const error = err.response?.data?.error;
+    return error?.code === 190 || /access token|session has been invalidated/i.test(error?.message || err.message || '');
+  }
+
+  private throwThreadsError(err: any): never {
+    const message = this.getThreadsErrorMessage(err) || 'Threads API request failed';
+
+    if (this.isInvalidTokenError(err)) {
+      throw new UnauthorizedException(
+        `Threads account needs to be reconnected: ${message}`,
+      );
+    }
+
+    throw new InternalServerErrorException(`Threads API error: ${message}`);
   }
 
   // ✅ Updated: Exchange code → Short Token → Long Token
@@ -122,6 +148,10 @@ export class ThreadsService {
   let lastContainerId = '';
 
   try {
+    if ((content || '').length > 500) {
+      throw new BadRequestException('Threads text posts are limited to 500 characters.');
+    }
+
     const meRes = await firstValueFrom(
       this.http.get(`${this.GRAPH_API_URL}/me?fields=id,username`, {
         params: { access_token: accessToken },
@@ -130,18 +160,59 @@ export class ThreadsService {
 
     userId = meRes.data.id;
 
-    // =========================
-    // ✅ CAROUSEL POST
-    // =========================
     if (mediaList && mediaList.length > 0) {
-      if (mediaList.length < 2) {
-        throw new InternalServerErrorException('At least 2 media items required');
+      if (mediaList.length > 10) {
+        throw new BadRequestException('Max 10 media items allowed');
       }
 
-      if (mediaList.length > 20) {
-        throw new InternalServerErrorException('Max 20 media items allowed');
+      // =========================
+      // ✅ SINGLE IMAGE / VIDEO POST
+      // =========================
+      if (mediaList.length === 1) {
+        const media = mediaList[0];
+        const isVideo = media.type === 'VIDEO' || /\.(mp4|mov)(\?|$)/i.test(media.url);
+        const isImage = media.type === 'IMAGE' || /\.(jpg|jpeg|png)(\?|$)/i.test(media.url);
+        const body: any = {
+          access_token: accessToken,
+          text: content,
+        };
+
+        if (isImage) {
+          body.media_type = 'IMAGE';
+          body.image_url = media.url;
+        } else if (isVideo) {
+          body.media_type = 'VIDEO';
+          body.video_url = media.url;
+        } else {
+          throw new BadRequestException('Threads media must be JPEG, PNG, MP4, or MOV.');
+        }
+
+        const res = await firstValueFrom(
+          this.http.post(`${this.GRAPH_API_URL}/${userId}/threads`, body),
+        );
+        const containerId = res.data.id;
+        lastContainerId = containerId;
+
+        await this.waitForContainer(containerId, accessToken, 20);
+
+        const publishRes = await firstValueFrom(
+          this.http.post(`${this.GRAPH_API_URL}/${userId}/threads_publish`, null, {
+            params: {
+              creation_id: containerId,
+              access_token: accessToken,
+            },
+          }),
+        );
+
+        return {
+          postId: publishRes.data.id,
+          message: 'Post created successfully',
+        };
       }
 
+      // =========================
+      // ✅ CAROUSEL POST
+      // =========================
       const publishedIds: string[] = [];
 
       // Step 1: Create media containers
@@ -154,7 +225,7 @@ export class ThreadsService {
 
         const isVideo =
           media.type === 'VIDEO' ||
-          /\.(mp4)(\?|$)/i.test(media.url);
+          /\.(mp4|mov)(\?|$)/i.test(media.url);
 
         const body: any = {
           access_token: accessToken,
@@ -167,6 +238,8 @@ export class ThreadsService {
         } else if (isVideo) {
           body.media_type = 'VIDEO';
           body.video_url = media.url;
+        } else {
+          throw new BadRequestException('Threads media must be JPEG, PNG, MP4, or MOV.');
         }
 
         const res = await firstValueFrom(
@@ -223,13 +296,16 @@ export class ThreadsService {
             ? `Post created successfully (processing delay)`
             : `Carousel post created with ${mediaList.length} items`,
         };
-      } catch (publishError) {
-        console.warn('⚠️ Publish error but likely posted');
+      } catch (publishError: any) {
+        if (this.isInvalidTokenError(publishError)) {
+          throw publishError;
+        }
 
-        return {
-          postId: carouselId,
-          message: 'Post created successfully (publish delayed)',
-        };
+        console.warn(
+          '⚠️ Threads carousel publish failed:',
+          this.getThreadsErrorMessage(publishError),
+        );
+        throw publishError;
       }
     }
 
@@ -261,23 +337,21 @@ export class ThreadsService {
         postId: publishRes.data.id,
         message: 'Post created successfully',
       };
-    } catch (publishError) {
-      console.warn('⚠️ Publish failed but post may exist');
+    } catch (publishError: any) {
+      if (this.isInvalidTokenError(publishError)) {
+        throw publishError;
+      }
 
-      return {
-        postId: containerId,
-        message: 'Post created successfully (delayed publish)',
-      };
+      console.warn(
+        '⚠️ Threads publish failed:',
+        this.getThreadsErrorMessage(publishError),
+      );
+      throw publishError;
     }
 
   } catch (err: any) {
     console.error('❌ Threads error:', err.response?.data || err.message);
-
-    // 🔥 CRITICAL FIX: DO NOT THROW
-    return {
-      postId: lastContainerId || 'UNKNOWN',
-      message: 'Post created successfully (API delay)',
-    };
+    this.throwThreadsError(err);
   }
 }
 }

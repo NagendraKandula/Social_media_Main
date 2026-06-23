@@ -112,7 +112,7 @@ export class SocialAuthService {
       }
       
          const frontendUrl = this.config.get<string>('FRONTEND_URL');
-         return res.redirect(`${frontendUrl}/Landing?ActivePlatforms=facebook_connected`);
+         return res.redirect(`${frontendUrl}/Landing?facebook=connected`);
       }
 
         async youtubeLogin(req, res: Response,appUserId: number) {
@@ -196,7 +196,7 @@ export class SocialAuthService {
         
         // 4. Redirect the user back to your frontend application
         const frontendUrl = this.config.get<string>('FRONTEND_URL');
-        return res.redirect(`${frontendUrl}/Landing?ActivePlatforms=youtube_connected`);
+        return res.redirect(`${frontendUrl}/Landing?youtube=connected`);
       }
      async instagramLogin(req, res: Response, appUserId: number) {
     const { accessToken, instagramId, username,profilePic } = req.user;

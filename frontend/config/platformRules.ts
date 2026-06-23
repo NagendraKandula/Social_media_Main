@@ -32,8 +32,12 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
     media: { inputType: "file", mediaTypes: ["image/*", "video/*"] },
     requiresPageSelection: true,
     notes: [
-      "Facebook Feed supports multiple images or one video.",
-      "Facebook does not support mixed image and video posts.",
+      "Facebook Feed supports image posts and carousel image posts.",
+      "Facebook Reel supports exactly one video.",
+      "Facebook Story supports exactly one image or one video.",
+      "Facebook image uploads support JPEG, BMP, PNG, GIF, and TIFF.",
+      "Facebook photos must be less than 10 MB.",
+      "Facebook recommends PNG files stay under 1 MB or they may appear pixelated.",
     ],
   },
   instagram: {
@@ -58,6 +62,8 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
     notes: [
       "LinkedIn supports up to 9 images or one video.",
       "LinkedIn does not support mixed image and video posts.",
+      "LinkedIn images must be JPG, PNG, or static GIF and 8 MB or smaller.",
+      "LinkedIn videos must be MP4 or WebM, 75 KB to 5 GB, and 3 seconds to 10 minutes.",
     ],
   },
   twitter: {
@@ -78,7 +84,10 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
     text: { maxLength: 500 },
     media: { inputType: "file", mediaTypes: ["image/*", "video/*"] },
     notes: [
-      "Threads supports up to 10 mixed image/video items.",
+      "Threads text is limited to 500 characters.",
+      "Threads supports text only, one image, one video, or a carousel with 2 to 10 media items.",
+      "Threads images must be JPEG or PNG and 8 MB or smaller.",
+      "Threads videos must be MP4 or MOV and 1 GB or smaller.",
     ],
   },
   pinterest: {

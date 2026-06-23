@@ -27,6 +27,7 @@ export interface ContentEditorProps {
   effectiveRules: EffectiveEditorRules;
   validation: ValidationMap;
   isReadOnly?: boolean; 
+  validateFilesForSelectedChannels?: (nextFiles: any[]) => string[] | Promise<string[]>;
 }
 
 export default function ContentEditor({
@@ -36,6 +37,7 @@ export default function ContentEditor({
   onFilesChange,
   effectiveRules,
   isReadOnly = false, 
+  validateFilesForSelectedChannels,
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
@@ -72,6 +74,25 @@ export default function ContentEditor({
   const handleInput = () => {
     if (isReadOnly || !editorRef.current) return;
     onContentChange(editorRef.current.innerHTML);
+  };
+
+  const handleMediaSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    event.target.value = "";
+
+    if (selectedFiles.length === 0) return;
+
+    const nextFiles = [...files, ...selectedFiles];
+    const validationErrors = validateFilesForSelectedChannels
+      ? await validateFilesForSelectedChannels(nextFiles)
+      : [];
+
+    if (validationErrors.length > 0) {
+      alert(`This media cannot be uploaded:\n\n${validationErrors.join('\n')}`);
+      return;
+    }
+
+    onFilesChange(nextFiles);
   };
 
   /* ---------- Rich Text ---------- */
@@ -416,10 +437,7 @@ export default function ContentEditor({
               multiple
               hidden
               ref={fileInputRef}
-              onChange={(e) =>
-                e.target.files &&
-                onFilesChange([...files, ...Array.from(e.target.files)])
-              }
+              onChange={handleMediaSelection}
             />
           </div>
         ) : (

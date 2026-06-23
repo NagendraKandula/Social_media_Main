@@ -36,6 +36,16 @@ export class PostingController {
     const weekOffset = parseInt(offset, 10) || 0;
     return this.postingService.getScheduledPosts(req.user.id, weekOffset);
   }
+
+  @Get(':id/status')
+  @UseGuards(JwtAuthGuard)
+  async getPostStatus(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number
+  ) {
+    return this.postingService.getPostStatus(req.user.id, id);
+  }
+
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   async updatePost(

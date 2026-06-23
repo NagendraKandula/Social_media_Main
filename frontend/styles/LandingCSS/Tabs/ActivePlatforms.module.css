@@ -151,6 +151,10 @@
   color: #b45309;
 }
 
+.expiredBadge {
+  color: #ef4444;
+}
+
 .emptyText {
   font-size: 0.875rem;
   color: #94a3b8;

@@ -131,7 +131,7 @@ export default function InstagramPreview({ content, files, postType = "post", ac
         </header>
 
         <div className={styles.mediaFrame}>
-          <MediaPreviewGrid files={files} limit={10} variant="instagram" />
+          <MediaPreviewGrid files={files} limit={4} variant="instagram" showOverflowCount />
         </div>
 
         <footer>

@@ -25,6 +25,27 @@ export class PostingProcessor {
     private readonly twitterService: TwitterService,
   ) {}
 
+  private formatPlatformError(platform: string, error: any) {
+    const response = error?.response;
+    const responseData = response?.data ?? response;
+
+    const message =
+      responseData?.error?.message ||
+      responseData?.error?.errors?.[0]?.message ||
+      responseData?.message ||
+      error?.message;
+
+    if (message) {
+      return `[${platform}] API Error: ${Array.isArray(message) ? message.join(', ') : message}`;
+    }
+
+    if (responseData) {
+      return `[${platform}] Raw Error: ${JSON.stringify(responseData)}`;
+    }
+
+    return `[${platform}] Unknown error`;
+  }
+
   @Process('publish-post')
   async handlePublish(job: Job<{ postId: number }>) {
     const { postId } = job.data;
@@ -56,7 +77,10 @@ export class PostingProcessor {
         let signedUrl = item.media.fileUrl;
         if (item.media.storagePath) {
           try {
-            signedUrl = await this.storageService.getSignedReadUrl(item.media.storagePath);
+            signedUrl = await this.storageService.getSignedReadUrl(
+              item.media.storagePath,
+              item.media.mimeType,
+            );
           } catch (e: any) { 
             // ✅ FIX 2: Added ': any' to 'e'
             this.logger.warn(`Could not sign URL for ${item.media.storagePath}: ${e.message}`);
@@ -84,6 +108,7 @@ export class PostingProcessor {
             if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
             const pageId = (post.contentMetadata as any)?.platformOverrides?.facebook?.pageId;
             if (!pageId) throw new Error('Facebook Page ID missing');
+            const facebookPostType = (post.contentMetadata as any)?.platformOverrides?.facebook?.postType || 'feed';
 
             const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
 
@@ -92,7 +117,8 @@ export class PostingProcessor {
                 pageId, 
                 contentText, 
                 urlsParam, 
-                mediaList[0].type as any 
+                mediaList[0].type as any,
+                facebookPostType,
             );
             
             externalId = result.postId || 'fb_id';
@@ -194,22 +220,7 @@ export class PostingProcessor {
         });
 
       } catch (error: any) { // ✅ Fixed catch variable type
-        let detailedError = error.message;
-
-        if (error.response) {
-            if (error.response.data?.error?.message) {
-                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.message}`;
-            }
-            else if (error.response.data?.error?.errors?.[0]?.message) {
-                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.error.errors[0].message}`;
-            }
-            else if (error.response.data?.message) {
-                detailedError = `[${platformEntry.platform}] API Error: ${error.response.data.message}`;
-            }
-            else {
-                 detailedError = `[${platformEntry.platform}] Raw Error: ${JSON.stringify(error.response.data)}`;
-            }
-        }
+        const detailedError = this.formatPlatformError(platformEntry.platform, error);
     
         this.logger.error(`❌ FAILURE DETECTED: ${detailedError}`);
 

@@ -379,19 +379,19 @@
   margin-bottom: 6px;
   padding: 8px 9px;
   border-radius: 8px;
-  cursor: pointer;
+  cursor: not-allowed;
   box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .postCard:hover {
   opacity: 1;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(17, 24, 39, 0.11);
+  transform: none;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
 }
 
 .postCard:active {
-  cursor: grabbing;
+  cursor: not-allowed;
 }
 
 .postCardHeader {
@@ -532,6 +532,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: not-allowed;
 }
 
 .morePosts {
@@ -610,15 +611,15 @@
   border: 1px solid #e8ebf0;
   border-radius: 8px;
   background: #ffffff;
-  cursor: pointer;
+  cursor: not-allowed;
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .listItem:hover {
-  transform: translateY(-1px);
-  border-color: #ffd0ca;
-  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.08);
+  transform: none;
+  border-color: #e8ebf0;
+  box-shadow: none;
 }
 
 .listPlatform {
@@ -795,8 +796,7 @@
 
 .scheduleDeleteBtn,
 .scheduleDraftBtn,
-.schedulePrimaryBtn,
-.scheduleCloseBtn {
+.schedulePrimaryBtn {
   height: 38px;
   padding: 0 14px;
   border-radius: 8px;
@@ -805,6 +805,21 @@
   font-size: 13px;
   font-weight: 850;
   white-space: nowrap;
+}
+
+.scheduleCloseBtn {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 600;
 }
 
 .scheduleDeleteBtn {
@@ -841,6 +856,19 @@
   background: #ed2f22;
   box-shadow: 0 12px 24px rgba(255, 61, 46, 0.28);
   transform: translateY(-1px);
+}
+
+.scheduleDeleteBtn:disabled,
+.scheduleDraftBtn:disabled,
+.schedulePrimaryBtn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.schedulePrimaryBtn:disabled:hover {
+  background: #ff3d2e;
 }
 
 .scheduleBody {

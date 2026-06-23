@@ -16,6 +16,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -74,6 +75,11 @@ export default function SignupPage() {
       return;
     }
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -81,7 +87,7 @@ export default function SignupPage() {
         fullName: username,
         email,
         password,
-        confirmPassword: password,
+        confirmPassword,
       });
 
       setMessage(response.data.message || "Registration successful!");
@@ -157,6 +163,18 @@ export default function SignupPage() {
                   placeholder="Create a strong password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Confirm Password */}
+              <div className={styles.formGroup}>
+                <label>Confirm Password</label>
+                <input
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
               </div>

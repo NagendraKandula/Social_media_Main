@@ -35,7 +35,7 @@ try {
 
   setMessage("Login successful!");
 
-    router.push("/Landing");
+    router.push("/Auth/preloading");
 
 } catch (error: any) {
   const errorMessage =

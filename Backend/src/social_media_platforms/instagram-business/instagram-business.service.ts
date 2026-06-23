@@ -36,7 +36,13 @@ export class InstagramBusinessService {
       if (mediaType === 'CAROUSEL') {
         const items= mediaSource as any[]; 
 
-        // Optional but recommended validation
+        if (!Array.isArray(items) || items.length < 2) {
+          throw new BadRequestException('Instagram carousels require at least 2 media items.');
+        }
+
+        if (items.length > 10) {
+          throw new BadRequestException('Instagram carousels support a maximum of 10 media items.');
+        }
 
         this.logger.log(`🖼 Creating ${items.length} child containers concurrently...`);
         const childContainerIds = await Promise.all(
