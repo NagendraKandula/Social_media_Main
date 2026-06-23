@@ -35,6 +35,17 @@
   color: #ffffff;
 }
 
+.tab:disabled,
+.disabled {
+  color: rgba(255, 255, 255, 0.45);
+  cursor: not-allowed;
+}
+
+.tab:disabled:hover,
+.disabled:hover {
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .active {
   color: #ffffff;
   font-size: 18px;
