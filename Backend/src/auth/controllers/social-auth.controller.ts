@@ -116,7 +116,11 @@ export class SocialAuthController {
     const scope = 'threads_basic,threads_content_publish';
 
     // Manual URL Building
-    const oauthUrl = `https://threads.net/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${state}`;
+    const oauthUrl =
+      `https://threads.net/oauth/authorize?client_id=${clientId}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri!)}` +
+      `&scope=${encodeURIComponent(scope)}` +
+      `&response_type=code&state=${state}`;
 
     return res.redirect(oauthUrl);
   }

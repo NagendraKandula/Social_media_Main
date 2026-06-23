@@ -172,22 +172,33 @@ export class LinkedinService {
       throw new BadRequestException(`Text exceeds LinkedIn limit of ${this.postCharLimit} characters.`);
     }
 
-    // If media is provided, process multiple images only
+    // If media is provided, process multiple images or one video
     if (mediaArray && mediaArray.length > 0) {
-      // Validate: Only images allowed for carousel
-      const nonImages = mediaArray.filter(m => m.type !== 'IMAGE');
-      if (nonImages.length > 0) {
-        throw new BadRequestException('LinkedIn carousel posts only support images. Videos are not allowed in carousels.');
+      const imageCount = mediaArray.filter((m) => m.type === 'IMAGE').length;
+      const videoCount = mediaArray.filter((m) => m.type === 'VIDEO').length;
+
+      if (imageCount > 0 && videoCount > 0) {
+        throw new BadRequestException('LinkedIn does not allow mixing images and videos in one post.');
       }
 
-      // Process all image items concurrently
+      if (imageCount > 9) {
+        throw new BadRequestException('LinkedIn supports a maximum of 9 images.');
+      }
+
+      if (videoCount > 1) {
+        throw new BadRequestException('LinkedIn supports only one video per post.');
+      }
+
+      const uploadMediaType: 'IMAGE' | 'VIDEO' = videoCount === 1 ? 'VIDEO' : 'IMAGE';
+
+      // Process all media items concurrently
       const uploadTasks = mediaArray.map(async (media, index) => {
         try {
           // 1. Download file
           const fileBuffer = await this.downloadMedia(media.url);
 
-          // 2. Register Upload (only IMAGE type)
-          const { uploadUrl, asset } = await this.registerUpload(accessToken, authorUrn, 'IMAGE');
+          // 2. Register Upload
+          const { uploadUrl, asset } = await this.registerUpload(accessToken, authorUrn, uploadMediaType);
 
           // 3. Upload File
           await this.uploadBinary(uploadUrl, fileBuffer, accessToken);
@@ -197,18 +208,17 @@ export class LinkedinService {
             status: 'READY',
             description: { text: text.substring(0, 200) },
             media: asset,
-            title: { text: `Image ${index + 1}` },
+            title: { text: `${uploadMediaType === 'VIDEO' ? 'Video' : 'Image'} ${index + 1}` },
           };
         } catch (error) {
-          this.logger.error(`Failed to process image ${index + 1}:`, error);
+          this.logger.error(`Failed to process media ${index + 1}:`, error);
           throw error;
         }
       });
 
       mediaAssets = await Promise.all(uploadTasks);
 
-      // Set share media category for carousel
-      shareMediaCategory = mediaArray.length === 1 ? 'IMAGE' : 'IMAGE'; // LinkedIn handles multiple images as carousel
+      shareMediaCategory = uploadMediaType;
       const requestBody: any = {
         author: authorUrn,
         lifecycleState: 'PUBLISHED',

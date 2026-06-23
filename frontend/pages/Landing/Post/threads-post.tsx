@@ -4,6 +4,8 @@ import styles from '../../../styles/LandingCSS/PostCSS/ThreadsPost.module.css';
 import { AxiosError } from 'axios';
 
 const MAX_CHARS = 500;
+const MAX_IMAGE_SIZE_BYTES = 8_000_000;
+const MAX_VIDEO_SIZE_BYTES = 1_000_000_000;
 
 interface MediaItem {
   id: string;
@@ -46,13 +48,13 @@ const ThreadsPost: React.FC = () => {
       return;
     }
 
-    if (mediaList.length === 1) {
-      setError('Add at least 2 media items for carousel.');
+    if (content.length > MAX_CHARS) {
+      setError('Threads text is limited to 500 characters.');
       return;
     }
 
-    if (mediaList.length > 20) {
-      setError('Maximum 20 media items allowed.');
+    if (mediaList.length > 10) {
+      setError('Maximum 10 media items allowed for Threads carousel.');
       return;
     }
 
@@ -97,15 +99,6 @@ const ThreadsPost: React.FC = () => {
 
       if (status === 401) {
         window.location.href = '/Auth/login';
-        return;
-      }
-
-      // 🔥 Treat 500 as success (Threads API behavior)
-      if (status === 500) {
-        setMessage('✅ Posted successfully (processing delay)');
-        setContent('');
-        setMediaList([]);
-        setTimeout(() => setMessage(''), 4000);
         return;
       }
 

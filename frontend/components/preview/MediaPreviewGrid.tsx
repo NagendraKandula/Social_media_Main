@@ -37,10 +37,17 @@ interface MediaPreviewGridProps {
   files: MediaItem[];
   limit?: number;
   variant?: "default" | "instagram" | "instagram-story" | "instagram-reel" | "facebook-reel" | "linkedin" | "youtube";
+  showOverflowCount?: boolean;
 }
 
-export default function MediaPreviewGrid({ files, limit, variant = "default" }: MediaPreviewGridProps) {
+export default function MediaPreviewGrid({
+  files,
+  limit,
+  variant = "default",
+  showOverflowCount = false,
+}: MediaPreviewGridProps) {
   const visibleFiles = typeof limit === "number" ? files.slice(0, limit) : files;
+  const hiddenCount = typeof limit === "number" ? Math.max(files.length - limit, 0) : 0;
 
   if (visibleFiles.length === 0) {
     return (
@@ -86,18 +93,15 @@ export default function MediaPreviewGrid({ files, limit, variant = "default" }: 
             : "auto",
       }}
     >
-      {visibleFiles.map((item) => {
+      {visibleFiles.map((item, index) => {
         const src = item.url as string;
+        const shouldShowOverflow = showOverflowCount && hiddenCount > 0 && index === visibleFiles.length - 1;
 
-        return item.type === "video" ? (
-          <video
+        return (
+          <div
             key={item.id}
-            src={src}
-            controls
-            muted
-            playsInline
-            onError={(event) => tryNextUrl(event, item)}
             style={{
+              position: "relative",
               width: "100%",
               aspectRatio:
                 variant === "youtube"
@@ -105,30 +109,57 @@ export default function MediaPreviewGrid({ files, limit, variant = "default" }: 
                   : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
                     ? "9 / 16"
                     : "1 / 1",
-              objectFit: "cover",
-              background: "#000",
-              display: "block",
+              overflow: "hidden",
             }}
-          />
-        ) : (
-          <img
-            key={item.id}
-            src={src}
-            alt={item.name || "Uploaded media preview"}
-            onError={(event) => tryNextUrl(event, item)}
-            style={{
-              width: "100%",
-              aspectRatio:
-                variant === "youtube"
-                  ? "16 / 9"
-                  : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
-                    ? "9 / 16"
-                    : "1 / 1",
-              objectFit: "cover",
-              background: "#f1f5f9",
-              display: "block",
-            }}
-          />
+          >
+            {item.type === "video" ? (
+              <video
+                src={src}
+                controls
+                muted
+                playsInline
+                onError={(event) => tryNextUrl(event, item)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  background: "#000",
+                  display: "block",
+                }}
+              />
+            ) : (
+              <img
+                src={src}
+                alt={item.name || "Uploaded media preview"}
+                onError={(event) => tryNextUrl(event, item)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  background: "#f1f5f9",
+                  display: "block",
+                }}
+              />
+            )}
+            {shouldShowOverflow && (
+              <div
+                aria-label={`${hiddenCount} more media items`}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "rgba(0, 0, 0, 0.48)",
+                  color: "#ffffff",
+                  fontSize: 30,
+                  fontWeight: 700,
+                }}
+              >
+                +{hiddenCount}
+              </div>
+            )}
+          </div>
         );
       })}
     </div>

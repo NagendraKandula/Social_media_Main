@@ -70,6 +70,16 @@ export default function ChannelSelector({
 
   const selectFacebookPage = (pageId: string) => {
     const next = new Set(selectedChannels);
+    const isSameSelectedPage =
+      next.has('facebook') &&
+      (selectedFacebookPageId ? selectedFacebookPageId === pageId : facebookPages[0]?.id === pageId);
+
+    if (isSameSelectedPage) {
+      next.delete('facebook');
+      onSelectionChange(next);
+      return;
+    }
+
     next.add('facebook');
     onSelectionChange(next);
     onFacebookPageSelect?.(pageId);

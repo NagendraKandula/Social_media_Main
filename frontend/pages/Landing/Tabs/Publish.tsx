@@ -9,6 +9,7 @@ import { usePostCreation } from '../../../hooks/usePostCreation';
 import apiClient from '../../../lib/axios';
 import { validateInstagramMediaSpecs } from '../../../utils/instagramMediaSpecs';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
+import { addNotification } from '../../../utils/notifications';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -22,6 +23,77 @@ const LazyAIAssistant = dynamic(() => import('../../../components/AIAssistant'),
 const LazyDynamicPreview = dynamic(() => import('../../../components/DynamicPreview'), {
   loading: () => <p>Loading preview...</p>,
 });
+
+const FACEBOOK_MAX_IMAGE_SIZE_BYTES = 10_000_000;
+const FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES = 1_000_000;
+const THREADS_MAX_IMAGE_SIZE_BYTES = 8_000_000;
+const THREADS_MAX_VIDEO_SIZE_BYTES = 1_000_000_000;
+const LINKEDIN_MAX_IMAGE_SIZE_BYTES = 8_000_000;
+const LINKEDIN_MIN_VIDEO_SIZE_BYTES = 75_000;
+const LINKEDIN_MAX_VIDEO_SIZE_BYTES = 5_000_000_000;
+const FACEBOOK_ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/bmp',
+  'image/png',
+  'image/gif',
+  'image/tiff',
+]);
+const THREADS_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png']);
+const THREADS_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime']);
+const LINKEDIN_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
+const LINKEDIN_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
+
+const getImageDimensions = (file: File) =>
+  new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read image dimensions'));
+    };
+    image.src = url;
+  });
+
+const getVideoDimensions = (file: File) =>
+  new Promise<{ width: number; height: number; duration: number }>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: video.videoWidth, height: video.videoHeight, duration: video.duration });
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read video metadata'));
+    };
+    video.src = url;
+  });
+
+const isNearRatio = (actual: number, target: number, tolerance = 0.06) =>
+  Math.abs(actual - target) <= tolerance;
+
+const matchesLinkedInRecommendedImageDimensions = ({ width, height }: { width: number; height: number }) => {
+  const ratio = width / height;
+  return (
+    (width >= 1080 && height >= 1080 && isNearRatio(ratio, 1)) ||
+    (width >= 1200 && height >= 627 && isNearRatio(ratio, 1200 / 627, 0.08)) ||
+    ((width >= 1080 && height >= 1350 && isNearRatio(ratio, 4 / 5, 0.08)) ||
+      (width >= 1080 && height >= 1920 && isNearRatio(ratio, 9 / 16, 0.08)))
+  );
+};
+const CHANNEL_LABELS: Record<Channel, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  linkedin: 'LinkedIn',
+  twitter: 'X (Twitter)',
+  youtube: 'YouTube',
+  threads: 'Threads',
+};
 
 /* ===============================
    Types
@@ -83,17 +155,78 @@ export default function Publish() {
     [selectedChannels]
   );
 
-  const effectiveRules = useMemo(
-    () => resolveEditorRules(selectedChannelList),
-    [selectedChannelList]
-  );
-
   const selectedFacebookPage = useMemo(
     () =>
       facebookPages.find(
         (page) => page.id === platformState.facebookPageId
       ),
     [facebookPages, platformState.facebookPageId]
+  );
+
+  const getChannelDetail = (channel: Channel) => {
+    if (channel === 'facebook') {
+      const pageName =
+        selectedFacebookPage?.name ||
+        facebookPages.find((page) => page.id === platformState.facebookPageId)?.name ||
+        'Selected page';
+      const postType = platformState.facebookPostType || 'feed';
+
+      return `Facebook - Page: ${pageName}, Type: ${postType}`;
+    }
+
+    if (channel === 'instagram') {
+      return `Instagram - Type: ${platformState.instagramPostType || 'post'}`;
+    }
+
+    if (channel === 'youtube') {
+      const title = platformState.youtubeTitle?.trim();
+      return `YouTube - Type: ${platformState.youtubeType || 'video'}${title ? `, Title: ${title}` : ''}`;
+    }
+
+    return CHANNEL_LABELS[channel] || channel;
+  };
+
+  const selectedChannelDetails = useMemo(
+    () => selectedChannelList.map((channel) => getChannelDetail(channel)),
+    [
+      selectedChannelList,
+      selectedFacebookPage,
+      facebookPages,
+      platformState.facebookPageId,
+      platformState.facebookPostType,
+      platformState.instagramPostType,
+      platformState.youtubeTitle,
+      platformState.youtubeType,
+    ]
+  );
+
+  const getNotificationSnippet = () => {
+    const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (plainText) return plainText.length > 72 ? `${plainText.slice(0, 72)}...` : plainText;
+    return files.length > 0 ? `Media post with ${files.length} file${files.length === 1 ? '' : 's'}` : 'Untitled post';
+  };
+
+  const totalMediaSize = useMemo(
+    () => files.reduce((total, file) => total + file.size, 0),
+    [files]
+  );
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 MB';
+
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const unitIndex = Math.min(
+      Math.floor(Math.log(bytes) / Math.log(1024)),
+      units.length - 1
+    );
+    const value = bytes / 1024 ** unitIndex;
+
+    return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+  };
+
+  const effectiveRules = useMemo(
+    () => resolveEditorRules(selectedChannelList),
+    [selectedChannelList]
   );
 
   const disabledChannels = useMemo(() => {
@@ -129,7 +262,15 @@ export default function Publish() {
       disabled.add('linkedin');
     }
 
-    if (hasMixedMedia || videoCount > 1) {
+    if (platformState.facebookPostType === 'reel') {
+      if (hasImages || videoCount > 1 || totalItems > 1) {
+        disabled.add('facebook');
+      }
+    } else if (platformState.facebookPostType === 'story') {
+      if (totalItems > 1) {
+        disabled.add('facebook');
+      }
+    } else if (hasVideos || hasMixedMedia) {
       disabled.add('facebook');
     }
 
@@ -138,7 +279,7 @@ export default function Publish() {
     }
 
     return disabled;
-  }, [files, platformState.instagramPostType]);
+  }, [files, platformState.facebookPostType, platformState.instagramPostType]);
 
   useEffect(() => {
     let changed = false;
@@ -170,6 +311,266 @@ export default function Publish() {
 
   const alertInstagramValidationErrors = (errors: string[]) => {
     alert(`Instagram media does not match the required specs:\n\n${errors.join('\n')}`);
+  };
+
+  const getFacebookValidationErrors = () => {
+    if (!selectedChannels.has('facebook')) {
+      return [];
+    }
+
+    const imageCount = files.filter((file) => file.type.startsWith('image/')).length;
+    const videoCount = files.filter((file) => file.type.startsWith('video/')).length;
+    const totalItems = files.length;
+    const postType = platformState.facebookPostType || 'feed';
+    const unsupportedImages = files.filter(
+      (file) =>
+        file.type.startsWith('image/') &&
+        !FACEBOOK_ALLOWED_IMAGE_TYPES.has(file.type)
+    );
+    const oversizedImages = files.filter(
+      (file) =>
+        file.type.startsWith('image/') &&
+        file.size > FACEBOOK_MAX_IMAGE_SIZE_BYTES
+    );
+    const oversizedPngImages = files.filter(
+      (file) =>
+        file.type === 'image/png' &&
+        file.size > FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES
+    );
+
+    if (unsupportedImages.length > 0) {
+      return unsupportedImages.map(
+        (file) =>
+          `${file.name} uses an unsupported Facebook image type. Use JPEG, BMP, PNG, GIF, or TIFF.`
+      );
+    }
+
+    if (oversizedImages.length > 0) {
+      return oversizedImages.map(
+        (file) =>
+          `${file.name} is too large. Facebook photos must be less than 10 MB, so this post cannot be published until you compress or replace it.`
+      );
+    }
+
+    if (oversizedPngImages.length > 0) {
+      return oversizedPngImages.map(
+        (file) =>
+          `${file.name} is a PNG larger than 1 MB. Facebook recommends PNG files stay under 1 MB or the image may appear pixelated, so this post cannot be published until you compress or replace it.`
+      );
+    }
+
+    if (postType === 'feed') {
+      if (videoCount > 0) {
+        return ['Facebook Feed supports image posts and carousel image posts only. Remove videos or choose Reel/Story.'];
+      }
+
+      return [];
+    }
+
+    if (postType === 'reel') {
+      if (totalItems !== 1 || videoCount !== 1) {
+        return ['Facebook Reel requires exactly one video. Remove images and extra videos.'];
+      }
+
+      return [];
+    }
+
+    if (postType === 'story') {
+      if (totalItems !== 1 || (imageCount !== 1 && videoCount !== 1)) {
+        return ['Facebook Story requires exactly one image or one video.'];
+      }
+    }
+
+    return [];
+  };
+
+  const alertFacebookValidationErrors = (errors: string[]) => {
+    alert(`Facebook media does not match the selected post type:\n\n${errors.join('\n')}`);
+  };
+
+  const waitForPostCompletion = async (postId: number) => {
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 2500));
+
+      const { data } = await apiClient.get(`/posting/${postId}/status`);
+      const platformStatuses = data.platforms || [];
+      const failedPlatforms = platformStatuses.filter((item: any) => item.status === 'FAILED');
+      const pendingPlatforms = platformStatuses.filter((item: any) =>
+        ['PENDING', 'PUBLISHING'].includes(item.status)
+      );
+
+      if (failedPlatforms.length > 0) {
+        return {
+          status: 'FAILED',
+          platforms: failedPlatforms,
+        };
+      }
+
+      if (pendingPlatforms.length === 0 && platformStatuses.length > 0) {
+        return {
+          status: 'PUBLISHED',
+          platforms: platformStatuses,
+        };
+      }
+    }
+
+    return { status: 'PENDING', platforms: [] };
+  };
+
+  const validateFilesForSelectedChannels = async (nextFiles: File[]) => {
+    const errors: string[] = [];
+    const imageCount = nextFiles.filter((file) => file.type.startsWith('image/')).length;
+    const videoCount = nextFiles.filter((file) => file.type.startsWith('video/')).length;
+    const hasImages = imageCount > 0;
+    const hasVideos = videoCount > 0;
+    const totalItems = nextFiles.length;
+
+    nextFiles.forEach((file) => {
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        errors.push(`${file.name} is not supported. Upload an image or video file.`);
+      }
+    });
+
+    if (selectedChannels.has('facebook')) {
+      const unsupportedImages = nextFiles.filter(
+        (file) =>
+          file.type.startsWith('image/') &&
+          !FACEBOOK_ALLOWED_IMAGE_TYPES.has(file.type)
+      );
+      const oversizedImages = nextFiles.filter(
+        (file) =>
+          file.type.startsWith('image/') &&
+          file.size > FACEBOOK_MAX_IMAGE_SIZE_BYTES
+      );
+      const oversizedPngImages = nextFiles.filter(
+        (file) =>
+          file.type === 'image/png' &&
+          file.size > FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES
+      );
+
+      unsupportedImages.forEach((file) => {
+        errors.push(`${file.name} cannot be uploaded to Facebook. Use JPEG, BMP, PNG, GIF, or TIFF.`);
+      });
+
+      oversizedImages.forEach((file) => {
+        errors.push(`${file.name} cannot be uploaded to Facebook because photos must be less than 10 MB.`);
+      });
+
+      oversizedPngImages.forEach((file) => {
+        errors.push(`${file.name} cannot be uploaded to Facebook because PNG files should stay under 1 MB to avoid pixelation.`);
+      });
+    }
+
+    if (selectedChannels.has('instagram')) {
+      if (platformState.instagramPostType === 'reel') {
+        if (hasImages) {
+          errors.push('Instagram Reels do not allow photos. Reels must be created from one video because Instagram publishes Reels as short-form video content.');
+        }
+        if (videoCount > 1 || totalItems > 1) {
+          errors.push('Instagram Reels allow only one video. Remove extra media or switch Instagram to Post for carousel publishing.');
+        }
+      } else if (platformState.instagramPostType === 'story' && totalItems > 1) {
+        errors.push('Instagram Story allows only one media file.');
+      } else if (platformState.instagramPostType === 'post') {
+        if (hasVideos) {
+          errors.push('Instagram Post allows images only. Upload one image for a feed post or multiple images for a carousel.');
+        }
+        if (totalItems > 10) {
+          errors.push('Instagram carousel allows a maximum of 10 media files.');
+        }
+      }
+    }
+
+    if (selectedChannels.has('threads')) {
+      nextFiles.forEach((file) => {
+        if (file.type.startsWith('image/')) {
+          if (!THREADS_ALLOWED_IMAGE_TYPES.has(file.type)) {
+            errors.push(`${file.name} cannot be uploaded to Threads. Use JPEG or PNG images.`);
+          }
+          if (file.size > THREADS_MAX_IMAGE_SIZE_BYTES) {
+            errors.push(`${file.name} cannot be uploaded to Threads because images must be 8 MB or smaller.`);
+          }
+        }
+        if (file.type.startsWith('video/')) {
+          if (!THREADS_ALLOWED_VIDEO_TYPES.has(file.type)) {
+            errors.push(`${file.name} cannot be uploaded to Threads. Use MP4 or MOV videos.`);
+          }
+          if (file.size > THREADS_MAX_VIDEO_SIZE_BYTES) {
+            errors.push(`${file.name} cannot be uploaded to Threads because videos must be 1 GB or smaller.`);
+          }
+        }
+      });
+
+      if (totalItems > 10) {
+        errors.push('Threads carousel allows a maximum of 10 media files.');
+      }
+    }
+
+    if (selectedChannels.has('twitter')) {
+      if (hasImages && hasVideos) errors.push('X does not allow mixing images and videos in one post.');
+      if (videoCount > 1) errors.push('X allows only one video.');
+      if (imageCount > 4) errors.push('X allows a maximum of 4 images.');
+    }
+
+    if (selectedChannels.has('linkedin')) {
+      if (hasImages && hasVideos) errors.push('LinkedIn does not allow mixing images and videos in one post.');
+      if (videoCount > 1) errors.push('LinkedIn allows only one video.');
+      if (imageCount > 9) errors.push('LinkedIn allows a maximum of 9 images.');
+
+      for (const file of nextFiles) {
+        if (file.type.startsWith('image/')) {
+          if (!LINKEDIN_ALLOWED_IMAGE_TYPES.has(file.type)) {
+            errors.push(`${file.name} cannot be uploaded to LinkedIn. Use JPG, PNG, or static GIF images.`);
+          }
+          if (file.size > LINKEDIN_MAX_IMAGE_SIZE_BYTES) {
+            errors.push(`${file.name} cannot be uploaded to LinkedIn because images must be 8 MB or smaller.`);
+          }
+
+          try {
+            const dimensions = await getImageDimensions(file);
+            if (!matchesLinkedInRecommendedImageDimensions(dimensions)) {
+              errors.push(
+                `${file.name} does not match LinkedIn recommended dimensions. Use square 1080x1080 or 1200x1200, landscape 1200x627, or portrait 4:5 / 9:16.`
+              );
+            }
+          } catch {
+            errors.push(`Could not read dimensions for ${file.name}.`);
+          }
+        }
+
+        if (file.type.startsWith('video/')) {
+          if (!LINKEDIN_ALLOWED_VIDEO_TYPES.has(file.type)) {
+            errors.push(`${file.name} cannot be uploaded to LinkedIn. Use MP4 or WebM video.`);
+          }
+          if (file.size < LINKEDIN_MIN_VIDEO_SIZE_BYTES || file.size > LINKEDIN_MAX_VIDEO_SIZE_BYTES) {
+            errors.push(`${file.name} cannot be uploaded to LinkedIn because videos must be between 75 KB and 5 GB.`);
+          }
+
+          try {
+            const { width, height, duration } = await getVideoDimensions(file);
+            const ratio = width / height;
+            if (duration < 3 || duration > 600) {
+              errors.push(`${file.name} must be between 3 seconds and 10 minutes for LinkedIn.`);
+            }
+            if (width < 256 || height < 144 || width > 4096 || height > 2304) {
+              errors.push(`${file.name} must have a resolution between 256x144 and 4096x2304 for LinkedIn.`);
+            }
+            if (ratio < 1 / 2.4 || ratio > 2.4) {
+              errors.push(`${file.name} must use a LinkedIn-supported aspect ratio between 1:2.4 and 2.4:1.`);
+            }
+          } catch {
+            errors.push(`Could not read video metadata for ${file.name}.`);
+          }
+        }
+      }
+    }
+
+    if (selectedChannels.has('youtube')) {
+      if (hasImages) errors.push('YouTube requires a video file.');
+      if (videoCount > 1 || totalItems > 1) errors.push('YouTube allows only one video.');
+    }
+
+    return [...new Set(errors)];
   };
 
   /* ===============================
@@ -228,6 +629,12 @@ const handleSubmit = async (isScheduled: boolean) => {
         return;
       }
 
+      const facebookErrors = getFacebookValidationErrors();
+      if (facebookErrors.length > 0) {
+        alertFacebookValidationErrors(facebookErrors);
+        return;
+      }
+
       // ✅ 1. Use YOUR existing hook to upload all files at once!
       let uploadedMediaItems: any[] = [];
 
@@ -240,6 +647,7 @@ const handleSubmit = async (isScheduled: boolean) => {
           storagePath: result.storagePath,
           mimeType: files[index].type,
           mediaType: files[index].type.startsWith('video') ? 'VIDEO' : 'IMAGE',
+          size: files[index].size,
         }));
       }
 
@@ -270,9 +678,70 @@ const handleSubmit = async (isScheduled: boolean) => {
         },
       };
 
-      await createPost(payload);
+      const createdPost = await createPost(payload);
 
-      alert(isScheduled ? 'Post scheduled successfully' : 'Post published successfully');
+      const channelText = selectedChannelDetails.join(' | ');
+      const eventTime = isScheduled
+        ? new Date(scheduleDate).toLocaleString()
+        : new Date().toLocaleString();
+
+      addNotification({
+        type: 'success',
+        title: isScheduled ? 'Post scheduled' : 'Post submitted',
+        message: getNotificationSnippet(),
+        details: [
+          ...(createdPost?.id ? [{ label: 'Post ID', value: String(createdPost.id) }] : []),
+          { label: 'Channels', value: channelText },
+          { label: 'Media', value: `${files.length} file${files.length === 1 ? '' : 's'}` },
+          { label: isScheduled ? 'Scheduled' : 'Submitted', value: eventTime },
+        ],
+      });
+
+      if (!isScheduled && createdPost?.id) {
+        waitForPostCompletion(createdPost.id)
+          .then((result) => {
+            if (result.status === 'PUBLISHED') {
+              addNotification({
+                type: 'success',
+                title: 'Post published',
+                message: getNotificationSnippet(),
+                details: [
+                  { label: 'Post ID', value: String(createdPost.id) },
+                  { label: 'Channels', value: channelText },
+                  { label: 'Media', value: `${files.length} file${files.length === 1 ? '' : 's'}` },
+                  { label: 'Published', value: new Date().toLocaleString() },
+                ],
+                dedupeKey: `published-now-${createdPost.id}`,
+              });
+            }
+
+            if (result.status === 'FAILED') {
+              const failedChannels = result.platforms
+                .map((item: any) => getChannelDetail(item.platform as Channel))
+                .join(' | ');
+              const errorText = result.platforms
+                .map((item: any) => item.errorMessage)
+                .filter(Boolean)
+                .join(' ');
+
+              addNotification({
+                type: 'error',
+                title: 'Post failed',
+                message: getNotificationSnippet(),
+                details: [
+                  { label: 'Post ID', value: String(createdPost.id) },
+                  { label: 'Channels', value: failedChannels },
+                  { label: 'Reason', value: errorText || 'Please review the post and try again.' },
+                ],
+              });
+            }
+          })
+          .catch((error) => {
+            console.error('Failed to check post status:', error);
+          });
+      }
+
+      alert(isScheduled ? 'Post scheduled successfully' : 'Post submitted for publishing');
 
       setContent('');
       setFiles([]);
@@ -305,6 +774,12 @@ const handleSubmit = async (isScheduled: boolean) => {
     const instagramErrors = await getInstagramValidationErrors();
     if (instagramErrors.length > 0) {
       alertInstagramValidationErrors(instagramErrors);
+      return;
+    }
+
+    const facebookErrors = getFacebookValidationErrors();
+    if (facebookErrors.length > 0) {
+      alertFacebookValidationErrors(facebookErrors);
       return;
     }
 
@@ -376,6 +851,7 @@ const handleSubmit = async (isScheduled: boolean) => {
               onFilesChange={setFiles}
               effectiveRules={effectiveRules}
               validation={{}}
+              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
             />
 
             {/* Platform Fields */}
@@ -485,14 +961,21 @@ const handleSubmit = async (isScheduled: boolean) => {
                   <span className={styles.reviewLabel}>Channels</span>
                   <div className={styles.channelPills}>
                     {selectedChannelList.map((channel) => (
-                      <span key={channel}>{channel}</span>
+                      <span key={channel}>{CHANNEL_LABELS[channel] || channel}</span>
                     ))}
                   </div>
                 </div>
 
                 <div>
                   <span className={styles.reviewLabel}>Media</span>
-                  <p>{files.length > 0 ? `${files.length} file${files.length === 1 ? '' : 's'} attached` : 'No media attached'}</p>
+                  {files.length > 0 ? (
+                    <div className={styles.mediaSummary}>
+                      <p>{files.length} file{files.length === 1 ? '' : 's'} attached</p>
+                      <p>Total size: {formatFileSize(totalMediaSize)}</p>
+                    </div>
+                  ) : (
+                    <p>No media attached</p>
+                  )}
                 </div>
 
                 <div>

@@ -34,7 +34,7 @@ export class StorageService {
   }
 
   // ✅ ADD THIS METHOD for your Processor to work with Private Buckets
-  async getSignedReadUrl(storagePath: string): Promise<string> {
+  async getSignedReadUrl(storagePath: string, contentType?: string): Promise<string> {
     const file = this.storage.bucket(this.bucket).file(storagePath);
     
     // Check if file exists first to avoid 404 errors
@@ -47,6 +47,7 @@ export class StorageService {
       version: 'v4',
       action: 'read',
       expires: Date.now() + 60 * 60 * 1000, // Valid for 1 hour (enough for FB/IG to download)
+      responseType: contentType,
     });
 
     return url;

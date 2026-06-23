@@ -11,6 +11,7 @@ export function middleware(req: NextRequest) {
     '/Auth/login',
     '/Auth/register',
     '/Auth/forgot-password',
+    '/Auth/preloading',
     '/',
     '/Home',
   ];

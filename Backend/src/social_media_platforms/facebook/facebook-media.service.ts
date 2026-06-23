@@ -2,12 +2,34 @@ import { Injectable, BadRequestException, InternalServerErrorException } from '@
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { FacebookPostResponse, FacebookAttachedMedia } from './facebook.interface';
+import * as FormData from 'form-data';
 @Injectable()
 export class FacebookMediaService {
   private readonly FACEBOOK_GRAPH_API_URL: string;
 
   constructor(private readonly configService: ConfigService) {
     this.FACEBOOK_GRAPH_API_URL = this.configService.get<string>('FACEBOOK_GRAPH_API_URL')!;
+  }
+
+  private async downloadMedia(mediaUrl: string) {
+    const response = await axios.get<ArrayBuffer>(mediaUrl, {
+      responseType: 'arraybuffer',
+    });
+
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    const extension = contentType.includes('png')
+      ? 'png'
+      : contentType.includes('gif')
+        ? 'gif'
+        : contentType.includes('webp')
+          ? 'webp'
+          : 'jpg';
+
+    return {
+      buffer: Buffer.from(response.data),
+      contentType,
+      filename: `facebook-upload.${extension}`,
+    };
   }
      
  async postPhoto(
@@ -16,22 +38,26 @@ export class FacebookMediaService {
     content: string,
     mediaUrl: string,
   ) {
+    const media = await this.downloadMedia(mediaUrl);
+    const form = new FormData();
+    form.append('caption', content);
+    form.append('access_token', pageAccessToken);
+    form.append('source', media.buffer, {
+      contentType: media.contentType,
+      filename: media.filename,
+    });
+
     const response = await axios.post(
       `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photos`,
-      null, // No form data needed
-      {
-        params: {
-          caption: content,
-          url: mediaUrl,
-          access_token: pageAccessToken,
-        },
-      },
+      form,
+      { headers: form.getHeaders() },
     );
 
     const postData = response.data as FacebookPostResponse;
+    console.log('Facebook photo post response:', postData);
     return {
       success: true,
-      postId: postData.post_id,
+      postId: postData.post_id || postData.id,
       message: 'Photo posted successfully.',
     };
   }
@@ -194,7 +220,7 @@ async checkVideoStatus(videoId: string, pageAccessToken: string) {
   // Status can be: ready, processing, expired, or error
   return response.data.status;
 }
- async postMultiplePhotos(
+ async postFeedPhotos(
     pageId: string,
     pageAccessToken: string,
     content: string,
@@ -202,17 +228,21 @@ async checkVideoStatus(videoId: string, pageAccessToken: string) {
   ) {
     try {
      const uploadPromises = mediaUrls.map((url) => {
-        return axios.post(
+        return this.downloadMedia(url).then((media) => {
+          const form = new FormData();
+          form.append('published', 'false');
+          form.append('access_token', pageAccessToken);
+          form.append('source', media.buffer, {
+            contentType: media.contentType,
+            filename: media.filename,
+          });
+
+          return axios.post(
           `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/photos`,
-          null,
-          {
-            params: {
-              url: url,
-              published: false, // Prevents immediate posting
-              access_token: pageAccessToken,
-            },
-          },
-        );
+            form,
+            { headers: form.getHeaders() },
+          );
+        });
       });
       // 2. Wait for ALL of them to finish in parallel
       const uploadResponses = await Promise.all(uploadPromises);
@@ -223,26 +253,33 @@ async checkVideoStatus(videoId: string, pageAccessToken: string) {
           media_fbid: response.data.id,
         })
       );
+      const feedParams: Record<string, string> = {
+        message: content,
+        access_token: pageAccessToken,
+      };
+
+      attachedMedia.forEach((media, index) => {
+        feedParams[`attached_media[${index}]`] = JSON.stringify(media);
+      });
+
       // 4. Publish the feed post with all attached photo IDs
       const feedRes = await axios.post(
         `${this.FACEBOOK_GRAPH_API_URL}/${pageId}/feed`,
+        null,
         {
-          message: content,
-          attached_media: attachedMedia,
-        },
-        {
-          params: { access_token: pageAccessToken },
+          params: feedParams,
         },
       );
+      console.log('Facebook feed photo post response:', feedRes.data);
       return {
         success: true,
         postId: feedRes.data.id,
-        message: `Successfully posted ${mediaUrls.length} photos in parallel!`,
+        message: `Successfully posted ${mediaUrls.length} photo${mediaUrls.length === 1 ? '' : 's'} to the feed.`,
       };
     } catch (error: any) {
-      console.error('Error posting multiple photos:', error.response?.data);
+      console.error('Error posting feed photos:', error.response?.data);
       throw new BadRequestException(
-        error.response?.data?.error?.message || 'Failed to post multiple photos.',
+        error.response?.data?.error?.message || 'Failed to post feed photos.',
       );
     }
   }

@@ -379,6 +379,12 @@
   line-height: 1.5;
 }
 
+.mediaSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .channelPills {
   display: flex;
   flex-wrap: wrap;

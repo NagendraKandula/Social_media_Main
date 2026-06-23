@@ -28,7 +28,7 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook') {
         
  ]
       ,
-      profileFields: ['id', 'name', 'emails', 'photos', 'picture.type(large)'],
+      profileFields: ['id', 'name', 'emails', 'picture.type(large)'],
     });
   }
 

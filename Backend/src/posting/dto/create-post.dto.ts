@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContentMetadata } from '../interfaces/content-metadata.interface';
 
@@ -22,6 +22,10 @@ export class MediaItemDto {
 
   @IsEnum(MediaTypeDto)
   mediaType!: MediaTypeDto;
+
+  @IsNumber()
+  @IsOptional()
+  size?: number;
 }
 
 export class CreatePostDto {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../lib/axios';
 import styles from '../../../styles/LandingCSS/Tabs/ActivePlatforms.module.css';
+import { addNotification } from '../../../utils/notifications';
 import {
   FaFacebookF,
   FaInstagram,
@@ -13,16 +14,56 @@ import {
   FaLinkedin,
 } from 'react-icons/fa';
 
+const ACTIVE_ACCOUNTS_CACHE_KEY = 'story_active_accounts';
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: 'Facebook',
+  instagram: 'Instagram',
+  youtube: 'YouTube',
+  threads: 'Threads',
+  twitter: 'X (Twitter)',
+  linkedin: 'LinkedIn',
+};
+
+const getCachedAccounts = () => {
+  if (typeof window === 'undefined') return null;
+
+  const cachedAccounts = sessionStorage.getItem(ACTIVE_ACCOUNTS_CACHE_KEY);
+  if (!cachedAccounts) return null;
+
+  try {
+    return JSON.parse(cachedAccounts);
+  } catch {
+    sessionStorage.removeItem(ACTIVE_ACCOUNTS_CACHE_KEY);
+    return null;
+  }
+};
+
 const ActivePlatforms = () => {
-  const [accounts, setAccounts] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [accounts, setAccounts] = useState<any>(() => getCachedAccounts());
+  const [loading, setLoading] = useState(() => !getCachedAccounts());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchAccounts = async () => {
+  const fetchAccounts = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) {
+        setLoading(true);
+      }
       const res = await apiClient.get('/auth/social/active-accounts');
       setAccounts(res.data);
+      sessionStorage.setItem(ACTIVE_ACCOUNTS_CACHE_KEY, JSON.stringify(res.data));
+
+      Object.entries(res.data || {}).forEach(([provider, account]: [string, any]) => {
+        if (account?.needsReconnect) {
+          const platformName = PLATFORM_LABELS[provider] || provider;
+
+          addNotification({
+            type: 'warning',
+            title: `${platformName} session expired`,
+            message: `Reconnect ${platformName} to keep publishing and scheduling posts.`,
+            dedupeKey: `session-expired-${provider}`,
+          });
+        }
+      });
     } catch (err) {
       console.error('Failed to fetch active accounts:', err);
     } finally {
@@ -31,7 +72,7 @@ const ActivePlatforms = () => {
   };
 
   useEffect(() => {
-    fetchAccounts();
+    fetchAccounts(!accounts);
   }, []);
 
   const notifyHeader = () => {
@@ -45,6 +86,12 @@ const ActivePlatforms = () => {
     if (action === 'disconnect') {
       if (!confirm(`Disconnect ${provider}?`)) return;
       await apiClient.delete(`/auth/social/${provider}`);
+      addNotification({
+        type: 'info',
+        title: `${PLATFORM_LABELS[provider] || provider} disconnected`,
+        message: `${PLATFORM_LABELS[provider] || provider} was removed from your connected channels.`,
+      });
+      notifyHeader();
       fetchAccounts();
       return;
     }
@@ -124,12 +171,7 @@ const ActivePlatforms = () => {
 
   {accounts[p.id].needsReconnect ? (
                         <p
-                          className={styles.statusBadge}
-                          style={{
-                            backgroundColor: '#fee2e2',
-                            color: '#ef4444',
-                            border: '1px solid #fca5a5',
-                          }}
+                          className={`${styles.statusBadge} ${styles.expiredBadge}`}
                         >
                           Session Expired
                         </p>

@@ -7,6 +7,26 @@ import { StorageService } from '../storage/storage.service';
 import { PostStatus } from '@prisma/client';
 import { UpdatePostDto } from './dto/update-post.dto';
 
+const FACEBOOK_MAX_IMAGE_SIZE_BYTES = 10_000_000;
+const FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES = 1_000_000;
+const FACEBOOK_ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/bmp',
+  'image/png',
+  'image/gif',
+  'image/tiff',
+]);
+const THREADS_MAX_TEXT_LENGTH = 500;
+const THREADS_MAX_IMAGE_SIZE_BYTES = 8_000_000;
+const THREADS_MAX_VIDEO_SIZE_BYTES = 1_000_000_000;
+const THREADS_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png']);
+const THREADS_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime']);
+const LINKEDIN_MAX_IMAGE_SIZE_BYTES = 8_000_000;
+const LINKEDIN_MIN_VIDEO_SIZE_BYTES = 75_000;
+const LINKEDIN_MAX_VIDEO_SIZE_BYTES = 5_000_000_000;
+const LINKEDIN_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
+const LINKEDIN_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
+
 @Injectable()
 export class PostingService {
   constructor(
@@ -33,6 +53,10 @@ export class PostingService {
     const imageCount = totalMedia - videoCount;
     const isMixedMedia = videoCount > 0 && imageCount > 0;
 
+    if (platforms.includes('threads') && (content || '').length > THREADS_MAX_TEXT_LENGTH) {
+      throw new BadRequestException('Threads text posts are limited to 500 characters.');
+    }
+
     if (totalMedia > 0) {
       for (const platform of platforms) {
         switch (platform) {
@@ -47,11 +71,56 @@ export class PostingService {
             break;
 
           case 'facebook':
-            if (isMixedMedia) {
-              throw new BadRequestException('Facebook does not support mixing images and videos in a single post.');
+            const fbPostType = (contentMetadata as any)?.platformOverrides?.facebook?.postType || 'feed';
+
+            if (fbPostType === 'feed') {
+              if (videoCount > 0) {
+                throw new BadRequestException('Facebook Feed supports image posts and carousel image posts only.');
+              }
+            } else if (fbPostType === 'reel') {
+              if (totalMedia !== 1 || videoCount !== 1) {
+                throw new BadRequestException('Facebook Reel requires exactly one video.');
+              }
+            } else if (fbPostType === 'story') {
+              if (totalMedia !== 1) {
+                throw new BadRequestException('Facebook Story requires exactly one image or one video.');
+              }
             }
-            if (videoCount > 1) {
-              throw new BadRequestException('Facebook only supports 1 video per standard post.');
+
+            if (imageCount > 0) {
+              const unsupportedImage = mediaItems.find(
+                (item) =>
+                  item.mimeType?.startsWith('image/') &&
+                  !FACEBOOK_ALLOWED_IMAGE_TYPES.has(item.mimeType),
+              );
+              const oversizedImage = mediaItems.find(
+                (item) =>
+                  item.mimeType?.startsWith('image/') &&
+                  (item as any).size > FACEBOOK_MAX_IMAGE_SIZE_BYTES,
+              );
+              const oversizedPngImage = mediaItems.find(
+                (item) =>
+                  item.mimeType === 'image/png' &&
+                  (item as any).size > FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES,
+              );
+
+              if (unsupportedImage) {
+                throw new BadRequestException(
+                  'Facebook image uploads support JPEG, BMP, PNG, GIF, and TIFF only.',
+                );
+              }
+
+              if (oversizedImage) {
+                throw new BadRequestException(
+                  'Facebook photos must be less than 10 MB. Please compress or replace oversized images before publishing.',
+                );
+              }
+
+              if (oversizedPngImage) {
+                throw new BadRequestException(
+                  'Facebook recommends PNG files stay under 1 MB or they may appear pixelated. Please compress or replace oversized PNG files before publishing.',
+                );
+              }
             }
             break;
 
@@ -64,6 +133,26 @@ export class PostingService {
             }
             if (videoCount > 1) {
               throw new BadRequestException('LinkedIn only supports 1 video per post.');
+            }
+            for (const item of mediaItems) {
+              if (item.mimeType?.startsWith('image/')) {
+                if (!LINKEDIN_ALLOWED_IMAGE_TYPES.has(item.mimeType)) {
+                  throw new BadRequestException('LinkedIn images must be JPG, PNG, or static GIF.');
+                }
+                if ((item as any).size > LINKEDIN_MAX_IMAGE_SIZE_BYTES) {
+                  throw new BadRequestException('LinkedIn images must be 8 MB or smaller.');
+                }
+              } else if (item.mimeType?.startsWith('video/')) {
+                if (!LINKEDIN_ALLOWED_VIDEO_TYPES.has(item.mimeType)) {
+                  throw new BadRequestException('LinkedIn videos must be MP4 or WebM.');
+                }
+                if (
+                  (item as any).size < LINKEDIN_MIN_VIDEO_SIZE_BYTES ||
+                  (item as any).size > LINKEDIN_MAX_VIDEO_SIZE_BYTES
+                ) {
+                  throw new BadRequestException('LinkedIn videos must be between 75 KB and 5 GB.');
+                }
+              }
             }
             break;
 
@@ -82,20 +171,53 @@ export class PostingService {
             break;
 
           case 'instagram':
-            if (totalMedia > 10) {
-              throw new BadRequestException('Instagram carousels support a maximum of 10 media items.');
-            }
-            // Add 'as any' and explicitly look inside 'platformOverrides'
-            const igPostType = (contentMetadata as any)?.platformOverrides?.instagram?.postType;
-            if (igPostType === 'STORY' && totalMedia > 1) {
-              throw new BadRequestException('Instagram Stories do not support multiple media items in a single request.');
+            const igPostType =
+              (contentMetadata as any)?.platformOverrides?.instagram?.postType?.toLowerCase() || 'post';
+
+            if (igPostType === 'reel') {
+              if (totalMedia !== 1 || videoCount !== 1) {
+                throw new BadRequestException('Instagram Reel requires exactly one video and does not allow photos.');
+              }
+            } else if (igPostType === 'story') {
+              if (totalMedia !== 1) {
+                throw new BadRequestException('Instagram Story requires exactly one image or one video.');
+              }
+            } else {
+              if (videoCount > 0) {
+                throw new BadRequestException('Instagram Post supports images only. Use Reel for a single video.');
+              }
+              if (imageCount > 10) {
+                throw new BadRequestException('Instagram carousel supports a maximum of 10 images.');
+              }
             }
             break;
             
           case 'threads':
-             if (totalMedia > 10) {
-               throw new BadRequestException('Threads carousels support a maximum of 10 media items.');
-             }
+            if ((content || '').length > THREADS_MAX_TEXT_LENGTH) {
+              throw new BadRequestException('Threads text posts are limited to 500 characters.');
+            }
+
+            if (totalMedia > 10) {
+              throw new BadRequestException('Threads carousels support a maximum of 10 media items.');
+            }
+
+            for (const item of mediaItems) {
+              if (item.mimeType?.startsWith('image/')) {
+                if (!THREADS_ALLOWED_IMAGE_TYPES.has(item.mimeType)) {
+                  throw new BadRequestException('Threads images must be JPEG or PNG.');
+                }
+                if ((item as any).size > THREADS_MAX_IMAGE_SIZE_BYTES) {
+                  throw new BadRequestException('Threads images must be 8 MB or smaller.');
+                }
+              } else if (item.mimeType?.startsWith('video/')) {
+                if (!THREADS_ALLOWED_VIDEO_TYPES.has(item.mimeType)) {
+                  throw new BadRequestException('Threads videos must be MP4 or MOV.');
+                }
+                if ((item as any).size > THREADS_MAX_VIDEO_SIZE_BYTES) {
+                  throw new BadRequestException('Threads videos must be 1 GB or smaller.');
+                }
+              }
+            }
              break;
         }
       }
@@ -159,7 +281,7 @@ export class PostingService {
     const posts = await this.prisma.post.findMany({
       where: {
         userId,
-        status: { in: ['SCHEDULED', 'PUBLISHED', 'PENDING', 'FAILED'] },
+        status: { in: ['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'PARTIAL', 'PENDING', 'FAILED'] },
         OR: [
           { scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
           { scheduledAt: null, createdAt: { gte: startOfWeek, lt: endOfWeek } }
@@ -184,7 +306,7 @@ export class PostingService {
           postMediaItems.map(async (item: any) => {
              let url = item.media.fileUrl;
              if (item.media.storagePath) {
-               try { url = await this.storageService.getSignedReadUrl(item.media.storagePath); } 
+               try { url = await this.storageService.getSignedReadUrl(item.media.storagePath, item.media.mimeType); } 
                catch (error) {}
              }
              return { ...item.media, secureUrl: url };
@@ -197,6 +319,12 @@ export class PostingService {
           scheduledAt: post.scheduledAt || (post as any).createdAt,
           status: post.status,
           platforms: post.platforms.map((p) => p.platform.toLowerCase()), 
+          platformStatuses: post.platforms.map((p) => ({
+            platform: p.platform.toLowerCase(),
+            status: p.status,
+            externalId: p.externalId,
+            errorMessage: p.errorMessage,
+          })),
           platform: post.platforms.length > 0 ? post.platforms[0].platform.toLowerCase() : 'instagram',
           contentMetadata: post.contentMetadata, 
           mediaItems: secureMediaItems, 
@@ -204,6 +332,31 @@ export class PostingService {
       })
     );
     return formattedPosts;
+  }
+
+  async getPostStatus(userId: number, postId: number) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        platforms: {
+          select: {
+            platform: true,
+            status: true,
+            externalId: true,
+            errorMessage: true,
+          },
+        },
+      },
+    });
+
+    if (!post) throw new NotFoundException('Post not found');
+    if (post.userId !== userId) throw new ForbiddenException('Access denied');
+
+    return {
+      id: post.id,
+      status: post.status,
+      platforms: post.platforms,
+    };
   }
 
   // 2. Reschedule a Post (Drag & Drop)

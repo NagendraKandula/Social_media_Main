@@ -1,0 +1,76 @@
+.page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+.loaderContent {
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 44px;
+  transform: translateY(-10px);
+}
+
+.logo {
+  margin: 0;
+  color: #000000;
+  font-family: "Georgia", serif;
+  font-size: clamp(52px, 6vw, 84px);
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: 0;
+}
+
+.logo span {
+  color: #ff5458;
+}
+
+.progressTrack {
+  width: min(100%, 300px);
+  height: 25px;
+  padding: 2px;
+  border: 1px solid #b8b8b8;
+  border-radius: 999px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: #ff5458;
+  animation: loadProgress 1.8s ease-in-out forwards;
+}
+
+@keyframes loadProgress {
+  0% {
+    width: 0;
+  }
+
+  58% {
+    width: 64%;
+  }
+
+  100% {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .loaderContent {
+    width: min(100%, 280px);
+    gap: 34px;
+  }
+
+  .progressTrack {
+    height: 24px;
+  }
+}

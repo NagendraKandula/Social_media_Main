@@ -12,6 +12,13 @@ import {
 import { SiThreads } from "react-icons/si";
 import { useRouter } from "next/router";
 import apiClient from "../../lib/axios";
+import {
+  AppNotification,
+  clearNotifications,
+  getNotifications,
+  markAllNotificationsRead,
+  NOTIFICATIONS_UPDATED_EVENT,
+} from "../../utils/notifications";
 
 import InstagramConnect from "./Connect/InstagramConnect";
 import FacebookConnect from "./Connect/FacebookConnect";
@@ -50,6 +57,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
   const router = useRouter();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [activePopup, setActivePopup] = useState<PopupType>(null);
   const [profileInitial, setProfileInitial] = useState("A");
   const [connectedPlatforms, setConnectedPlatforms] =
@@ -58,6 +67,23 @@ const LHeader: React.FC<LHeaderProps> = () => {
   const getInitialFromEmail = (email?: string) => {
     const firstCharacter = email?.trim().charAt(0);
     return firstCharacter ? firstCharacter.toUpperCase() : "A";
+  };
+
+  const loadNotifications = () => {
+    setNotifications(getNotifications());
+  };
+
+  const formatNotificationTime = (createdAt: string) => {
+    const elapsedMs = Date.now() - new Date(createdAt).getTime();
+    const elapsedMinutes = Math.max(1, Math.floor(elapsedMs / 60000));
+
+    if (elapsedMinutes < 60) return `${elapsedMinutes}m ago`;
+
+    const elapsedHours = Math.floor(elapsedMinutes / 60);
+    if (elapsedHours < 24) return `${elapsedHours}h ago`;
+
+    const elapsedDays = Math.floor(elapsedHours / 24);
+    return `${elapsedDays}d ago`;
   };
 
   const fetchUserProfile = async () => {
@@ -92,15 +118,18 @@ const LHeader: React.FC<LHeaderProps> = () => {
   useEffect(() => {
     fetchUserProfile();
     fetchConnectedPlatforms();
+    loadNotifications();
 
     const handleUpdate = () => {
       fetchConnectedPlatforms();
     };
 
     window.addEventListener("social-accounts-updated", handleUpdate);
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, loadNotifications);
 
     return () => {
       window.removeEventListener("social-accounts-updated", handleUpdate);
+      window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, loadNotifications);
     };
   }, []);
 
@@ -116,6 +145,21 @@ const LHeader: React.FC<LHeaderProps> = () => {
   const togglePopup = (popup: PopupType) => {
     setActivePopup((prev) => (prev === popup ? null : popup));
   };
+
+  const toggleNotifications = () => {
+    setNotificationsOpen((open) => {
+      const nextOpen = !open;
+
+      if (nextOpen) {
+        markAllNotificationsRead();
+        setDropdownOpen(false);
+      }
+
+      return nextOpen;
+    });
+  };
+
+  const unreadCount = notifications.filter((item) => !item.read).length;
 
   return (
     <header className={styles.header}>
@@ -219,9 +263,80 @@ const LHeader: React.FC<LHeaderProps> = () => {
 
       {/* Actions */}
       <div className={styles.actions}>
-        <button className={styles.notification}>
-          <FaBell />
-        </button>
+        <div className={styles.notificationContainer}>
+          <button
+            className={styles.notification}
+            onClick={toggleNotifications}
+            aria-label="Open notifications"
+            aria-expanded={notificationsOpen}
+          >
+            <FaBell />
+            {unreadCount > 0 && (
+              <span className={styles.notificationBadge}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notificationsOpen && (
+            <div className={styles.notificationDropdown}>
+              <div className={styles.notificationHeader}>
+                <div>
+                  <h3>Notifications</h3>
+                  <p>{notifications.length} recent alerts</p>
+                </div>
+
+                {notifications.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.clearNotifications}
+                    onClick={clearNotifications}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.notificationList}>
+                {notifications.length === 0 ? (
+                  <div className={styles.emptyNotifications}>
+                    No notifications yet
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`${styles.notificationItem} ${
+                        styles[`notification-${notification.type}`]
+                      }`}
+                    >
+                      <span className={styles.notificationDot} />
+                      <div>
+                        <div className={styles.notificationTitleRow}>
+                          <strong>{notification.title}</strong>
+                          <span>
+                            {formatNotificationTime(notification.createdAt)}
+                          </span>
+                        </div>
+                        <p>{notification.message}</p>
+                        {notification.details && notification.details.length > 0 && (
+                          <div className={styles.notificationDetails}>
+                            {notification.details.map((detail) => (
+                              <span key={`${notification.id}-${detail.label}`}>
+                                <strong>{detail.label}</strong>
+                                {detail.value}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <button className={styles.settings}>
           <FaCog />

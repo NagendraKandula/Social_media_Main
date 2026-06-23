@@ -28,6 +28,7 @@ private readonly FACEBOOK_GRAPH_API_URL: string;
     content: string,
     mediaUrls: string | string[],
     mediaType: 'IMAGE' | 'VIDEO' | 'STORY'|'REEL',
+    postType: 'feed' | 'reel' | 'story' = 'feed',
   ) {
     const userAccessToken = await this.facebookAuthService.getFacebookToken(userId);
     const pageAccessToken = await this.facebookAuthService.getPageToken(userAccessToken, pageId);
@@ -35,34 +36,39 @@ private readonly FACEBOOK_GRAPH_API_URL: string;
 
     try {
       // Step 3: Determine post type and call the appropriate function
-      if (mediaType === 'IMAGE') {
-        if(Array.isArray(mediaUrls) && mediaUrls.length > 1){
-          return  await this.facebookMediaService.postMultiplePhotos(pageId, pageAccessToken, content, mediaUrls);
+      if (postType === 'feed') {
+        const feedUrls = Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls];
+        if (mediaType !== 'IMAGE') {
+          throw new BadRequestException('Facebook Feed supports image posts only.');
         }
-        else{
-          const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
-        return await this.facebookMediaService.postPhoto(pageId, pageAccessToken, content, singleUrl);}
 
-      } else if (mediaType === 'VIDEO') {
-        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
-        return await this.facebookMediaService.postRegularVideo(pageId, pageAccessToken, content, singleUrl);
-      }else if (mediaType === 'REEL') {
-        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
-        return await this.facebookMediaService.postFacebookReel(pageId, pageAccessToken, content , singleUrl);
+        if (feedUrls.length === 1) {
+          return await this.facebookMediaService.postPhoto(pageId, pageAccessToken, content, feedUrls[0]);
+        }
+
+        return await this.facebookMediaService.postFeedPhotos(pageId, pageAccessToken, content, feedUrls);
       }
-      else if (mediaType === 'STORY') {
+
+      if (postType === 'reel') {
         const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
-        const isVideo = ['.mp4', '.mov', '.avi'].some(ext => singleUrl.toLowerCase().endsWith(ext));
-        if (isVideo) {
+        if (mediaType !== 'VIDEO' && mediaType !== 'REEL') {
+          throw new BadRequestException('Facebook Reel requires a video.');
+        }
+
+        return await this.facebookMediaService.postFacebookReel(pageId, pageAccessToken, content, singleUrl);
+      }
+
+      if (postType === 'story') {
+        const singleUrl = Array.isArray(mediaUrls) ? mediaUrls[0] : mediaUrls;
+
+        if (mediaType === 'VIDEO' || mediaType === 'REEL' || mediaType === 'STORY') {
           return await this.facebookMediaService.postVideoStory(pageId, pageAccessToken, singleUrl);
         }
-        else{
-          return await this.facebookMediaService.postPhotoStory(pageId, pageAccessToken, singleUrl);
-        }
+
+        return await this.facebookMediaService.postPhotoStory(pageId, pageAccessToken, singleUrl);
       }
-      else {
-        throw new BadRequestException('Unsupported media type.');
-      }
+
+      throw new BadRequestException('Unsupported Facebook post type.');
     } catch (error) {
       const errorData = error.response?.data;
       console.error(
