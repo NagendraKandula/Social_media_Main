@@ -69,9 +69,13 @@
 .authMain {
   flex: 1;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 64px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(48px, 6vw, 72px);
+  width: 100%;
+  margin: 0 auto;
   padding: 64px 80px;
+  box-sizing: border-box;
 }
 
 /* =========================
@@ -81,7 +85,8 @@
 .formSection {
   max-width: 450px;
   width: 100%;
-  margin-left: 70px;
+  margin: 0;
+  justify-self: center;
 }
 
 .title {
@@ -191,7 +196,7 @@
   font-size: 15px;
   font-weight: 600;
   color: white;
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
 .primaryBtn:hover {
@@ -224,7 +229,7 @@
   text-align: center;
   font-size: 13px;
   color: #9ca3af;
-  margin: 16px 0;
+  margin: 22px 0;
 }
 
 /* =========================
@@ -274,14 +279,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  justify-self: stretch;
   border-left: 1px solid #e5e7eb;
+  min-height: 520px;
+  padding-left: clamp(32px, 4vw, 56px);
+  padding-right: clamp(32px, 4vw, 56px);
 
 }
 
 .illustrationSection img {
   width: 100%;
   max-width: 500px;
-  height: 100%;
+  max-height: 560px;
+  height: auto;
+  object-fit: contain;
 }
 
 /* =========================
@@ -289,14 +300,17 @@
 ========================= */
 
 .authFooter {
-  height: 50px;
+  min-height: 50px;
+  padding: 12px 24px;
   background: whitesmoke;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 40px;
   font-size: 13px;
   color: #111827;
+  box-sizing: border-box;
 }
 
 /* =========================
@@ -307,13 +321,47 @@
   .authMain {
     grid-template-columns: 1fr;
     padding: 40px 24px;
+    max-width: 520px;
   }
 
   .illustrationSection {
     display: none;
   }
 
+  .formSection {
+    max-width: none;
+  }
+
+  .backHome {
+    left: -6px;
+    top: -46px;
+  }
+
   .authHeader {
     padding: 0 24px;
+  }
+}
+
+@media (max-width: 520px) {
+  .authMain {
+    padding: 32px 20px;
+  }
+
+  .titleRow {
+    margin-bottom: 28px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .optionsRow {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .authFooter {
+    gap: 16px;
   }
 }

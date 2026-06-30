@@ -7,16 +7,21 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   display: flex;
   align-items: center;
+  box-sizing: border-box;
 }
 
 .contentWrapper {
-  width: min(100%, 980px);
+  width: 100%;
+  max-width: 1040px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
+.textContent {
+  max-width: 760px;
+}
 
 .heading {
   font-family: "Georgia", serif;
@@ -25,7 +30,7 @@
   line-height: 1.1;
   color: #0f0f0f;
   margin-bottom: 1rem;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 
@@ -47,7 +52,7 @@
   padding: 0.75rem 1rem;
   border-radius: 10px;
   text-decoration: none;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .ctaButton:hover {
@@ -56,59 +61,12 @@
 
 .heroImage {
   display: block;
-  width: min(100%, 760px);
+  width: min(100%, 820px);
   max-height: min(58vh, 600px);
   height: auto;
   margin: clamp(2.25rem, 7vh, 5.5rem) auto 0;
   object-fit: contain;
   border-bottom:#fca104 solid 1px;
-}
-
-@media (min-width: 1440px) {
-  .contentWrapper {
-    width: min(100%, 1040px);
-  }
- .ctaButton {
-      padding: 0.75rem 1.25rem;
-      font-size: 1.2rem;
-  }
-
-  .heroImage {
-    width: min(100%, 820px);
-    max-height: min(60vh, 600px);
-  }
-}
-
-@media (min-width: 1536px) {
-  .contentWrapper {
-    width: min(100%, 1120px);
-  }
-
-  .ctaButton {
-    padding: 0.75rem 1.25rem;
-    font-size: 1.2rem;
-  }
-
-  .heroImage {
-    width: min(100%, 900px);
-    margin-top: clamp(2.75rem, 7vh, 6rem);
-  }
-}
-
-@media (min-width: 1800px) {
-  .contentWrapper {
-    width: min(100%, 1220px);
-  }
-
-  .ctaButton{
-    padding: 0.75rem 1.25rem;
-    font-size: 1.3rem;
-  }
-
-  .heroImage {
-    width: min(100%, 1000px);
-    max-height: min(65vh, 660px);
-  }
 }
 
 @media (max-height: 820px) and (min-width: 1024px) {
@@ -125,5 +83,23 @@
     width: min(100%, 800px);
     max-height: 50vh;
     margin-top: 2.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 3rem 1.5rem;
+  }
+
+  .heading {
+    font-size: 2rem;
+  }
+
+  .subheading {
+    font-size: 1rem;
+  }
+
+  .heroImage {
+    margin-top: 2rem;
   }
 }

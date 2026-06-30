@@ -3,6 +3,8 @@
   min-height: 100%;
   background-color: none;
   padding: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pageTitle {
@@ -25,8 +27,8 @@
 /* ===== GRID ===== */
 .platformGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: clamp(1rem, 2vw, 1.75rem);
 }
 
 /* ===== CARD ===== */
@@ -37,6 +39,7 @@
   display: flex;
   flex-direction: column;
   min-height: 190px;
+  min-width: 0;
   box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -100,16 +103,19 @@
 
 /* ===== CARD BODY ===== */
 .cardBody {
-  padding: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.25rem);
   flex-grow: 1;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .connectedProfile {
   display: flex;
   align-items: center;
   gap: 0.9rem;
+  min-width: 0;
+  width: 100%;
 }
 
 .avatar {
@@ -123,6 +129,7 @@
 .profileInfo {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .userName {
@@ -130,6 +137,9 @@
   font-weight: 600;
   color: #0f172a;
   margin: 5px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .platformName {
@@ -167,10 +177,12 @@
   gap: 0.75rem;
   background: #e9eaec;
   border-top: 1px solid #eef2f7;
+  min-width: 0;
 }
 
 .cardFooter button {
   flex: 1;
+  min-width: 0;
   padding: 0.55rem;
   border-radius: 8px;
   font-size: 0.85rem;
@@ -182,6 +194,7 @@
   gap: 0.45rem;
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 /* ===== BUTTON VARIANTS ===== */
@@ -212,4 +225,40 @@
 
 .disconnectBtn:hover {
   background: #fee2e2;
+}
+
+@media (min-width: 1280px) {
+  .platformGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .pageTitle {
+    font-size: 1.5rem;
+  }
+
+  .platformGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .platformGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .platformCard:hover {
+    transform: none;
+  }
+
+  .cardFooter {
+    flex-direction: column;
+  }
+
+  .cardFooter button {
+    width: 100%;
+    min-height: 40px;
+  }
 }
