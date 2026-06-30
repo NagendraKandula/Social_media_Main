@@ -59,10 +59,11 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Floating Toggle Button */}
       <button
-        className={styles.sidebarToggle}
+        className={`${styles.sidebarToggle} ${
+          collapsed ? styles.toggleCollapsed : ""
+        }`}
         onClick={() => setCollapsed(!collapsed)}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        style={{ left: collapsed ? "60px" : "250px" }}
       >
         {collapsed ? "⟩" : "⟨"}
       </button>

@@ -110,7 +110,7 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 8px;
-  background: #10b981;
+  background: #535655;
   color: #ffffff;
   border: none;
   font-size: 14px;
@@ -127,7 +127,7 @@
 
 .workspace {
   display: grid;
-  grid-template-columns: 72px minmax(220px, 280px) minmax(360px, 1fr) minmax(240px, 300px);
+  grid-template-columns: 112px minmax(220px, 280px) minmax(360px, 1fr) minmax(240px, 300px);
   gap: 14px;
   height: calc(100vh - 72px);
   align-items: stretch;
@@ -144,26 +144,32 @@
   border: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  padding: 12px 0;
-  gap: 4px;
+  align-items: center;
+  padding: 14px 10px;
+  gap: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
 .tabBtn {
-  width: 56px;
+  width: 100%;
+  min-height: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 4px;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 8px;
   border-radius: 8px;
   border: none;
   background: none;
   color: #6b7280;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
   transition: all 0.2s ease;
 }
 .tabBtn:hover { background: #f9fafb; color: #374151; }
@@ -531,7 +537,7 @@
 
 @media (max-width: 1024px) {
   .workspace {
-    grid-template-columns: 68px minmax(210px, 240px) minmax(340px, 1fr);
+    grid-template-columns: 96px minmax(210px, 240px) minmax(340px, 1fr);
     gap: 12px;
   }
   .rightSidebar { display: none; }

@@ -132,28 +132,48 @@ export default function ForgotPasswordPage() {
   };
 
   const EyeIcon = () => (
-    <svg height="25" width="30" viewBox="0 0 24 24" fill="none" stroke="#4877f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <ellipse cx="12" cy="12" rx="8" ry="5" /><circle cx="12" cy="12" r="2.5" fill="#4877f5" />
+    <svg height="22" width="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="12" cy="12" rx="8" ry="5" /><circle cx="12" cy="12" r="2.5" fill="currentColor" />
     </svg>
   );
 
   const EyeOffIcon = () => (
-      <svg height="25" width="30" viewBox="0 0 24 24" fill="none" stroke="#4877f5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <ellipse cx="12" cy="12" rx="8" ry="5" /><circle cx="12" cy="12" r="2.5" fill="#4877f5" />
-          <line x1="4" y1="20" x2="20" y2="4" stroke="#bcbcbc" strokeWidth="2" />
+      <svg height="22" width="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <ellipse cx="12" cy="12" rx="8" ry="5" /><circle cx="12" cy="12" r="2.5" fill="currentColor" />
+          <line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" strokeWidth="2" />
       </svg>
   );
 
   return (
     <div className={styles.pageGifBg}>
-      <div className={styles.centeredContent}>
-        <div className={styles.loginCard}>
+      <header className={styles.authHeader}>
+        <div className={styles.logo}>
+          Story<span>.</span>
+        </div>
+      </header>
+
+      <main className={styles.authMain}>
+        <section className={styles.formSection}>
+          <div className={styles.titleRow}>
+            <Link href="/Auth/login" className={styles.backHome}>
+              ←
+            </Link>
+
+            <div>
+              <h1 className={styles.loginTitle}>
+                {step === 1 ? 'Forgot password' : 'Reset password'}
+              </h1>
+              <p className={styles.instructions}>
+                {step === 1
+                  ? "Enter your email and we'll send you a secure OTP to reset your password."
+                  : `We sent an OTP to ${email}. Add it below and choose a new password.`}
+              </p>
+            </div>
+          </div>
+
+          <div className={styles.loginCard}>
           {step === 1 ? (
             <>
-              <h2 className={styles.loginTitle}>Forgot Password</h2>
-              <p className={styles.instructions}>
-                Enter your email address and we'll send you an OTP to reset your password.
-              </p>
               <form className={styles.loginForm} onSubmit={handleSendOtp}>
                 <div className={styles.formGroup}>
                   <label htmlFor="email" className={styles.inputLabel}>Email</label>
@@ -174,10 +194,6 @@ export default function ForgotPasswordPage() {
             </>
           ) : (
             <>
-              <h2 className={styles.loginTitle}>Reset Password</h2>
-              <p className={styles.instructions}>
-                An OTP has been sent to {email}.
-              </p>
               <form className={styles.loginForm} onSubmit={handleResetPassword}>
                 <div className={styles.formGroup}>
                   <label htmlFor="otp" className={styles.inputLabel}>OTP</label>
@@ -214,9 +230,9 @@ export default function ForgotPasswordPage() {
                       onChange={(e) => setNewPassword(e.target.value)}
                       required
                     />
-                    <span className={styles.toggleEye} onClick={() => setShowPassword(!showPassword)}>
+                    <button type="button" className={styles.toggleEye} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
                         {showPassword ? <EyeIcon/> : <EyeOffIcon/>}
-                    </span>
+                    </button>
                   </div>
                 </div>
 
@@ -248,9 +264,9 @@ export default function ForgotPasswordPage() {
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                         />
-                        <span className={styles.toggleEye} onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                        <button type="button" className={styles.toggleEye} onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}>
                             {showConfirmPassword ? <EyeIcon/> : <EyeOffIcon/>}
-                        </span>
+                        </button>
                    </div>
                 </div>
                 <button type="submit" className={styles.button} disabled={loading}>
@@ -264,8 +280,23 @@ export default function ForgotPasswordPage() {
           <div className={styles.backToLogin}>
             <Link href="/Auth/login">Back to Login</Link>
           </div>
-        </div>
-      </div>
+          </div>
+        </section>
+
+        <section className={styles.illustrationSection}>
+          <img src="/forgot-password-illustration.png" alt="Password recovery illustration" />
+        </section>
+      </main>
+
+      <footer className={styles.authFooter}>
+        <span>About</span>
+        <span>Help Center</span>
+        <span>Terms of Service</span>
+        <span>Privacy Policy</span>
+        <span>Cookie Policy</span>
+        <span>Accessibility</span>
+        <span>©️ 2025 Story.</span>
+      </footer>
     </div>
   );
 }

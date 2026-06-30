@@ -851,6 +851,7 @@ const handleSubmit = async (isScheduled: boolean) => {
               onFilesChange={setFiles}
               effectiveRules={effectiveRules}
               validation={{}}
+              selectedChannels={selectedChannelList}
               validateFilesForSelectedChannels={validateFilesForSelectedChannels}
             />
 

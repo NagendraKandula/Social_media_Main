@@ -30,6 +30,25 @@ export default function PlatformFields({
 
   if (selectedChannels.size === 0) return null;
 
+  const renderOptions = <T extends string>(
+    value: T,
+    options: { value: T; label: string }[],
+    onChange: (value: T) => void
+  ) => (
+    <div className={styles.segmentedControl}>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={value === option.value ? styles.segmentActive : ""}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className={styles.platformFields}>
       {/* FACEBOOK */}
@@ -39,6 +58,7 @@ export default function PlatformFields({
 
           <div className={styles.field}>
             <select
+              className={styles.pageSelect}
               value={platformState.facebookPageId || ""}
               onChange={(e) => update("facebookPageId", e.target.value)}
             >
@@ -52,14 +72,15 @@ export default function PlatformFields({
           </div>
 
           <div className={styles.field}>
-            <select
-              value={platformState.facebookPostType || "feed"}
-              onChange={(e) => update("facebookPostType", e.target.value)}
-            >
-              <option value="feed">Feed</option>
-              <option value="reel">Reel</option>
-              <option value="story">Story</option>
-            </select>
+            {renderOptions(
+              platformState.facebookPostType || "feed",
+              [
+                { value: "feed", label: "Feed" },
+                { value: "reel", label: "Reel" },
+                { value: "story", label: "Story" },
+              ],
+              (value) => update("facebookPostType", value)
+            )}
           </div>
         </div>
       )}
@@ -70,14 +91,15 @@ export default function PlatformFields({
           <div className={styles.platform}>Instagram</div>
 
           <div className={styles.field}>
-            <select
-              value={platformState.instagramPostType || "post"}
-              onChange={(e) => update("instagramPostType", e.target.value)}
-            >
-              <option value="post">Post</option>
-              <option value="reel">Reel</option>
-              <option value="story">Story</option>
-            </select>
+            {renderOptions(
+              platformState.instagramPostType || "post",
+              [
+                { value: "post", label: "Post" },
+                { value: "reel", label: "Reel" },
+                { value: "story", label: "Story" },
+              ],
+              (value) => update("instagramPostType", value)
+            )}
           </div>
 
           <div />
@@ -99,13 +121,14 @@ export default function PlatformFields({
           </div>
 
           <div className={styles.field}>
-            <select
-              value={platformState.youtubeType || "video"}
-              onChange={(e) => update("youtubeType", e.target.value)}
-            >
-              <option value="video">Video</option>
-              <option value="shorts">Shorts</option>
-            </select>
+            {renderOptions(
+              platformState.youtubeType || "video",
+              [
+                { value: "video", label: "Video" },
+                { value: "shorts", label: "Shorts" },
+              ],
+              (value) => update("youtubeType", value)
+            )}
           </div>
         </div>
       )}

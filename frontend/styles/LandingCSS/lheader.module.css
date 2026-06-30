@@ -13,18 +13,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
+  gap: clamp(12px, 2vw, 32px);
+  padding: 0 clamp(16px, 3vw, 40px);
   background: var(--header-bg);
   width: 100%;
   height: 70px;
   border-bottom: 1px solid var(--header-border); /* optional but recommended */
   overflow: visible; 
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  box-sizing: border-box;
 }
 
 /* Logo */
 .logo {
-  font-size: 30px;
+  flex: 0 0 auto;
+  font-size: clamp(24px, 2.2vw, 30px);
   font-weight: 500;
   font-family: "Georgia", serif;
   color: var(--header-text);
@@ -37,10 +40,19 @@
 
 /* Channels (platform icons) */
 .channels {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-self: center;
-  gap: 35px;
+  justify-content: center;
+  gap: clamp(10px, 2.4vw, 35px);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.channels::-webkit-scrollbar {
+  display: none;
 }
 
 
@@ -56,8 +68,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 50px;
-  height: 45px;
+  width: clamp(40px, 4vw, 50px);
+  height: clamp(38px, 3.8vw, 45px);
   border-radius: 30%;
   border: 1px solid var(--header-border);
   cursor: pointer;
@@ -91,9 +103,10 @@
 
 /* Right actions */
 .actions {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: clamp(6px, 1vw, 12px);
   position: relative;
 }
 
@@ -143,7 +156,7 @@
   position: absolute;
   top: 44px;
   right: 10px;
-  width: 350px;
+  width: min(350px, calc(100vw - 32px));
   max-width: calc(100vw - 32px);
   background: var(--header-dropdown-bg);
   border: 1px solid var(--header-border);
@@ -186,7 +199,7 @@
 }
 
 .notificationList {
-  max-height: 360px;
+  max-height: min(360px, calc(100vh - 160px));
   overflow-y: auto;
 }
 
@@ -356,4 +369,83 @@
 .profileDropdown button:hover {
   background: var(--header-hover);
   color: var(--header-primary);
+}
+
+@media (max-width: 900px) {
+  .header {
+    height: 64px;
+  }
+
+  .channels {
+    justify-content: flex-start;
+    padding: 0 4px;
+  }
+
+  .channelIcon {
+    font-size: 16px;
+  }
+
+  .notification,
+  .settings,
+  .profilePic {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  .logo {
+    font-size: 23px;
+  }
+
+  .channels {
+    gap: 8px;
+  }
+
+  .channelIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 15px;
+  }
+
+  .settings {
+    display: none;
+  }
+
+  .notificationDropdown {
+    position: fixed;
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+  }
+
+  .profileDropdown {
+    right: 0;
+    width: 140px;
+  }
+}
+
+@media (max-width: 420px) {
+  .logo {
+    font-size: 21px;
+  }
+
+  .channelIcon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .notification,
+  .profilePic {
+    width: 32px;
+    height: 32px;
+  }
 }

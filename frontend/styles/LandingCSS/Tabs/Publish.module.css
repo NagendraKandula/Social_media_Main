@@ -5,6 +5,8 @@
 .publishPage {
   min-height: 100%;
   color: var(--app-text);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .pageHeader {
@@ -54,8 +56,8 @@
 
 .mainLayout {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(340px, 0.85fr);
-  gap: 22px;
+  grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.85fr);
+  gap: clamp(16px, 2vw, 22px);
   align-items: stretch;
 }
 
@@ -76,7 +78,7 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 18px;
+  padding: clamp(14px, 2vw, 18px);
 }
 
 .rightCard {
@@ -84,7 +86,7 @@
   top: 132px;
   display: flex;
   flex-direction: column;
-  min-height: 620px;
+  min-height: min(620px, calc(100vh - 170px));
   max-height: calc(100vh - 170px);
   padding: 14px;
   overflow: hidden;
@@ -115,7 +117,7 @@
 }
 
 .editorSlot {
-  min-height: 260px;
+  min-height: clamp(220px, 28vh, 260px);
 }
 
 .platformSlot {
@@ -442,8 +444,32 @@
 
   .rightCard {
     position: static;
-    min-height: 540px;
+    min-height: 520px;
     max-height: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .pageHeader h1 {
+    font-size: 1.5rem;
+  }
+
+  .mainLayout {
+    gap: 16px;
+  }
+
+  .rightCard {
+    min-height: 460px;
+  }
+
+  .reviewModal {
+    max-height: calc(100vh - 80px);
+  }
+
+  .reviewBody {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+    gap: 14px;
+    padding: 14px;
   }
 }
 
@@ -462,17 +488,108 @@
   .topActions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+    width: 100%;
   }
 
   .primaryBtn {
     grid-column: 1 / -1;
   }
 
+  .secondaryBtn,
+  .primaryBtn {
+    width: 100%;
+  }
+
+  .rightCard {
+    min-height: 420px;
+  }
+
+  .scheduleOverlay,
+  .reviewOverlay {
+    align-items: stretch;
+    padding: 72px 16px 16px;
+  }
+
   .reviewBody {
     grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .reviewSummary {
+    gap: 14px;
+  }
+
+  .reviewPreview {
+    min-height: 360px;
   }
 
   .reviewActions {
     flex-direction: column-reverse;
+  }
+}
+
+@media (max-width: 520px) {
+  .pageHeader {
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .pageHeader h1 {
+    font-size: 1.35rem;
+  }
+
+  .pageHeader p {
+    font-size: 0.86rem;
+  }
+
+  .headerMeta {
+    justify-content: flex-start;
+  }
+
+  .leftCard,
+  .rightCard {
+    border-radius: 8px;
+    box-shadow: 0 3px 14px rgba(15, 23, 42, 0.05);
+  }
+
+  .topActions {
+    grid-template-columns: 1fr;
+  }
+
+  .rightCard {
+    min-height: 380px;
+    padding: 12px;
+  }
+
+  .rightHeader button {
+    min-height: 34px;
+    padding: 7px 8px;
+    font-size: 0.82rem;
+  }
+
+  .scheduleModal {
+    padding: 16px;
+  }
+
+  .modalActions {
+    flex-direction: column-reverse;
+  }
+
+  .modalActions button,
+  .reviewActions button {
+    width: 100%;
+  }
+
+  .reviewHeader,
+  .reviewActions {
+    padding: 14px 16px;
+  }
+
+  .reviewBody {
+    padding: 12px;
+  }
+
+  .reviewPreview {
+    min-height: 320px;
   }
 }

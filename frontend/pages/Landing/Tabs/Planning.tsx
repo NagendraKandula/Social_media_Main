@@ -550,6 +550,7 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
               effectiveRules={effectiveRules}
               validation={{}}
               isReadOnly={isReadOnly}
+              selectedChannels={selectedChannelList}
               validateFilesForSelectedChannels={validateFilesForSelectedChannels}
             />
             <LazyPlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />

@@ -17,6 +17,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
+  const formatMessage = (value: unknown) => {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) return value.join(", ");
+    if (value && typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -38,8 +45,9 @@ try {
     router.push("/Auth/preloading");
 
 } catch (error: any) {
-  const errorMessage =
-    error.response?.data?.message || "Login failed. Please try again.";
+  const errorMessage = formatMessage(
+    error.response?.data?.message || "Login failed. Please try again."
+  );
   setMessage(errorMessage);
   setLoading(false);
 }
@@ -130,12 +138,12 @@ try {
               {message && (
                 <p
                   className={`${styles.message} ${
-                    message.toLowerCase().includes("success")
+                    formatMessage(message).toLowerCase().includes("success")
                       ? styles.success
                       : styles.error
                   }`}
                 >
-                  {message}
+                  {formatMessage(message)}
                 </p>
               )}
 
