@@ -47,22 +47,26 @@ export class SocialAuthService {
         });
       }
       
+      console.log("NODE_ENV =", process.env.NODE_ENV);
+     
+       const isProd = process.env.NODE_ENV === "production";
       const tokens = await this.tokenService.getTokens(user.id, user.email);
-
+console.log("Tokens =", tokens);
 res.cookie("access_token", tokens.accessToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV !== "development",
-  sameSite: "none",
+   secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 15 * 60 * 1000,
 });
 
 res.cookie("refresh_token", tokens.refreshToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV !== "development",
-  sameSite: "none",
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
       const frontendUrl = this.config.get<string>('FRONTEND_URL');
+       console.log("FRONTEND_URL =", frontendUrl);
        return res.redirect(`${frontendUrl}/Auth/preloading`);
     }
     async facebookLogin(req, res: Response, appUserId: number) {
