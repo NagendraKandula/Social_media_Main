@@ -33,7 +33,7 @@ export class AiAssistantController {
         files,
       );
       return { success: true, data: result };
-    } catch (error) {
+    } catch (error:any) {
       throw new BadRequestException(`AI Error: ${error.message}`);
     }
   }

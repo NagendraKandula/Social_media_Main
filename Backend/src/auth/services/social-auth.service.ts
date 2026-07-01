@@ -41,21 +41,29 @@ export class SocialAuthService {
         user = await this.prisma.user.create({
           data: {
             email: lowerCaseEmail,
-            fullName: `${firstName} ${lastName}`,
+            fullName: [firstName, lastName].filter(Boolean).join(' '),
             password: hashedPassword,
           },
         });
       }
       
-      const token = await this.tokenService.getTokens(user.id, user.email);
-      res.cookie('access_token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV !== 'development',
-        sameSite: 'none',
-        expires: new Date(Date.now() + 1 * 60 * 60 * 1000),
-      });
+      const tokens = await this.tokenService.getTokens(user.id, user.email);
+
+res.cookie("access_token", tokens.accessToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV !== "development",
+  sameSite: "none",
+  maxAge: 15 * 60 * 1000,
+});
+
+res.cookie("refresh_token", tokens.refreshToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV !== "development",
+  sameSite: "none",
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
       const frontendUrl = this.config.get<string>('FRONTEND_URL');
-       return res.redirect(`${frontendUrl}/Landing`);
+       return res.redirect(`${frontendUrl}/Auth/preloading`);
     }
     async facebookLogin(req, res: Response, appUserId: number) {
         if (!req.user || !req.user.id) {

@@ -15,8 +15,11 @@ model User {
   email          String          @unique
   password       String
   createdAt      DateTime        @default(now())
-  otp            String?
-  otpExpiry      DateTime?
+  otpHash               String?   // Hashed OTP storage
+  otpExpiry             DateTime? // When the OTP itself expires
+  otpRequestCount       Int       @default(0) // Requests within the window
+  otpRequestWindowStart DateTime? // Tracks the 15-minute block
+  lastOtpSentAt         DateTime? // Tracks the 60-second cooldown
   refreshTokens  RefreshToken[]
   socialAccounts SocialAccount[]
   posts          Post[]
@@ -127,6 +130,8 @@ enum PostStatus {
   PUBLISHED
   FAILED
   PARTIAL
+  QUEUED
+  DISPATCHING
 }
 
 enum MediaType {
