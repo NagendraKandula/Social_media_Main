@@ -1,6 +1,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from '../dto/register.dto';
@@ -8,17 +9,22 @@ import { LoginDto } from '../dto/login.dto';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import * as bcrypt from 'bcrypt';
-import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { TokenService } from './token.service';
+import {randomInt} from 'crypto';
+import {getPasswordResetEmail} from '../templates/password-reset.template';
+import { Resend } from 'resend';
 @Injectable()
 export class AuthService {
+   private resend: Resend;
   constructor(
     private prisma: PrismaService,
     private config: ConfigService,
     private tokenService: TokenService,
-  ) {}
+  ) {
+    this.resend = new Resend(this.config.get<string>('RESEND_API_KEY'));
+  }
 
   // REGISTER
   async register(dto: RegisterDto, res: Response) {
@@ -93,69 +99,109 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const { email } = dto;
     const lowerCaseEmail = email.toLowerCase();
+    const now = new Date();
+    const WINDOW_DURATION = 15 * 60 * 1000; // 15 minutes
+    const COOLDOWN_DURATION = 60 * 1000; 
 
     const user = await this.prisma.user.findUnique({ where: { email:lowerCaseEmail } });
     if (!user) {
-      throw new BadRequestException('Email not registered');
+      return { message: 'If an account exists, an OTP has been sent.' };
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+    let currentWindowStart = user.otpRequestWindowStart;
+    let currentCount = user.otpRequestCount;
+
+    // FIX: Removed the stray this.prisma.user.update block that was here and calling undefined 'otp' variables
+
+    if (user.lastOtpSentAt && now.getTime() - user.lastOtpSentAt.getTime() < COOLDOWN_DURATION) {
+      throw new ForbiddenException('Please wait 60 seconds before requesting a new OTP.');
+    }
+
+    if (!currentWindowStart || now.getTime() - currentWindowStart.getTime() > WINDOW_DURATION) {
+      currentWindowStart = now;
+      currentCount = 1;
+    } else {
+      if (currentCount >= 3) {
+        throw new ForbiddenException('Maximum limit reached. Please try again in 15 minutes.');
+      }
+      currentCount += 1;
+    }
+
+    const secureOtp = randomInt(100000, 1000000).toString(); 
+    const hashedOtp = await bcrypt.hash(secureOtp, 10);
+    const otpExpiry = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes
 
     await this.prisma.user.update({
-      where: { email: lowerCaseEmail }, // Corrected line
-      data: { otp, otpExpiry },
-    });
-
-    // Nodemailer setup using env variables
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: this.config.get<string>('EMAIL_USER'),
-        pass: this.config.get<string>('EMAIL_PASS'),
+      where: { id: user.id },
+      data: {
+        otpHash: hashedOtp,
+        otpExpiry,
+        otpRequestCount: currentCount,
+        otpRequestWindowStart: currentWindowStart,
+        lastOtpSentAt: now,
       },
     });
 
-    await transporter.sendMail({
-      from: `"My App" <${this.config.get<string>('EMAIL_USER')}>`,
-      to: email,
-      subject: 'OTP for Password Reset',
-      text: `Your OTP is ${otp}. It will expire in 10 minutes.`,
-    });
+    this.dispatchEmailSafely(lowerCaseEmail, secureOtp);
 
-    return { message: 'OTP sent to email' };
+    return { message: 'If an account exists, an OTP has been sent.' };
+  }
+private async dispatchEmailSafely(email: string, otp: string) {
+    try {
+      const verifiedSender = this.config.get<string>('EMAIL_FROM_ADDRESS') || 'noreply@yourdomain.com';
+      await this.resend.emails.send({
+        from: `Social App <${verifiedSender}>`,
+        to: email,
+        subject: 'Reset Your Password - Verification Token',
+        html: getPasswordResetEmail(otp),
+      });
+    } catch (error) {
+      console.error('[Resend Error] Failed to send email to:', email, error);
+    }
   }
 
   // RESET PASSWORD
   async resetPassword(dto: ResetPasswordDto) {
-    const { email, otp, newPassword, confirmPassword } = dto;
-    const lowerCaseEmail = email.toLowerCase();
-    if (newPassword !== confirmPassword) {
+    const lowerCaseEmail = dto.email.toLowerCase();
+    
+    if (dto.newPassword !== dto.confirmPassword) {
       throw new BadRequestException('Passwords do not match');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { email:lowerCaseEmail } });
-    if (!user || user.otp !== otp) {
-      throw new BadRequestException('Invalid email or OTP');
+    const user = await this.prisma.user.findUnique({ where: { email: lowerCaseEmail } });
+    
+    if (!user || !user.otpHash || !user.otpExpiry) {
+      throw new BadRequestException('Invalid or expired OTP');
     }
 
-    if (!user.otpExpiry || user.otpExpiry < new Date()) {
-      throw new BadRequestException('OTP has expired');
+    if (user.otpExpiry < new Date()) {
+      throw new BadRequestException('Invalid or expired OTP');
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    const isValid = await bcrypt.compare(dto.otp, user.otpHash);
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
 
     await this.prisma.user.update({
-      where: { email: lowerCaseEmail }, // Corrected line
+      where: { id: user.id },
       data: {
         password: hashedPassword,
-        otp: null,
+        otpHash: null,
         otpExpiry: null,
+        otpRequestCount: 0,
+        otpRequestWindowStart: null,
+        lastOtpSentAt: null,
       },
     });
 
     return { message: 'Password reset successful' };
   }
+    
+  
+  
 
   // RESEND OTP
   async resendOtp(dto: ForgotPasswordDto) {
