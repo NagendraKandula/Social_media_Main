@@ -1,12 +1,24 @@
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+// Backend/src/ai-assistant/dto/generate-content.dto.ts
+import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
 
 export class GenerateContentDto {
   @IsOptional()
   @IsString()
-  //@IsNotEmpty()
-  prompt: string;
+  content?: string;
 
+  @IsOptional()
+  @IsArray()
+  platforms?: string[];
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  type: string; // e.g., 'Generate Hashtags', 'Generate Caption', etc.
+  action?: string; // e.g., 'caption', 'hashtags', 'recommend_platform', 'rewrite'
+
+  @IsOptional()
+  @IsString()
+  tone?: string; // e.g., 'professional', 'funny', 'casual'
+
+  @IsOptional()
+  @IsString()
+  language?: string;
 }

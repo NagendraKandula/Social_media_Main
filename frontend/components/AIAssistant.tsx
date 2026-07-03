@@ -1,181 +1,181 @@
-import React, { useState, useRef } from 'react';
-import { 
-  Sparkles, 
-  Hash, 
-  FileText, 
-  Type, 
-  MessageSquarePlus, 
-  Copy, 
-  Loader, 
-  PlusCircle, 
-  X, 
-  Trash2 
-} from 'lucide-react';
+// frontend/components/AIAssistant.tsx
+import React, { useState } from 'react';
+import { AiAnalysisResult, MediaItem } from '../types';
+import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
 import styles from '../styles/AIAssistant.module.css';
-import axios from '../lib/axios';
 
-const AIAssistant = () => {
-  const [promptValue, setPromptValue] = useState('');
-  const [generatedContent, setGeneratedContent] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeButton, setActiveButton] = useState('');
-  const [images, setImages] = useState<File[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+interface Props {
+  files: MediaItem[] | File[];
+  onAnalysisComplete: (result: AiAnalysisResult) => void;
+  onApplyCaption: (caption: string) => void;
+  onApplyHashtags: (hashtags: string[]) => void;
+  onAutoSelectPlatforms: (platforms: any[]) => void;
+}
 
-  const handleGenerate = async (genType: string) => {
-    if (!promptValue.trim() && images.length === 0) {
-      alert('Please enter a prompt or upload images.');
+export default function AIAssistant({ 
+  files, 
+  onAnalysisComplete, 
+  onApplyCaption, 
+  onApplyHashtags, 
+  onAutoSelectPlatforms 
+}: Props) {
+  const [instructions, setInstructions] = useState('');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+
+  const handleAnalyze = async () => {
+    if (files.length === 0 && !instructions) {
+      alert("Please upload an image/video or add instructions first.");
       return;
     }
-
-    setIsLoading(true);
-    setActiveButton(genType);
-    setGeneratedContent('');
-
-    const formData = new FormData();
-    formData.append('prompt', promptValue);
-    formData.append('type', genType);
     
-    images.forEach((file) => {
-      formData.append('images', file); 
-    });
+    setIsAnalyzing(true);
+    const formData = new FormData();
+    
+    // ✅ FIX: Loop through ALL files to support carousels/albums
+    if (files.length > 0) {
+      for (const item of files) {
+        const file = item instanceof File ? item : (item as any).file;
+        if (file) {
+          formData.append('media', file);
+        }
+      }
+    }
+    
+    if (instructions) formData.append('content', instructions);
 
     try {
-      const response = await axios.post('/ai-assistant/generate', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      // ✅ FIX: Use apiClient instead of naked fetch
+      const response = await apiClient.post('/ai/generate', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-
-      if (response.data && response.data.success) {
-        setGeneratedContent(response.data.data);
+      
+      const json = response.data;
+      
+      if (json.success) {
+        setAnalysis(json.data);
+        onAnalysisComplete(json.data); // Bubble up to Parent
       }
-    } catch (error: any) {
-      console.error('AI Error:', error);
-      setGeneratedContent("Error: " + (error.response?.data?.message || "Failed to reach server"));
+    } catch (error) {
+      console.error("AI Analysis failed", error);
+      alert("Failed to analyze content. Please try again.");
     } finally {
-      setIsLoading(false);
-      setActiveButton('');
+      setIsAnalyzing(false);
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      setImages((prev) => [...prev, ...selectedFiles].slice(0, 5));
-    }
-  };
+  if (isAnalyzing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.spinnerContainer}>
+          <div className={styles.spinner}></div>
+          <p className="font-semibold">✨ AI Co-Pilot is thinking...</p>
+          <ul className={styles.checklist}>
+            <li>✓ Analyzing visual aesthetic</li>
+            <li>✓ Evaluating aspect ratios</li>
+            <li>✓ Checking platform suitability</li>
+            <li>✓ Crafting engaging caption</li>
+          </ul>
+        </div>
+      </div>
+    );
+  }
 
-  const removeImage = (index: number) => {
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  // frontend/components/AIAssistant.tsx
 
-  const clearResult = () => {
-    setGeneratedContent('');
-  };
+  if (analysis) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <h3 className={styles.title}>✨ Analysis Complete</h3>
+          <span className={styles.confidence}>
+            {analysis.analysis?.engagementPrediction || 'Medium'} Engagement
+          </span>
+        </div>
 
-  const buttons = [
-    { label: 'Generate Hashtags', icon: <Hash size={16} /> },
-    { label: 'Generate Description', icon: <FileText size={16} /> },
-    { label: 'Generate Caption', icon: <Type size={16} /> },
-    { label: 'Generate Content', icon: <MessageSquarePlus size={16} /> },
-  ];
+        {/* ---------------- NEW STRATEGY SECTION ---------------- */}
+        <div className={styles.section} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+          <h4 className={styles.sectionTitle}>Content Strategy</h4>
+          <div className={styles.textBlock} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <p><strong>Summary:</strong> {analysis.analysis?.summary}</p>
+            <p><strong>Vibe/Mood:</strong> {analysis.analysis?.mood}</p>
+            <p><strong>Target Audience:</strong> {analysis.analysis?.audience}</p>
+            <p><strong>Ideal Aspect Ratio:</strong> {analysis.analysis?.bestAspectRatio}</p>
+            <p><strong>Best Time:</strong> {analysis.analysis?.bestPostingTime}</p>
+          </div>
+        </div>
 
+        {/* ---------------- CONTENT SECTION ---------------- */}
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Caption</h4>
+          <p className={styles.textBlock}>
+            {analysis.content?.caption || 'No caption generated.'}
+            <br/><br/>
+            {analysis.content?.cta && <strong>{analysis.content.cta}</strong>}
+          </p>
+          <button 
+            onClick={() => {
+              const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
+              onApplyCaption(fullText.trim());
+            }} 
+            className={styles.btnApply}
+          >
+            Use Caption & CTA
+          </button>
+        </div>
+
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Hashtags</h4>
+          <p className={`${styles.textBlock} ${styles.hashtags}`}>
+            {analysis.content?.hashtags?.join(' ') || '#social'}
+          </p>
+          <button 
+            onClick={() => onApplyHashtags(analysis.content?.hashtags || [])} 
+            className={styles.btnApply}
+          >
+            Use Hashtags
+          </button>
+        </div>
+
+        <button 
+          onClick={() => {
+            const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
+            onApplyCaption(fullText.trim());
+            onApplyHashtags(analysis.content?.hashtags || []);
+            onAutoSelectPlatforms(analysis.analysis?.recommendedPlatforms || []); 
+          }} 
+          className={styles.btnPrimary}
+        >
+          Apply All Recommendations
+        </button>
+      </div>
+    );
+  }
   return (
-    <div className={styles.aiAssistant}>
-      <div className={styles.header}>
-        <Sparkles size={20} className={styles.headerIcon} />
-        <h3 className={styles.title}>AI Assistant (Llama 4)</h3>
-      </div>
-
-      <div className={styles.inputGroup}>
-        <div className={styles.promptWrapper}>
-          <button 
-            className={styles.uploadButton} 
-            onClick={() => fileInputRef.current?.click()}
-            type="button"
-          >
-            <PlusCircle size={20} />
-          </button>
-          
-          <textarea
-            value={promptValue}
-            onChange={(e) => setPromptValue(e.target.value)}
-            placeholder="Topic for the carousel..."
-            className={styles.promptInput}
-            rows={3}
-          />
-          
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-          />
-        </div>
-
-        {images.length > 0 && (
-          <div className={styles.carouselContainer}>
-            {images.map((file, idx) => (
-              <div key={idx} style={{ position: 'relative', flex: '0 0 60px', height: '60px' }}>
-                <img 
-                    src={URL.createObjectURL(file)} 
-                    alt="preview" 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} 
-                />
-                <button onClick={() => removeImage(idx)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '16px', height: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <X size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className={styles.buttonGrid}>
-        {buttons.map(({ label, icon }) => (
-          <button 
-            key={label} 
-            onClick={() => handleGenerate(label)} 
-            className={styles.generateButton} 
-            disabled={isLoading}
-          >
-            {isLoading && activeButton === label ? <Loader size={16} className={styles.loaderIcon} /> : icon}
-            <span>{label.replace('Generate ', '')}</span>
-          </button>
-        ))}
-      </div>
-
-      {generatedContent && (
-        <div className={styles.outputContainer}>
-          <div className={styles.outputHeader}>
-            <h4>Generated Results</h4>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                onClick={() => navigator.clipboard.writeText(generatedContent)} 
-                className={styles.copyButton}
-                title="Copy text"
-              >
-                <Copy size={16} />
-              </button>
-              
-              <button 
-                onClick={clearResult} 
-                className={styles.copyButton} 
-                style={{ color: '#ef4444' }}
-                title="Clear result"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          </div>
-          <div className={styles.generatedText}>
-            {generatedContent}
-          </div>
-        </div>
-      )}
+    <div className={styles.container}>
+      <h3 className={styles.title}>✨ AI Co-Pilot</h3>
+      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+        Upload media in the editor, optionally tell me what you want to achieve, and I'll strategize your post.
+      </p>
+      
+      <textarea 
+        placeholder="Optional instructions (e.g., 'Promote this as a luxury product')..."
+        value={instructions}
+        onChange={(e) => setInstructions(e.target.value)}
+        rows={3}
+        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.75rem', fontSize: '0.875rem' }}
+      />
+      
+      <button 
+        onClick={handleAnalyze} 
+        className={styles.btnPrimary}
+        disabled={files.length === 0 && !instructions}
+        style={{ opacity: (files.length === 0 && !instructions) ? 0.5 : 1 }}
+      >
+        Analyze with AI
+      </button>
     </div>
   );
-};
-
-export default AIAssistant;
+}
