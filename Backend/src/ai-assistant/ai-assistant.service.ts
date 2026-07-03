@@ -1,76 +1,65 @@
+ // Best model for fast, multimodal tasks
 // Backend/src/ai-assistant/ai-assistant.service.ts
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { Express } from 'express';
-import { GenerateContentDto } from './dto/generate-content.dto';
-import 'multer';
+
 @Injectable()
 export class AiAssistantService {
   private genAI: GoogleGenerativeAI;
-  private readonly defaultModel = 'gemini-2.5-flash'; // Best model for fast, multimodal tasks
 
   constructor(private configService: ConfigService) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY is not set in environment variables.');
-    }
-    
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenerativeAI(this.configService.get<string>('GEMINI_API_KEY')!);
   }
 
-  async analyzeAndGenerate(
-    dto: GenerateContentDto,
-    files?: Express.Multer.File[],
-  ): Promise<string> {
-    const { content, platforms, action, tone, language } = dto;
-
-    // 1. Initialize the model with JSON configuration
+  async analyzeAndGenerate(dto: any, files: Express.Multer.File[]): Promise<any> {
     const model = this.genAI.getGenerativeModel({
-      model: this.defaultModel,
-      generationConfig: {
-        responseMimeType: 'application/json', // Forces Gemini to return valid JSON
-        temperature: 0.7,
-      },
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.7 },
     });
 
-    // 2. Construct the text prompt
-   let userPrompt = `You are an expert Social Media Strategist AI. Analyze the provided inputs and media to generate an optimized social media strategy and content.\n\n`;
+    const { content, platforms, tone, language } = dto;
+
+    const systemInstruction = `
+    You are an expert Social Media Campaign Strategist. 
+    You will be provided with one or more media files (images/videos). 
+    You MUST analyze all provided media TOGETHER as a single cohesive post or carousel. 
+    Identify if they form a sequence, a before/after, a product showcase, or a thematic collection.
     
-    if (content) userPrompt += `Existing text: "${content}".\n`;
-    if (tone) userPrompt += `Desired tone: ${tone}.\n`;
-    if (language) userPrompt += `Output language: ${language}.\n`;
-    
-    userPrompt += `
-    You MUST respond with a JSON object exactly matching this schema. Fill in all fields based on the visual aesthetic and context of the image:
+    Return ONLY a JSON object with this EXACT structure:
     {
       "analysis": {
-        "summary": "Brief description of the media",
-        "mood": "The emotional vibe (e.g., Magical, Professional, Cozy)",
-        "audience": "Target demographic",
+        "mediaSummary": [
+          { "index": 1, "type": "IMAGE", "description": "Brief description of the first image" }
+        ],
+        "overallTheme": "e.g., Fantasy Adventure, Professional Meeting",
+        "story": "How these images work together to tell a story or convey a message.",
         "recommendedPlatforms": [
-          { "platform": "Instagram", "rating": 5, "reason": "Why it works here" },
-          { "platform": "LinkedIn", "rating": 1, "reason": "Why it fails here" }
+          { "platform": "Instagram", "rating": 5, "reason": "Why this platform is ideal" },
+          { "platform": "LinkedIn", "rating": 1, "reason": "Why this platform is not recommended" }
         ],
         "bestAspectRatio": "e.g., 4:5, 1:1, 16:9",
         "engagementPrediction": "High, Medium, or Low",
         "bestPostingTime": "e.g., 7:00 PM - 9:00 PM"
       },
       "content": {
-        "caption": "The actual post caption ready to be published",
+        "caption": "A highly engaging caption for the entire post/carousel.",
         "hashtags": ["#tag1", "#tag2"],
-        "cta": "A call to action for the end of the post",
-        "emoji": ["✨", "🌙"]
+        "cta": "A strong call to action",
+        "emoji": ["✨", "🚀"]
       }
     }`;
-    // 3. Prepare the payload array (mix of text and images)
-    // Gemini accepts an array where items can be text strings or image objects
-    const promptParts: any[] = [userPrompt];
 
+    let userPrompt = `Analyze the attached media.\n`;
+    if (content) userPrompt += `Existing context/text: "${content}".\n`;
+    if (tone) userPrompt += `Desired tone: ${tone}.\n`;
+    if (language) userPrompt += `Output language: ${language}.\n`;
+
+    const promptParts: any[] = [systemInstruction, userPrompt];
+    
+    // Append all media files in order
     if (files && files.length > 0) {
-      // Limit to 5 images to prevent payload size issues, though Gemini can handle more
-      files.slice(0, 5).forEach((file) => {
+      files.forEach((file) => {
         promptParts.push({
           inlineData: {
             data: file.buffer.toString('base64'),
@@ -80,14 +69,12 @@ export class AiAssistantService {
       });
     }
 
-    // 4. Generate the content
     try {
       const result = await model.generateContent(promptParts);
-      
-      // Because we set responseMimeType to application/json, this will be a clean JSON string
-      return result.response.text(); 
+      //console.log(result);
+//console.log(typeof result);
+      return result.response.text();
     } catch (error: any) {
-      console.error('Gemini AI generation failed:', error);
       throw new Error(`AI generation failed: ${error.message}`);
     }
   }

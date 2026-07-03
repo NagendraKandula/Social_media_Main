@@ -1,8 +1,7 @@
-// frontend/components/AIAssistant.tsx
-import React, { useState } from 'react';
-import { AiAnalysisResult, MediaItem } from '../types';
-import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
+import React, { useState, useEffect } from 'react';
+import apiClient from '../lib/axios';
 import styles from '../styles/AIAssistant.module.css';
+import { AiAnalysisResult, MediaItem } from '../types';
 
 interface Props {
   files: MediaItem[] | File[];
@@ -21,47 +20,70 @@ export default function AIAssistant({
 }: Props) {
   const [instructions, setInstructions] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Premium Loading State
+  const [loadingStep, setLoadingStep] = useState('');
+  const [progress, setProgress] = useState(0);
+  
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
 
-  const handleAnalyze = async () => {
-    if (files.length === 0 && !instructions) {
-      alert("Please upload an image/video or add instructions first.");
+  // Drive the loading animation
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setProgress(0);
       return;
     }
+
+    const steps = [
+      'Analyzing image...',
+      'Understanding context...',
+      'Generating captions...',
+      'Selecting platforms...'
+    ];
+    
+    let currentStep = 0;
+    setLoadingStep(steps[0]);
+    setProgress(15); // Start with a small chunk
+
+    const interval = setInterval(() => {
+      currentStep += 1;
+      if (currentStep < steps.length) {
+        setLoadingStep(steps[currentStep]);
+        // Increment progress, but cap it at 90% until the API actually finishes
+        setProgress((prev) => Math.min(prev + 25, 90)); 
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [isAnalyzing]);
+
+  const handleAnalyze = async () => {
+    if (files.length === 0 && !instructions) return;
     
     setIsAnalyzing(true);
     const formData = new FormData();
     
-    // ✅ FIX: Loop through ALL files to support carousels/albums
-    if (files.length > 0) {
-      for (const item of files) {
-        const file = item instanceof File ? item : (item as any).file;
-        if (file) {
-          formData.append('media', file);
-        }
-      }
+    for (const item of files) {
+      const file = item instanceof File ? item : (item as any).file;
+      if (file) formData.append('media', file);
     }
-    
     if (instructions) formData.append('content', instructions);
 
     try {
-      // ✅ FIX: Use apiClient instead of naked fetch
-      const response = await apiClient.post('/ai/generate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await apiClient.post('/ai/generate', formData);
+      setProgress(100); // Snap to 100% right before rendering results
       
-      const json = response.data;
+      // Wait a tiny bit so the user sees the 100% bar before the UI swaps
+      setTimeout(() => {
+        const json = response.data?.data || response.data;
+        setAnalysis(json);
+        onAnalysisComplete(json);
+        setIsAnalyzing(false);
+      }, 300);
       
-      if (json.success) {
-        setAnalysis(json.data);
-        onAnalysisComplete(json.data); // Bubble up to Parent
-      }
     } catch (error) {
-      console.error("AI Analysis failed", error);
-      alert("Failed to analyze content. Please try again.");
-    } finally {
+      console.error("Analysis failed", error);
+      alert("AI Analysis failed. Check console for details.");
       setIsAnalyzing(false);
     }
   };
@@ -69,51 +91,70 @@ export default function AIAssistant({
   if (isAnalyzing) {
     return (
       <div className={styles.container}>
-        <div className={styles.spinnerContainer}>
-          <div className={styles.spinner}></div>
-          <p className="font-semibold">✨ AI Co-Pilot is thinking...</p>
-          <ul className={styles.checklist}>
-            <li>✓ Analyzing visual aesthetic</li>
-            <li>✓ Evaluating aspect ratios</li>
-            <li>✓ Checking platform suitability</li>
-            <li>✓ Crafting engaging caption</li>
-          </ul>
+        <div className={styles.loadingContainer}>
+          <p className={styles.loadingText}>✨ {loadingStep}</p>
+          <div className={styles.progressBarBg}>
+            <div 
+              className={styles.progressBarFill} 
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  // frontend/components/AIAssistant.tsx
-
   if (analysis) {
     return (
       <div className={styles.container}>
         <div className={styles.header}>
-          <h3 className={styles.title}>✨ Analysis Complete</h3>
-          <span className={styles.confidence}>
-            {analysis.analysis?.engagementPrediction || 'Medium'} Engagement
-          </span>
-        </div>
-
-        {/* ---------------- NEW STRATEGY SECTION ---------------- */}
-        <div className={styles.section} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
-          <h4 className={styles.sectionTitle}>Content Strategy</h4>
-          <div className={styles.textBlock} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <p><strong>Summary:</strong> {analysis.analysis?.summary}</p>
-            <p><strong>Vibe/Mood:</strong> {analysis.analysis?.mood}</p>
-            <p><strong>Target Audience:</strong> {analysis.analysis?.audience}</p>
-            <p><strong>Ideal Aspect Ratio:</strong> {analysis.analysis?.bestAspectRatio}</p>
-            <p><strong>Best Time:</strong> {analysis.analysis?.bestPostingTime}</p>
+          <div className={styles.headerTop}>
+            <div>
+              <h3 className={styles.title}>✨ Analysis Complete</h3>
+              <span className={styles.confidence}>
+                {analysis.analysis?.engagementPrediction || 'Medium'} Engagement
+              </span>
+            </div>
+            {/* ✅ NEW: Regenerate Button */}
+            <button 
+              onClick={handleAnalyze} 
+              className={styles.btnSecondary}
+              title="Run analysis again"
+            >
+              ↻ Regenerate
+            </button>
           </div>
         </div>
 
-        {/* ---------------- CONTENT SECTION ---------------- */}
+        {/* --- WHAT THE AI SAW --- */}
+        <div className={styles.section}>
+          <h4 className={styles.sectionTitle}>Media Understood</h4>
+          <ul style={{ fontSize: '0.875rem', color: '#4b5563', paddingLeft: '0', listStyle: 'none', margin: 0 }}>
+            {analysis.analysis?.mediaSummary?.map((item, i) => (
+              <li key={i} style={{ marginBottom: '4px' }}>
+                ✔ <strong>Image {item.index}:</strong> {item.description}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* --- STRATEGY --- */}
+        <div className={styles.section} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+          <h4 className={styles.sectionTitle}>Content Strategy</h4>
+          <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <p style={{ margin: 0 }}><strong>Theme:</strong> {analysis.analysis?.overallTheme}</p>
+            <p style={{ margin: 0 }}><strong>Story:</strong> {analysis.analysis?.story}</p>
+            <p style={{ margin: 0 }}><strong>Best Time:</strong> {analysis.analysis?.bestPostingTime}</p>
+          </div>
+        </div>
+
+        {/* --- CONTENT --- */}
         <div className={styles.section}>
           <h4 className={styles.sectionTitle}>Caption</h4>
           <p className={styles.textBlock}>
-            {analysis.content?.caption || 'No caption generated.'}
+            {analysis.content?.caption}
             <br/><br/>
-            {analysis.content?.cta && <strong>{analysis.content.cta}</strong>}
+            <strong>{analysis.content?.cta}</strong>
           </p>
           <button 
             onClick={() => {
@@ -153,10 +194,11 @@ export default function AIAssistant({
       </div>
     );
   }
+
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>✨ AI Co-Pilot</h3>
-      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+      <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
         Upload media in the editor, optionally tell me what you want to achieve, and I'll strategize your post.
       </p>
       
