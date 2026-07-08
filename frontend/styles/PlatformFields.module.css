@@ -1,4 +1,8 @@
 .platformFields {
+  --publish-primary: #4f4cbe;
+  --publish-secondary: #7d71f2;
+  --publish-highlight: #f7f37e;
+  --publish-ring: rgba(125, 113, 242, 0.18);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -50,9 +54,9 @@
 
 .field select:focus,
 .field input:focus {
-  border-color: #ff5e45;
+  border-color: var(--publish-secondary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(255, 94, 69, 0.12);
+  box-shadow: 0 0 0 3px var(--publish-ring);
 }
 
 .pageSelect {
@@ -84,13 +88,18 @@
 }
 
 .segmentedControl button:hover {
-  color: #111827;
-  background: #ff5e45;
+  color: #ffffff;
+  background: var(--publish-secondary);
 }
 
 .segmentedControl .segmentActive {
   color: #ffffff;
-  background: #ff5e45;
+  background: var(--publish-primary);
+}
+
+.segmentedControl .segmentActive:hover {
+  color: #ffffff;
+  background: var(--publish-primary);
 }
 
 /* Twitter text-only row */

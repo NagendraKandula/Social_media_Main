@@ -5,6 +5,11 @@
 ================================ */
 
 .root {
+  --create-primary: #4f4cbe;
+  --create-secondary: #7d71f2;
+  --create-highlight: #f7f37e;
+  --create-soft: rgba(125, 113, 242, 0.1);
+  --create-border: rgba(79, 76, 190, 0.28);
   background: var(--app-bg);
   min-height: 100%;
   padding: 0;
@@ -33,7 +38,7 @@
 }
 
 .topTitle {
-  font-weight: 600;
+  font-weight: 500;
   font-size: 1.75rem;
   line-height: 1.12;
   color: #0f172a;
@@ -68,19 +73,12 @@
   transition: all 0.2s ease;
   white-space: nowrap;
 }
-.platformBtn:hover { background: #f9fafb; border-color: #d1d5db; }
+.platformBtn:hover { background: #f9fafb; border-color: #d1d5db; color: #6b7280;  }
 .platformActive {
-  background: #3b82f6;
+  background: linear-gradient(135deg, var(--create-primary), var(--create-secondary));
   color: #ffffff;
-  border-color: #3b82f6;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.2);
-}
-
-.platformDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+  border-color: var(--create-primary);
+  box-shadow: 0 2px 8px rgba(79, 76, 190, 0.2);
 }
 
 .topRight {
@@ -110,16 +108,16 @@
   gap: 8px;
   padding: 8px 16px;
   border-radius: 8px;
-  background: #535655;
+  background: linear-gradient(135deg, var(--create-primary), var(--create-secondary));
   color: #ffffff;
   border: none;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 2px 8px rgba(79, 76, 190, 0.2);
 }
-.downloadBtn:hover { background: #059669; transform: translateY(-1px); }
+.downloadBtn:hover { background: #4542aa; transform: translateY(-1px); }
 
 /* ===============================
    Workspace Grid
@@ -174,9 +172,9 @@
 }
 .tabBtn:hover { background: #f9fafb; color: #374151; }
 .tabActive {
-  background: #eff6ff;
-  color: #3b82f6;
-  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.1);
+  background: var(--create-soft);
+  color: var(--create-primary);
+  box-shadow: inset 3px 0 0 var(--create-highlight), 0 1px 2px rgba(79, 76, 190, 0.1);
 }
 
 /* ===============================
@@ -243,7 +241,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.addTextBtn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+.addTextBtn:hover { border-color: var(--create-primary); color: var(--create-primary); background: var(--create-soft); }
 
 .textPreset {
   width: 100%;
@@ -280,7 +278,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.shapeBtn:hover { background: #eff6ff; border-color: #93c5fd; color: #3b82f6; transform: scale(1.02); }
+.shapeBtn:hover { background: var(--create-soft); border-color: var(--create-border); color: var(--create-primary); transform: scale(1.02); }
 
 .thumbGrid {
   display: grid;
@@ -298,7 +296,7 @@
   transition: all 0.2s ease;
   aspect-ratio: 4/3;
 }
-.thumbBtn:hover { border-color: #3b82f6; transform: scale(1.02); box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); }
+.thumbBtn:hover { border-color: var(--create-primary); transform: scale(1.02); box-shadow: 0 2px 4px rgba(79, 76, 190, 0.1); }
 .thumbBtn img {
   width: 100%;
   height: 100%;
@@ -322,7 +320,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.uploadBtn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+.uploadBtn:hover { border-color: var(--create-primary); color: var(--create-primary); background: var(--create-soft); }
 
 .uploadHint {
   font-size: 12px;
@@ -455,7 +453,7 @@
   outline: none;
   transition: border-color 0.2s ease;
 }
-.inputGrid input[type="number"]:focus { border-color: #3b82f6; }
+.inputGrid input[type="number"]:focus { border-color: var(--create-primary); }
 
 .colorInput {
   width: 100% !important;
@@ -466,7 +464,7 @@
   cursor: pointer;
   transition: border-color 0.2s ease;
 }
-.colorInput:focus { border-color: #3b82f6 !important; }
+.colorInput:focus { border-color: var(--create-primary) !important; }
 
 .formatRow {
   display: flex;
@@ -491,7 +489,7 @@
   flex-shrink: 0;
 }
 .fmtBtn:hover { background: #f9fafb; border-color: #d1d5db; }
-.fmtActive { background: #eff6ff; color: #3b82f6; border-color: #93c5fd; }
+.fmtActive { background: var(--create-soft); color: var(--create-primary); border-color: var(--create-border); }
 
 .formatDivider {
   width: 1px;

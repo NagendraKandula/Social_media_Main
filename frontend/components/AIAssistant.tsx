@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../lib/axios';
-import styles from '../styles/AIAssistant.module.css';
+// frontend/components/AIAssistant.tsx
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
+import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
+import styles from '../styles/AIAssistant.module.css';
 
 interface Props {
   files: MediaItem[] | File[];
+  content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
+  onAnalysisReset?: () => void;
+  onResultControlsChange?: (
+    controls: { onBack: () => void; onRegenerate: () => void } | null
+  ) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
   onAutoSelectPlatforms: (platforms: any[]) => void;
@@ -13,148 +20,210 @@ interface Props {
 
 export default function AIAssistant({ 
   files, 
+  content = '',
   onAnalysisComplete, 
+  onAnalysisReset,
+  onResultControlsChange,
   onApplyCaption, 
   onApplyHashtags, 
   onAutoSelectPlatforms 
 }: Props) {
-  const [instructions, setInstructions] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
-  // Premium Loading State
-  const [loadingStep, setLoadingStep] = useState('');
-  const [progress, setProgress] = useState(0);
-  
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Drive the loading animation
-  useEffect(() => {
-    if (!isAnalyzing) {
-      setProgress(0);
-      return;
-    }
+  const mediaSignature = useMemo(() => {
+    return files
+      .map((item) => {
+        const file = item instanceof File ? item : (item as any).file;
+        if (file) return `${file.name}-${file.size}-${file.lastModified}`;
 
-    const steps = [
-      'Analyzing image...',
-      'Understanding context...',
-      'Generating captions...',
-      'Selecting platforms...'
-    ];
-    
-    let currentStep = 0;
-    setLoadingStep(steps[0]);
-    setProgress(15); // Start with a small chunk
+        const mediaItem = item as MediaItem;
+        return `${mediaItem.id || mediaItem.name || mediaItem.url}-${mediaItem.size || 0}`;
+      })
+      .join('|');
+  }, [files]);
+  const hasMedia = mediaSignature.length > 0;
 
-    const interval = setInterval(() => {
-      currentStep += 1;
-      if (currentStep < steps.length) {
-        setLoadingStep(steps[currentStep]);
-        // Increment progress, but cap it at 90% until the API actually finishes
-        setProgress((prev) => Math.min(prev + 25, 90)); 
-      }
-    }, 1200);
+  const handleAnalyze = useCallback(async () => {
+    if (!hasMedia) return;
 
-    return () => clearInterval(interval);
-  }, [isAnalyzing]);
+    const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  const handleAnalyze = async () => {
-    if (files.length === 0 && !instructions) return;
-    
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     setIsAnalyzing(true);
     const formData = new FormData();
     
-    for (const item of files) {
-      const file = item instanceof File ? item : (item as any).file;
-      if (file) formData.append('media', file);
+    // ✅ FIX: Loop through ALL files to support carousels/albums
+    if (files.length > 0) {
+      for (const item of files) {
+        const file = item instanceof File ? item : (item as any).file;
+        if (file) {
+          formData.append('media', file);
+        }
+      }
     }
-    if (instructions) formData.append('content', instructions);
+    
+    if (existingText) formData.append('content', existingText);
+    formData.append('action', 'analyze_media');
 
     try {
-      const response = await apiClient.post('/ai/generate', formData);
-      setProgress(100); // Snap to 100% right before rendering results
+      // ✅ FIX: Use apiClient instead of naked fetch
+      const response = await apiClient.post('/ai/generate', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        signal: abortController.signal,
+      });
       
-      // Wait a tiny bit so the user sees the 100% bar before the UI swaps
-      setTimeout(() => {
-        const json = response.data?.data || response.data;
-        setAnalysis(json);
-        onAnalysisComplete(json);
-        setIsAnalyzing(false);
-      }, 300);
+      const json = response.data;
       
-    } catch (error) {
-      console.error("Analysis failed", error);
-      alert("AI Analysis failed. Check console for details.");
+      if (json.success) {
+        setAnalysis(json.data);
+        onAnalysisComplete(json.data); // Bubble up to Parent
+      }
+    } catch (error: any) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
+
+      console.error("AI Analysis failed", error);
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to analyze content. Please try again.";
+      alert(message);
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
       setIsAnalyzing(false);
     }
+  }, [content, files, hasMedia, onAnalysisComplete]);
+
+  const handleStopAnalysis = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsAnalyzing(false);
   };
+
+  const handleBackToStart = () => {
+    setAnalysis(null);
+    onAnalysisReset?.();
+  };
+
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsAnalyzing(false);
+    setAnalysis(null);
+    onAnalysisReset?.();
+  }, [mediaSignature]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      onResultControlsChange?.(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!analysis) {
+      onResultControlsChange?.(null);
+      return;
+    }
+
+    onResultControlsChange?.({
+      onBack: handleBackToStart,
+      onRegenerate: handleAnalyze,
+    });
+
+    return () => onResultControlsChange?.(null);
+  }, [analysis, handleAnalyze, onResultControlsChange]);
 
   if (isAnalyzing) {
     return (
       <div className={styles.container}>
-        <div className={styles.loadingContainer}>
-          <p className={styles.loadingText}>✨ {loadingStep}</p>
-          <div className={styles.progressBarBg}>
-            <div 
-              className={styles.progressBarFill} 
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
+        <div className={styles.spinnerContainer}>
+          <div className={styles.spinner}></div>
+          <p className="font-semibold">AI Assistant is thinking...</p>
+          <ul className={styles.checklist}>
+            <li>✓ Analyzing visual aesthetic</li>
+            <li>✓ Evaluating aspect ratios</li>
+            <li>✓ Checking platform suitability</li>
+            <li>✓ Crafting engaging caption</li>
+          </ul>
+          <button
+            type="button"
+            className={styles.stopButton}
+            onClick={handleStopAnalysis}
+          >
+            Stop
+          </button>
         </div>
       </div>
     );
   }
 
+  // frontend/components/AIAssistant.tsx
+
   if (analysis) {
     return (
       <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerTop}>
-            <div>
-              <h3 className={styles.title}>✨ Analysis Complete</h3>
-              <span className={styles.confidence}>
-                {analysis.analysis?.engagementPrediction || 'Medium'} Engagement
-              </span>
-            </div>
-            {/* ✅ NEW: Regenerate Button */}
-            <button 
-              onClick={handleAnalyze} 
-              className={styles.btnSecondary}
-              title="Run analysis again"
+        {!onResultControlsChange && (
+          <div className={styles.resultActions}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={handleBackToStart}
+              aria-label="Back to AI analysis start"
+              title="Back"
             >
-              ↻ Regenerate
+              <ArrowLeft size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.regenerateButton}
+              onClick={handleAnalyze}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+              Regenerate
             </button>
           </div>
-        </div>
-
-        {/* --- WHAT THE AI SAW --- */}
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Media Understood</h4>
-          <ul style={{ fontSize: '0.875rem', color: '#4b5563', paddingLeft: '0', listStyle: 'none', margin: 0 }}>
-            {analysis.analysis?.mediaSummary?.map((item, i) => (
-              <li key={i} style={{ marginBottom: '4px' }}>
-                ✔ <strong>Image {item.index}:</strong> {item.description}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* --- STRATEGY --- */}
-        <div className={styles.section} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+        )}
+        {/* ---------------- NEW STRATEGY SECTION ---------------- */}
+        <div className={`${styles.section} ${styles.strategySection}`}>
           <h4 className={styles.sectionTitle}>Content Strategy</h4>
-          <div style={{ fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <p style={{ margin: 0 }}><strong>Theme:</strong> {analysis.analysis?.overallTheme}</p>
-            <p style={{ margin: 0 }}><strong>Story:</strong> {analysis.analysis?.story}</p>
-            <p style={{ margin: 0 }}><strong>Best Time:</strong> {analysis.analysis?.bestPostingTime}</p>
+          <div className={styles.strategyGrid}>
+            <div className={styles.strategyItem}>
+              <span>Theme</span>
+              <strong>{analysis.analysis?.overallTheme || 'Not specified'}</strong>
+            </div>
+            <div className={styles.strategyItem}>
+              <span>Aspect Ratio</span>
+              <strong>{analysis.analysis?.bestAspectRatio || 'Flexible'}</strong>
+            </div>
+            <div className={styles.strategyItem}>
+              <span>Best Time</span>
+              <strong>{analysis.analysis?.bestPostingTime || 'Anytime'}</strong>
+            </div>
+          </div>
+          <div className={styles.storyBlock}>
+            <span>Story</span>
+            <p>{analysis.analysis?.story || 'No story summary generated.'}</p>
           </div>
         </div>
 
-        {/* --- CONTENT --- */}
+        {/* ---------------- CONTENT SECTION ---------------- */}
         <div className={styles.section}>
           <h4 className={styles.sectionTitle}>Caption</h4>
           <p className={styles.textBlock}>
-            {analysis.content?.caption}
+            {analysis.content?.caption || 'No caption generated.'}
             <br/><br/>
-            <strong>{analysis.content?.cta}</strong>
+            {analysis.content?.cta && <strong>{analysis.content.cta}</strong>}
           </p>
           <button 
             onClick={() => {
@@ -194,30 +263,28 @@ export default function AIAssistant({
       </div>
     );
   }
-
   return (
-    <div className={styles.container}>
-      <h3 className={styles.title}>✨ AI Co-Pilot</h3>
-      <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-        Upload media in the editor, optionally tell me what you want to achieve, and I'll strategize your post.
-      </p>
-      
-      <textarea 
-        placeholder="Optional instructions (e.g., 'Promote this as a luxury product')..."
-        value={instructions}
-        onChange={(e) => setInstructions(e.target.value)}
-        rows={3}
-        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.75rem', fontSize: '0.875rem' }}
-      />
-      
-      <button 
-        onClick={handleAnalyze} 
-        className={styles.btnPrimary}
-        disabled={files.length === 0 && !instructions}
-        style={{ opacity: (files.length === 0 && !instructions) ? 0.5 : 1 }}
+    <div className={`${styles.container} ${styles.chatStart}`}>
+      <div className={styles.welcome}>
+        <Sparkles size={24} aria-hidden="true" />
+        <strong>{hasMedia ? 'Ready to analyze your media' : 'Add media to start analysis'}</strong>
+        <p>
+          {hasMedia
+            ? 'AI will review the uploaded media and suggest strategy, caption, hashtags, timing, and channels.'
+            : 'Upload an image or video in the editor, then run AI analysis when you are ready.'}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        className={styles.analyzeButton}
+        onClick={handleAnalyze}
+        disabled={!hasMedia}
       >
+        <Sparkles size={18} aria-hidden="true" />
         Analyze with AI
       </button>
+      <small className={styles.disclaimer}>AI can make mistakes. Review suggestions before publishing.</small>
     </div>
   );
 }

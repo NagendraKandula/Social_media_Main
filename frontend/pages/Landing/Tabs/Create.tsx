@@ -816,7 +816,7 @@ export default function Create({ templateImage, initialPlatformId, onBack }: Cre
     <div className={styles.root}>
       <header className={styles.topbar}>
         <div className={styles.topLeft}>
-          <span className={styles.topTitle}>Create Post</span>
+          <span className={styles.topTitle}>Start Creating ✨</span>
         </div>
 
         <div className={styles.platforms}>
@@ -826,7 +826,6 @@ export default function Create({ templateImage, initialPlatformId, onBack }: Cre
               className={`${styles.platformBtn} ${activePlatform.id === p.id ? styles.platformActive : ""}`}
               onClick={() => setActivePlatform(p)}
             >
-              <span className={styles.platformDot} style={{ background: p.color }} />
               {p.label}
             </button>
           ))}

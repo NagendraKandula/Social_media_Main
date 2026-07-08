@@ -6,7 +6,7 @@ interface SubHeaderProps {
   setActiveTab: (tab: string) => void;
 }
 
-const tabs = ["Active Platforms", "Create", "Publish", "Schedule", "Analytics"];
+const tabs = ["Connect", "Create", "Publish", "Schedule", "Analytics"];
 const disabledTabs = new Set(["Analytics"]);
 
 const SubHeader: React.FC<SubHeaderProps> = ({ activeTab, setActiveTab }) => {

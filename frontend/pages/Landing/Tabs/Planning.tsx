@@ -205,6 +205,10 @@ const handleAnalysisComplete = (result: AiAnalysisResult) => {
     setAiAnalysis(result);
 };
 
+const handleAnalysisReset = () => {
+    setAiAnalysis(null);
+};
+
 const handleApplyCaption = (caption: string) => {
     setContent(caption);
 };
@@ -564,7 +568,6 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               onFacebookPageSelect={(pageId) =>
                 setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
               }
-              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
             />
             <LazyContentEditor
               content={content}
@@ -576,6 +579,7 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               isReadOnly={isReadOnly}
               selectedChannels={selectedChannelList}
               validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
             />
             <LazyPlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
           </div>
@@ -598,7 +602,9 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               {rightTab === 'ai' ? (
                <LazyAIAssistant 
   files={files}
+  content={content}
   onAnalysisComplete={handleAnalysisComplete}
+  onAnalysisReset={handleAnalysisReset}
   onApplyCaption={handleApplyCaption}
   onApplyHashtags={handleApplyHashtags}
   onAutoSelectPlatforms={handleAutoSelectPlatforms}
@@ -1248,11 +1254,10 @@ const Planning = () => {
             <button
               key={p.key}
               className={`${styles.filterPill} ${isActive ? styles.active : ""}`}
-              style={isActive ? { background: p.color } : {}}
               onClick={() => setActivePlatform(p.key)}
             >
               {p.key !== "all" && (
-                <span className={styles.platformDot} style={{ background: isActive ? "#fff" : p.color }} />
+                <span className={styles.platformDot} style={{ background: p.color }} />
               )}
               {p.label}
             </button>

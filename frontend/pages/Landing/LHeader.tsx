@@ -8,6 +8,8 @@ import {
   FaYoutube,
   FaBell,
   FaCog,
+  FaQuestionCircle,
+  FaChevronDown,
 } from "react-icons/fa";
 import { SiThreads } from "react-icons/si";
 import { useRouter } from "next/router";
@@ -165,7 +167,7 @@ const LHeader: React.FC<LHeaderProps> = () => {
     <header className={styles.header}>
       {/* Logo */}
       <div className={styles.logo}>
-        Story<span className={styles.dot}>.</span>
+        SOci
       </div>
 
       {/* Platforms */}
@@ -173,6 +175,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Instagram */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="instagram"
+            aria-label="Open Instagram connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.instagram ? styles.connected : ""
             }`}
@@ -188,6 +192,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Twitter */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="twitter"
+            aria-label="Open X connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.twitter ? styles.connected : ""
             }`}
@@ -203,6 +209,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* YouTube */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="youtube"
+            aria-label="Open YouTube connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.youtube ? styles.connected : ""
             }`}
@@ -218,6 +226,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* LinkedIn */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="linkedin"
+            aria-label="Open LinkedIn connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.linkedin ? styles.connected : ""
             }`}
@@ -233,6 +243,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Facebook */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="facebook"
+            aria-label="Open Facebook connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.facebook ? styles.connected : ""
             }`}
@@ -248,6 +260,8 @@ const LHeader: React.FC<LHeaderProps> = () => {
         {/* Threads */}
         <div className={styles.iconWrapper}>
           <button
+            data-platform="threads"
+            aria-label="Open Threads connection"
             className={`${styles.channelIcon} ${
               connectedPlatforms.threads ? styles.connected : ""
             }`}
@@ -263,6 +277,16 @@ const LHeader: React.FC<LHeaderProps> = () => {
 
       {/* Actions */}
       <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.help}
+          onClick={() => window.dispatchEvent(new Event("story-open-help"))}
+          aria-label="Open help assistant"
+          title="Help"
+        >
+          <FaQuestionCircle />
+        </button>
+
         <div className={styles.notificationContainer}>
           <button
             className={styles.notification}
@@ -338,17 +362,29 @@ const LHeader: React.FC<LHeaderProps> = () => {
           )}
         </div>
 
-        <button className={styles.settings}>
+        <button
+          type="button"
+          className={styles.settings}
+          aria-label="Open settings"
+          title="Settings"
+        >
           <FaCog />
         </button>
 
         <div className={styles.profileContainer}>
           <button
-            className={styles.profilePic}
+            className={styles.profileControl}
             onClick={() => setDropdownOpen((o) => !o)}
             aria-label="Open profile menu"
+            aria-expanded={dropdownOpen}
           >
-            <span className={styles.profileInitial}>{profileInitial}</span>
+            <span className={styles.profilePic}>
+              <span className={styles.profileInitial}>{profileInitial}</span>
+            </span>
+            <FaChevronDown
+              className={`${styles.profileChevron} ${dropdownOpen ? styles.profileChevronOpen : ""}`}
+              aria-hidden="true"
+            />
           </button>
 
           {dropdownOpen && (

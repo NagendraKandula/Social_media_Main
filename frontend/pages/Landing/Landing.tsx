@@ -19,7 +19,7 @@ import { addNotification } from "../../utils/notifications";
 
 // Tabs
 const ActivePlatforms = dynamic(() => import("./Tabs/ActivePlatforms"), {
-  loading: () => <p>Loading active platforms...</p>,
+  loading: () => <p>Loading connections...</p>,
   ssr: false,
 });
 const Create = dynamic(() => import("./Tabs/Create"), {

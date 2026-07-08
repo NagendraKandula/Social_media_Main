@@ -9,7 +9,13 @@ export class AiAssistantService {
   private genAI: GoogleGenerativeAI;
 
   constructor(private configService: ConfigService) {
-    this.genAI = new GoogleGenerativeAI(this.configService.get<string>('GEMINI_API_KEY')!);
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY is not configured.');
+    }
+
+    this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
   async analyzeAndGenerate(dto: any, files: Express.Multer.File[]): Promise<any> {

@@ -129,11 +129,11 @@ const FacebookAnalytics = () => {
           <img src="/facebook.png" alt="Facebook" style={{ width: '60px', marginBottom: '1rem' }} />
           <h2 style={{ color: '#1c1e21', marginBottom: '1rem' }}>Account Not Connected</h2>
           <p style={{ color: '#65676b', fontSize: '1.1rem', marginBottom: '2rem' }}>
-            Please connect your Facebook account in the Active Platforms section before viewing analytics.
+            Please connect your Facebook account in the Connect section before viewing analytics.
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <button onClick={() => router.push('/Landing?tab=Active%20Platforms')} className={styles.mainButton}>
-              Go to Active Platforms
+              Go to Connect
             </button>
             <button onClick={() => setViewState('initial')} className={styles.backButton} style={{ position: 'relative', margin: 0 }}>
               Cancel
