@@ -9,6 +9,10 @@
 }
 
 .publishEditorCard {
+  display: flex;
+  min-height: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
   border: 0;
   border-radius: 0;
   overflow: visible;
@@ -20,12 +24,14 @@
 }
 
 .publishEditorCard .editor {
+  flex: 1 1 auto;
   padding-top: 10px;
   padding-right: 0;
   padding-left: 0;
 }
 
 .publishEditorCard .footerInfo {
+  margin-top: auto;
   border-top: 0;
   padding: 12px 0 0;
 }
@@ -697,16 +703,18 @@
 }
 
 .mediaError {
+  position: relative;
   display: grid;
   box-sizing: border-box;
-  grid-template-columns: auto 1fr auto;
-  align-items: start;
-  gap: 10px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px;
   width: 100%;
-  padding: 12px 14px;
+  min-height: 72px;
+  padding: 18px 48px 18px 22px;
   border-radius: 10px;
-  background: #fee2e2;
-  color: #991b1b;
+  background: #fff1f1;
+  color: #9f1d2b;
 }
 
 .mediaError > svg {
@@ -715,31 +723,9 @@
 
 .mediaError p {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.mediaError button {
-  display: inline-flex;
-  width: 26px;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: #991b1b;
-  cursor: pointer;
-}
-
-.mediaError button:hover {
-  background: rgba(153, 27, 27, 0.09);
-}
-
-.mediaError button:focus-visible {
-  outline: 2px solid rgba(153, 27, 27, 0.35);
-  outline-offset: 2px;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 400;
 }
 
 .mediaRecommendations {
@@ -770,8 +756,9 @@
   align-items: center;
   gap: 6px;
   color: #4f4cbe;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 400;
   white-space: nowrap;
 }
 
@@ -798,15 +785,17 @@
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
   color: #4f4cbe;
-  font-size: 13px;
-  font-weight: 650;
-  line-height: 1;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
   white-space: nowrap;
 }
 
 .mediaRecommendationChip strong {
   color: #4f4cbe;
-  font-size: 12px;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .mediaRecommendationChip > svg {
@@ -822,31 +811,63 @@
 
 .mediaRecommendationClose {
   position: absolute;
-  top: 7px;
-  right: 8px;
+  top: -8px;
+  right: -3px;
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid rgba(79, 76, 190, 0.12);
+  border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
-  color: #4f4cbe;
+  background: transparent;
+  color: #374151;
   cursor: pointer;
-  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+
 }
 
-.mediaRecommendationClose:hover {
-  border-color: rgba(79, 76, 190, 0.28);
-  background: #ffffff;
-  transform: scale(1.04);
-}
 
 .mediaRecommendationClose:focus-visible {
   outline: 2px solid rgba(79, 76, 190, 0.32);
   outline-offset: 2px;
+}
+
+.mediaError .mediaRecommendationClose {
+  background: transparent;
+  color: #374151;
+}
+
+
+
+.mediaError .mediaRecommendationClose:focus-visible {
+  outline-color: rgba(159, 29, 43, 0.22);
+}
+
+.charLimitAlert {
+  background: rgba(254, 243, 199, 0.72);
+}
+
+.charLimitLabel {
+  color: #b45309;
+}
+
+.charLimitLabel svg {
+  color: #d97706;
+}
+
+.charLimitChip {
+  border-color: rgba(217, 119, 6, 0.22);
+  background: rgba(255, 255, 255, 0.86);
+  color: #92400e;
+}
+
+.charLimitChip strong,
+.charLimitChip span {
+  color: #92400e;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .srOnly {

@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
 import { PlatformRecommendation } from "../types";
+import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
 import {
@@ -69,6 +70,17 @@ const CROP_FOCUS_POINTS = [
   { label: "Bottom right", x: 100, y: 100 },
 ];
 
+const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
+  facebook: "Facebook",
+  instagram: "Instagram",
+  instagram_business: "Instagram",
+  linkedin: "LinkedIn",
+  twitter: "Twitter/X",
+  youtube: "YouTube",
+  threads: "Threads",
+  pinterest: "Pinterest",
+};
+
 export interface ContentEditorProps {
   content: string;
   onContentChange: (value: string) => void;
@@ -112,6 +124,7 @@ export default function ContentEditor({
   const [isDraggingMedia, setIsDraggingMedia] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
+  const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -501,6 +514,27 @@ export default function ContentEditor({
   const charCount = getPlainTextLength();
   const maxLength = effectiveRules?.text?.maxLength;
   const overLimit = maxLength && charCount > maxLength;
+  const charLimitWarnings = selectedChannels
+    .map((channel) => channel.toLowerCase() as Platform)
+    .map((platform) => {
+      const max = PLATFORM_RULES[platform]?.text?.maxLength;
+      if (!max || charCount <= max) return null;
+
+      return {
+        platform,
+        label: PLATFORM_LABELS[platform] || platform,
+        max,
+        overBy: charCount - max,
+      };
+    })
+    .filter((warning): warning is { platform: Platform; label: string; max: number; overBy: number } => Boolean(warning));
+  const charLimitSignature = charLimitWarnings
+    .map((warning) => `${warning.platform}:${warning.max}:${warning.overBy}`)
+    .join("|");
+
+  useEffect(() => {
+    setIsCharLimitAlertDismissed(false);
+  }, [charLimitSignature]);
 
   return (
     <div
@@ -762,6 +796,41 @@ export default function ContentEditor({
             </div>
           )}
 
+          {!isReadOnly && charLimitWarnings.length > 0 && !isCharLimitAlertDismissed && (
+            <div className={`${styles.mediaRecommendations} ${styles.charLimitAlert}`} role="alert" aria-label="Selected channel character limit warning">
+              <div className={styles.mediaRecommendationContent}>
+                <span className={`${styles.mediaRecommendationLabel} ${styles.charLimitLabel}`}>
+                  <AlertTriangle size={18} aria-hidden="true" />
+                  Character limit exceeded
+                </span>
+                <div className={styles.mediaRecommendationList}>
+                  {charLimitWarnings.map((warning) => (
+                    <span
+                      key={warning.platform}
+                      className={`${styles.mediaRecommendationChip} ${styles.charLimitChip}`}
+                      title={`${warning.label} allows ${warning.max} characters. Remove ${warning.overBy} characters.`}
+                      tabIndex={0}
+                      aria-label={`${warning.label}: ${charCount} of ${warning.max} characters. Remove ${warning.overBy} characters.`}
+                    >
+                      {warning.label}
+                      <strong>{charCount} / {warning.max}</strong>
+                      <span>{warning.overBy} over</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.mediaRecommendationClose}
+                onClick={() => setIsCharLimitAlertDismissed(true)}
+                aria-label="Dismiss character limit warning"
+                title="Dismiss"
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            </div>
+          )}
+
           {!isReadOnly && recommendedPlatforms.length > 0 && !areRecommendationsDismissed && (
               <div className={styles.mediaRecommendations} role="status" aria-label="Recommended channels">
                 <div className={styles.mediaRecommendationContent}>
@@ -808,6 +877,7 @@ export default function ContentEditor({
             <p>{mediaError}</p>
             <button
               type="button"
+              className={styles.mediaRecommendationClose}
               onClick={() => setMediaError(null)}
               aria-label="Dismiss upload error"
               title="Dismiss"

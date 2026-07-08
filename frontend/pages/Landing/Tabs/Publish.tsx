@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Eye, Sparkles } from 'lucide-react';
+import { ChevronLeft, Eye, RefreshCw, Sparkles } from 'lucide-react';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
@@ -137,6 +137,10 @@ export default function Publish() {
   const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | null>('ai');
   const [aiRecommendations, setAiRecommendations] = useState<PlatformRecommendation[]>([]);
   const [aiEngagement, setAiEngagement] = useState<string | null>(null);
+  const [aiResultControls, setAiResultControls] = useState<{
+    onBack: () => void;
+    onRegenerate: () => void;
+  } | null>(null);
   const engagementTone = (value?: string | null) => {
     const normalized = value?.toLowerCase();
 
@@ -147,6 +151,11 @@ export default function Publish() {
   const handleAnalysisComplete = (result: AiAnalysisResult) => {
     setAiRecommendations(result.analysis?.recommendedPlatforms || []);
     setAiEngagement(result.analysis?.engagementPrediction || null);
+  };
+  const handleAnalysisReset = () => {
+    setAiRecommendations([]);
+    setAiEngagement(null);
+    setAiResultControls(null);
   };
   const handleApplyCaption = (aiCaption: string) => {
     // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
@@ -913,15 +922,38 @@ const handleSubmit = async (isScheduled: boolean) => {
 
         {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : 'AI Assistant'}>
           <div className={`${styles.rightHeader} ${activeSidePanel === 'ai' ? styles.aiRightHeader : ''}`}>
-            <div>
+            <div className={styles.rightHeaderTitleGroup}>
+              {activeSidePanel === 'ai' && aiResultControls && (
+                <button
+                  type="button"
+                  className={styles.aiHeaderIconBtn}
+                  onClick={aiResultControls.onBack}
+                  aria-label="Back to AI analysis start"
+                  title="Back"
+                >
+                  <ChevronLeft size={20} aria-hidden="true" />
+                </button>
+              )}
               {activeSidePanel === 'preview' && <span>Live preview</span>}
               <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
             </div>
-            {activeSidePanel === 'ai' && aiEngagement && (
-              <span className={styles.aiEngagementBadge}>
-                {engagementTone(aiEngagement)}
-              </span>
-            )}
+            <div className={styles.rightHeaderActionGroup}>
+              {activeSidePanel === 'ai' && aiResultControls && (
+                <button
+                  type="button"
+                  className={styles.aiRegenerateBtn}
+                  onClick={aiResultControls.onRegenerate}
+                >
+                  <RefreshCw size={15} aria-hidden="true" />
+                  Regenerate
+                </button>
+              )}
+              {activeSidePanel === 'ai' && aiEngagement && (
+                <span className={styles.aiEngagementBadge}>
+                  {engagementTone(aiEngagement)}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className={styles.rightPanel}>
@@ -941,6 +973,8 @@ const handleSubmit = async (isScheduled: boolean) => {
                 files={files}
                 content={content}
                 onAnalysisComplete={handleAnalysisComplete}
+                onAnalysisReset={handleAnalysisReset}
+                onResultControlsChange={setAiResultControls}
                 onApplyCaption={handleApplyCaption}
                 onApplyHashtags={handleApplyHashtags}
                 onAutoSelectPlatforms={handleAutoSelectPlatforms}

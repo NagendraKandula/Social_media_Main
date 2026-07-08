@@ -1,21 +1,18 @@
 // frontend/components/AIAssistant.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, CornerDownRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
 import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
 import styles from '../styles/AIAssistant.module.css';
-
-const STARTER_PROMPTS = [
-  { label: 'Brainstorm caption ideas', action: 'post ideas' },
-  { label: 'Suggest relevant hashtags', action: 'hashtags' },
-  { label: 'Find the best posting time', action: 'best time' },
-  { label: 'Improve or shorten my text', action: 'improve text' },
-];
 
 interface Props {
   files: MediaItem[] | File[];
   content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
+  onAnalysisReset?: () => void;
+  onResultControlsChange?: (
+    controls: { onBack: () => void; onRegenerate: () => void } | null
+  ) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
   onAutoSelectPlatforms: (platforms: any[]) => void;
@@ -25,15 +22,15 @@ export default function AIAssistant({
   files, 
   content = '',
   onAnalysisComplete, 
+  onAnalysisReset,
+  onResultControlsChange,
   onApplyCaption, 
   onApplyHashtags, 
   onAutoSelectPlatforms 
 }: Props) {
-  const [instructions, setInstructions] = useState('');
-  const [action, setAction] = useState('post ideas');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
-  const lastAutoAnalyzedSignature = useRef('');
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const mediaSignature = useMemo(() => {
     return files
@@ -46,10 +43,16 @@ export default function AIAssistant({
       })
       .join('|');
   }, [files]);
+  const hasMedia = mediaSignature.length > 0;
 
   const handleAnalyze = useCallback(async () => {
+    if (!hasMedia) return;
+
     const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
     setIsAnalyzing(true);
     const formData = new FormData();
     
@@ -63,9 +66,8 @@ export default function AIAssistant({
       }
     }
     
-    const promptContext = [existingText, instructions].filter(Boolean).join('\n\n');
-    if (promptContext) formData.append('content', promptContext);
-    formData.append('action', action);
+    if (existingText) formData.append('content', existingText);
+    formData.append('action', 'analyze_media');
 
     try {
       // ✅ FIX: Use apiClient instead of naked fetch
@@ -73,6 +75,7 @@ export default function AIAssistant({
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        signal: abortController.signal,
       });
       
       const json = response.data;
@@ -81,20 +84,65 @@ export default function AIAssistant({
         setAnalysis(json.data);
         onAnalysisComplete(json.data); // Bubble up to Parent
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+        return;
+      }
+
       console.error("AI Analysis failed", error);
-      alert("Failed to analyze content. Please try again.");
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to analyze content. Please try again.";
+      alert(message);
     } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
       setIsAnalyzing(false);
     }
-  }, [action, content, files, instructions, onAnalysisComplete]);
+  }, [content, files, hasMedia, onAnalysisComplete]);
+
+  const handleStopAnalysis = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsAnalyzing(false);
+  };
+
+  const handleBackToStart = () => {
+    setAnalysis(null);
+    onAnalysisReset?.();
+  };
 
   useEffect(() => {
-    if (!mediaSignature || mediaSignature === lastAutoAnalyzedSignature.current) return;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsAnalyzing(false);
+    setAnalysis(null);
+    onAnalysisReset?.();
+  }, [mediaSignature]);
 
-    lastAutoAnalyzedSignature.current = mediaSignature;
-    void handleAnalyze();
-  }, [handleAnalyze, mediaSignature]);
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      onResultControlsChange?.(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!analysis) {
+      onResultControlsChange?.(null);
+      return;
+    }
+
+    onResultControlsChange?.({
+      onBack: handleBackToStart,
+      onRegenerate: handleAnalyze,
+    });
+
+    return () => onResultControlsChange?.(null);
+  }, [analysis, handleAnalyze, onResultControlsChange]);
 
   if (isAnalyzing) {
     return (
@@ -108,6 +156,13 @@ export default function AIAssistant({
             <li>✓ Checking platform suitability</li>
             <li>✓ Crafting engaging caption</li>
           </ul>
+          <button
+            type="button"
+            className={styles.stopButton}
+            onClick={handleStopAnalysis}
+          >
+            Stop
+          </button>
         </div>
       </div>
     );
@@ -118,6 +173,27 @@ export default function AIAssistant({
   if (analysis) {
     return (
       <div className={styles.container}>
+        {!onResultControlsChange && (
+          <div className={styles.resultActions}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              onClick={handleBackToStart}
+              aria-label="Back to AI analysis start"
+              title="Back"
+            >
+              <ArrowLeft size={17} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={styles.regenerateButton}
+              onClick={handleAnalyze}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+              Regenerate
+            </button>
+          </div>
+        )}
         {/* ---------------- NEW STRATEGY SECTION ---------------- */}
         <div className={`${styles.section} ${styles.strategySection}`}>
           <h4 className={styles.sectionTitle}>Content Strategy</h4>
@@ -191,43 +267,23 @@ export default function AIAssistant({
     <div className={`${styles.container} ${styles.chatStart}`}>
       <div className={styles.welcome}>
         <Sparkles size={24} aria-hidden="true" />
-        <strong>How can I help with your post?</strong>
-        <p>Ask for ideas, rewrites, hashtags, timing, or feedback.</p>
+        <strong>{hasMedia ? 'Ready to analyze your media' : 'Add media to start analysis'}</strong>
+        <p>
+          {hasMedia
+            ? 'AI will review the uploaded media and suggest strategy, caption, hashtags, timing, and channels.'
+            : 'Upload an image or video in the editor, then run AI analysis when you are ready.'}
+        </p>
       </div>
 
-      <div className={styles.starterPrompts} aria-label="Suggested prompts">
-        {STARTER_PROMPTS.map((item) => (
-          <button
-            key={item.action}
-            type="button"
-            onClick={() => {
-              setAction(item.action);
-              setInstructions(item.label);
-            }}
-          >
-            <CornerDownRight size={15} aria-hidden="true" />
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <div className={styles.chatComposer}>
-        <textarea
-          placeholder="Ask AI Assistant"
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          rows={2}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              void handleAnalyze();
-            }
-          }}
-        />
-        <button type="button" onClick={handleAnalyze} aria-label="Send to AI Assistant" title="Send">
-          <ArrowUp size={18} aria-hidden="true" />
-        </button>
-      </div>
+      <button
+        type="button"
+        className={styles.analyzeButton}
+        onClick={handleAnalyze}
+        disabled={!hasMedia}
+      >
+        <Sparkles size={18} aria-hidden="true" />
+        Analyze with AI
+      </button>
       <small className={styles.disclaimer}>AI can make mistakes. Review suggestions before publishing.</small>
     </div>
   );

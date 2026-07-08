@@ -17,6 +17,22 @@ import { GenerateContentDto } from './dto/generate-content.dto';
 export class AiAssistantController {
   constructor(private readonly aiAssistantService: AiAssistantService) {}
 
+  private parseAiResponse(result: string) {
+    try {
+      return JSON.parse(result);
+    } catch {
+      const fencedJson = result.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
+      const objectJson = result.match(/\{[\s\S]*\}/)?.[0];
+      const candidate = fencedJson || objectJson;
+
+      if (candidate) {
+        return JSON.parse(candidate);
+      }
+
+      throw new Error('AI returned an invalid response format.');
+    }
+  }
+
   @Post('generate')
   @UseInterceptors(FilesInterceptor('media')) // Matches the 'media[]' field from frontend
   async generateContent(
@@ -38,7 +54,7 @@ export class AiAssistantController {
       );
       
       // The service will return a structured JSON response containing recommendations
-      return { success: true, data: JSON.parse(result) };
+      return { success: true, data: this.parseAiResponse(result) };
     } catch (error: any) {
       throw new BadRequestException(`AI Error: ${error.message}`);
     }
