@@ -564,7 +564,6 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               onFacebookPageSelect={(pageId) =>
                 setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
               }
-              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
             />
             <LazyContentEditor
               content={content}
@@ -576,6 +575,7 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               isReadOnly={isReadOnly}
               selectedChannels={selectedChannelList}
               validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
             />
             <LazyPlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
           </div>
@@ -598,6 +598,7 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
               {rightTab === 'ai' ? (
                <LazyAIAssistant 
   files={files}
+  content={content}
   onAnalysisComplete={handleAnalysisComplete}
   onApplyCaption={handleApplyCaption}
   onApplyHashtags={handleApplyHashtags}

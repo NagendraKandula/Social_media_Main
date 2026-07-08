@@ -111,6 +111,7 @@ export default function ContentEditor({
   const [isDraggingCrop, setIsDraggingCrop] = useState(false);
   const [isDraggingMedia, setIsDraggingMedia] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
+  const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +123,13 @@ export default function ContentEditor({
     }))
     .filter((recommendation) => recommendation.rating >= 4)
     .sort((first, second) => second.rating - first.rating);
+  const recommendationSignature = recommendedPlatforms
+    .map((recommendation) => `${recommendation.platform}:${recommendation.rating}`)
+    .join("|");
+
+  useEffect(() => {
+    setAreRecommendationsDismissed(false);
+  }, [recommendationSignature]);
 
   /* ---------- Sync external content ---------- */
   useEffect(() => {
@@ -754,31 +762,42 @@ export default function ContentEditor({
             </div>
           )}
 
-          {!isReadOnly && recommendedPlatforms.length > 0 && (
+          {!isReadOnly && recommendedPlatforms.length > 0 && !areRecommendationsDismissed && (
               <div className={styles.mediaRecommendations} role="status" aria-label="Recommended channels">
-                <span className={styles.mediaRecommendationLabel}>
-                  <BadgeCheck size={18} aria-hidden="true" />
-                  Recommended channels
-                </span>
-                <div className={styles.mediaRecommendationList}>
-                  {recommendedPlatforms.map((recommendation) => {
-                    const matchPercentage = Math.round((recommendation.rating / 5) * 100);
+                <div className={styles.mediaRecommendationContent}>
+                  <span className={styles.mediaRecommendationLabel}>
+                    <BadgeCheck size={18} aria-hidden="true" />
+                    Recommended channels
+                  </span>
+                  <div className={styles.mediaRecommendationList}>
+                    {recommendedPlatforms.map((recommendation) => {
+                      const matchPercentage = Math.round((recommendation.rating / 5) * 100);
 
-                    return (
-                      <span
-                        key={recommendation.platform}
-                        className={styles.mediaRecommendationChip}
-                        title={`${matchPercentage}% match. ${recommendation.reason}`}
-                        tabIndex={0}
-                        aria-label={`${recommendation.platform}: ${matchPercentage}% match. ${recommendation.reason}`}
-                      >
-                        {recommendation.platform}
-                        <strong>{matchPercentage}% match</strong>
-                        <ChartNoAxesColumnIncreasing size={13} aria-hidden="true" />
-                      </span>
-                    );
-                  })}
+                      return (
+                        <span
+                          key={recommendation.platform}
+                          className={styles.mediaRecommendationChip}
+                          title={`${matchPercentage}% match. ${recommendation.reason}`}
+                          tabIndex={0}
+                          aria-label={`${recommendation.platform}: ${matchPercentage}% match. ${recommendation.reason}`}
+                        >
+                          {recommendation.platform}
+                          <strong>{matchPercentage}% match</strong>
+                          <ChartNoAxesColumnIncreasing size={13} aria-hidden="true" />
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  className={styles.mediaRecommendationClose}
+                  onClick={() => setAreRecommendationsDismissed(true)}
+                  aria-label="Dismiss recommended channels"
+                  title="Dismiss"
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
               </div>
             )}
         </div>

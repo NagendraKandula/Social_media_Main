@@ -743,65 +743,109 @@
 }
 
 .mediaRecommendations {
+  position: relative;
   display: flex;
   box-sizing: border-box;
   flex: 1 0 100%;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  padding: 12px 14px;
+  min-height: 72px;
+  padding: 18px 48px 18px 22px;
   border-radius: 10px;
   background: rgba(247, 243, 126, 0.3);
+}
+
+.mediaRecommendationContent {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  min-width: 0;
 }
 
 .mediaRecommendationLabel {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   color: #4f4cbe;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   white-space: nowrap;
 }
 
 .mediaRecommendationLabel svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   color: #7d71f2;
 }
 
 .mediaRecommendationList {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .mediaRecommendationChip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 7px;
+  gap: 6px;
+  min-height: 34px;
+  padding: 7px 13px;
   border: 1px solid rgba(79, 76, 190, 0.16);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.82);
   color: #4f4cbe;
-  font-size: 11px;
+  font-size: 13px;
+  font-weight: 650;
   line-height: 1;
   white-space: nowrap;
 }
 
 .mediaRecommendationChip strong {
   color: #4f4cbe;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .mediaRecommendationChip > svg {
+  width: 15px;
+  height: 15px;
   color: #7d71f2;
 }
 
 .mediaRecommendationChip:focus-visible {
   outline: 2px solid rgba(245, 158, 11, 0.4);
+  outline-offset: 2px;
+}
+
+.mediaRecommendationClose {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(79, 76, 190, 0.12);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  color: #4f4cbe;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.mediaRecommendationClose:hover {
+  border-color: rgba(79, 76, 190, 0.28);
+  background: #ffffff;
+  transform: scale(1.04);
+}
+
+.mediaRecommendationClose:focus-visible {
+  outline: 2px solid rgba(79, 76, 190, 0.32);
   outline-offset: 2px;
 }
 
@@ -830,6 +874,13 @@
   }
 
   .mediaRecommendations {
+    align-items: flex-start;
+    flex-direction: column;
+    min-height: 92px;
+    padding: 18px 44px 18px 18px;
+  }
+
+  .mediaRecommendationContent {
     align-items: flex-start;
     flex-direction: column;
   }

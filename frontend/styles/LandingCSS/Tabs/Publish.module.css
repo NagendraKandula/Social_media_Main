@@ -64,7 +64,7 @@
 .mainLayout {
   --workspace-gutter: clamp(16px, 2vw, 22px);
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.85fr);
+  grid-template-columns: minmax(0, 1.68fr) minmax(340px, 0.92fr);
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-areas:
     "header header"
@@ -111,7 +111,7 @@
 }
 
 .aiPane {
-  background: #f8f7ff;
+  background: linear-gradient(160deg, rgba(125, 113, 242, 0.055), rgba(247, 243, 126, 0.07));
 }
 
 /* ===============================
@@ -132,7 +132,7 @@
 .topActions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
   flex: 0 0 auto;
 }
 
@@ -283,6 +283,8 @@
 .rightHeader {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-height: 44px;
   padding: 0 2px 14px;
   border-bottom: 1px solid var(--publish-line);
@@ -304,6 +306,24 @@
   color: var(--publish-ink);
   font-size: 1rem;
   font-weight: 600;
+}
+
+.aiEngagementBadge {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  margin: 0 !important;
+  padding: 6px 12px;
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857 !important;
+  font-size: 0.78rem !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
 }
 
 .suggestionsRightHeader {

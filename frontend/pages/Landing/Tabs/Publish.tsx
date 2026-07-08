@@ -136,8 +136,17 @@ export default function Publish() {
 
   const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | null>('ai');
   const [aiRecommendations, setAiRecommendations] = useState<PlatformRecommendation[]>([]);
+  const [aiEngagement, setAiEngagement] = useState<string | null>(null);
+  const engagementTone = (value?: string | null) => {
+    const normalized = value?.toLowerCase();
+
+    if (normalized === 'high') return 'Strong';
+    if (normalized === 'low') return 'Needs Attention';
+    return 'Steady';
+  };
   const handleAnalysisComplete = (result: AiAnalysisResult) => {
     setAiRecommendations(result.analysis?.recommendedPlatforms || []);
+    setAiEngagement(result.analysis?.engagementPrediction || null);
   };
   const handleApplyCaption = (aiCaption: string) => {
     // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
@@ -908,6 +917,11 @@ const handleSubmit = async (isScheduled: boolean) => {
               {activeSidePanel === 'preview' && <span>Live preview</span>}
               <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
             </div>
+            {activeSidePanel === 'ai' && aiEngagement && (
+              <span className={styles.aiEngagementBadge}>
+                {engagementTone(aiEngagement)}
+              </span>
+            )}
           </div>
 
           <div className={styles.rightPanel}>

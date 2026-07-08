@@ -1,5 +1,5 @@
 // frontend/components/AIAssistant.tsx
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, CornerDownRight, Sparkles } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
 import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
@@ -33,8 +33,21 @@ export default function AIAssistant({
   const [action, setAction] = useState('post ideas');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+  const lastAutoAnalyzedSignature = useRef('');
 
-  const handleAnalyze = async () => {
+  const mediaSignature = useMemo(() => {
+    return files
+      .map((item) => {
+        const file = item instanceof File ? item : (item as any).file;
+        if (file) return `${file.name}-${file.size}-${file.lastModified}`;
+
+        const mediaItem = item as MediaItem;
+        return `${mediaItem.id || mediaItem.name || mediaItem.url}-${mediaItem.size || 0}`;
+      })
+      .join('|');
+  }, [files]);
+
+  const handleAnalyze = useCallback(async () => {
     const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
     setIsAnalyzing(true);
@@ -74,7 +87,14 @@ export default function AIAssistant({
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [action, content, files, instructions, onAnalysisComplete]);
+
+  useEffect(() => {
+    if (!mediaSignature || mediaSignature === lastAutoAnalyzedSignature.current) return;
+
+    lastAutoAnalyzedSignature.current = mediaSignature;
+    void handleAnalyze();
+  }, [handleAnalyze, mediaSignature]);
 
   if (isAnalyzing) {
     return (
@@ -98,22 +118,26 @@ export default function AIAssistant({
   if (analysis) {
     return (
       <div className={styles.container}>
-        <div className={styles.header}>
-          <h3 className={styles.title}>✨ Analysis Complete</h3>
-          <span className={styles.confidence}>
-            {analysis.analysis?.engagementPrediction || 'Medium'} Engagement
-          </span>
-        </div>
-
         {/* ---------------- NEW STRATEGY SECTION ---------------- */}
-        <div className={styles.section} style={{ backgroundColor: '#f0fdf4', borderColor: '#bbf7d0' }}>
+        <div className={`${styles.section} ${styles.strategySection}`}>
           <h4 className={styles.sectionTitle}>Content Strategy</h4>
-          <div className={styles.textBlock} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <p><strong>Summary:</strong> {analysis.analysis?.summary}</p>
-            <p><strong>Vibe/Mood:</strong> {analysis.analysis?.mood}</p>
-            <p><strong>Target Audience:</strong> {analysis.analysis?.audience}</p>
-            <p><strong>Ideal Aspect Ratio:</strong> {analysis.analysis?.bestAspectRatio}</p>
-            <p><strong>Best Time:</strong> {analysis.analysis?.bestPostingTime}</p>
+          <div className={styles.strategyGrid}>
+            <div className={styles.strategyItem}>
+              <span>Theme</span>
+              <strong>{analysis.analysis?.overallTheme || 'Not specified'}</strong>
+            </div>
+            <div className={styles.strategyItem}>
+              <span>Aspect Ratio</span>
+              <strong>{analysis.analysis?.bestAspectRatio || 'Flexible'}</strong>
+            </div>
+            <div className={styles.strategyItem}>
+              <span>Best Time</span>
+              <strong>{analysis.analysis?.bestPostingTime || 'Anytime'}</strong>
+            </div>
+          </div>
+          <div className={styles.storyBlock}>
+            <span>Story</span>
+            <p>{analysis.analysis?.story || 'No story summary generated.'}</p>
           </div>
         </div>
 
