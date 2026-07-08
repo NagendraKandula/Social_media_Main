@@ -37,7 +37,58 @@ export class LogoutService {
     return this.getProfileFromDB(userId,'facebook','Facebook User');
   }
   async getInstagramProfile(userId: number) {
-    return this.getProfileFromDB(userId,'instagram','Instagram User');
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId,
+        provider: 'instagram',
+      },
+    });
+
+    if (!account) {
+      return null;
+    }
+
+    const isExpired = account.expiresAt ? new Date() > account.expiresAt : false;
+    let profilePic = account.profilePic || null;
+    let username = account.platformUsername || account.platformName;
+
+    if (!isExpired && account.accessToken) {
+      try {
+        const response = await axios.get('https://graph.instagram.com/v24.0/me', {
+          params: {
+            fields: 'user_id,username,profile_picture_url',
+            access_token: account.accessToken,
+          },
+        });
+
+        profilePic = response.data.profile_picture_url || profilePic;
+        username = response.data.username || username;
+
+        if (profilePic !== account.profilePic || username !== account.platformUsername) {
+          await this.prisma.socialAccount.update({
+            where: { id: account.id },
+            data: {
+              profilePic,
+              platformUsername: username,
+            },
+          });
+        }
+      } catch (error) {
+        console.warn(
+          'Could not refresh Instagram profile:',
+          error.response?.data || error.message,
+        );
+      }
+    }
+
+    return {
+      providerId: account.providerId,
+      name: account.platformName || username || 'Instagram User',
+      username,
+      profilePic,
+      connected: true,
+      needsReconnect: isExpired,
+    };
   }
   async getYoutubeProfile(userId: number) {
     return this.getProfileFromDB(userId,'youtube','YouTube User');
@@ -47,7 +98,57 @@ async getThreadsProfile(userId: number) {
   }
 
   async getLinkedinProfile(userId: number) {
-    return this.getProfileFromDB(userId,'linkedin','LinkedIn User');
+    const account = await this.prisma.socialAccount.findFirst({
+      where: {
+        userId,
+        provider: 'linkedin',
+      },
+    });
+
+    if (!account) {
+      return null;
+    }
+
+    const isExpired = account.expiresAt ? new Date() > account.expiresAt : false;
+    let profilePic = account.profilePic || null;
+    let name = account.platformName || account.platformUsername;
+
+    if (!isExpired && account.accessToken) {
+      try {
+        const response = await axios.get('https://api.linkedin.com/v2/userinfo', {
+          headers: {
+            Authorization: `Bearer ${account.accessToken}`,
+          },
+        });
+
+        profilePic = response.data.picture || profilePic;
+        name = response.data.name || name;
+
+        if (profilePic !== account.profilePic || name !== account.platformName) {
+          await this.prisma.socialAccount.update({
+            where: { id: account.id },
+            data: {
+              profilePic,
+              platformName: name,
+            },
+          });
+        }
+      } catch (error) {
+        console.warn(
+          'Could not refresh LinkedIn profile:',
+          error.response?.data || error.message,
+        );
+      }
+    }
+
+    return {
+      providerId: account.providerId,
+      name: name || 'LinkedIn User',
+      username: account.platformUsername,
+      profilePic,
+      connected: true,
+      needsReconnect: isExpired,
+    };
   }
   
   async getTwitterProfile(userId: number) {
@@ -107,5 +208,3 @@ async getThreadsProfile(userId: number) {
 
 
 
-        
-    

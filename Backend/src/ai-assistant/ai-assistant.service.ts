@@ -39,6 +39,8 @@ export class AiAssistantService {
    let userPrompt = `You are an expert Social Media Strategist AI. Analyze the provided inputs and media to generate an optimized social media strategy and content.\n\n`;
     
     if (content) userPrompt += `Existing text: "${content}".\n`;
+    if (action) userPrompt += `Primary user request: ${action}. Tailor the strategy and generated content to this request.\n`;
+    if (platforms?.length) userPrompt += `Selected platforms: ${platforms.join(', ')}.\n`;
     if (tone) userPrompt += `Desired tone: ${tone}.\n`;
     if (language) userPrompt += `Output language: ${language}.\n`;
     

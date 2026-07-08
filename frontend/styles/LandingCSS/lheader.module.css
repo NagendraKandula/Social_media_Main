@@ -1,12 +1,13 @@
 .header {
-  --header-bg: var(--app-surface);
-  --header-text: var(--app-text);
-  --header-muted: var(--app-text-muted);
-  --header-border: var(--app-border);
-  --header-hover: rgba(255, 77, 79, 0.08);
-  --header-primary: #ff4d4f;
-  --header-dropdown-bg: var(--app-surface);
-  --header-dropdown-shadow: var(--app-shadow);
+  --header-bg: #ffffff;
+  --header-text: #25243d;
+  --header-muted: #77778c;
+  --header-border: rgba(79, 76, 190, 0.16);
+  --header-hover: rgba(125, 113, 242, 0.08);
+  --header-primary: #4f4cbe;
+  --header-secondary: #7d71f2;
+  --header-dropdown-bg: #ffffff;
+  --header-dropdown-shadow: rgba(79, 76, 190, 0.16);
   position: sticky;
   top: 0;
   z-index: 1000;          /* highest */
@@ -15,9 +16,12 @@
   justify-content: space-between;
   gap: clamp(12px, 2vw, 32px);
   padding: 0 clamp(16px, 3vw, 40px);
-  background: var(--header-bg);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(247, 243, 126, 0.24), transparent 20%),
+    linear-gradient(90deg, #ffffff 0%, rgba(79, 76, 190, 0.045) 52%, rgba(125, 113, 242, 0.06) 100%);
   width: 100%;
-  height: 70px;
+  height: 100%;
+  min-width: 0;
   border-bottom: 1px solid var(--header-border); /* optional but recommended */
   overflow: visible; 
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
@@ -29,14 +33,12 @@
   flex: 0 0 auto;
   font-size: clamp(24px, 2.2vw, 30px);
   font-weight: 500;
-  font-family: "Georgia", serif;
+  font-family: 'Poppins', sans-serif;
   color: var(--header-text);
   line-height: 1;
 }
 
-.dot {
-  color: var(--header-primary);
-}
+
 
 /* Channels (platform icons) */
 .channels {
@@ -74,30 +76,46 @@
   border: 1px solid var(--header-border);
   cursor: pointer;
   font-size: 17px;
-  background: none;
+  background: #ffffff;
   color: var(--header-muted);
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 
 .channelIcon:hover {
-  background: var(--header-hover);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  border-color: currentColor;
 }
 
 /* Platform brand colors */
-.channelIcon[data-platform="instagram"] { color: #ab1530; }
-.channelIcon[data-platform="twitter"]   { color: #1da1f2; }
-.channelIcon[data-platform="youtube"]   { color: #ff0000; }
-.channelIcon[data-platform="linkedin"]  { color: #0077b5; }
-.channelIcon[data-platform="pinterest"] { color: #bd081c; }
-.channelIcon[data-platform="facebook"]  { color: #1877f2; }
-.channelIcon[data-platform="threads"]   { color: #000000; }
+.channelIcon[data-platform="instagram"] {
+  color: #d62976;
+  background: linear-gradient(145deg, #fff, rgba(255, 89, 145, 0.1));
+}
+.channelIcon[data-platform="twitter"] {
+  color: #111111;
+  background: #f7f7f8;
+}
+.channelIcon[data-platform="youtube"] {
+  color: #ff0000;
+  background: rgba(255, 0, 0, 0.055);
+}
+.channelIcon[data-platform="linkedin"] {
+  color: #0077b5;
+  background: rgba(0, 119, 181, 0.07);
+}
+.channelIcon[data-platform="facebook"] {
+  color: #1877f2;
+  background: rgba(24, 119, 242, 0.07);
+}
+.channelIcon[data-platform="threads"] {
+  color: #000000;
+  background: #f7f7f8;
+}
 
 /* Connected state */
 .connected {
   border: 1.5px solid var(--header-primary);
-  background: none;
+  box-shadow: 0 0 0 3px rgba(79, 76, 190, 0.07);
 }
 
 
@@ -106,8 +124,9 @@
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: clamp(6px, 1vw, 12px);
+  gap: clamp(11px, 1.4vw, 18px);
   position: relative;
+  min-width: max-content;
 }
 
 /* Notification icon */
@@ -115,25 +134,32 @@
   position: relative;
 }
 
+.help,
 .notification {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: var(--header-muted);
-  transition: background 0.2s ease, color 0.2s ease;
+  font-size: 1.05rem;
+  color: #17172b;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.help:hover,
+.notification:hover {
+  color: #17172b;
+  transform: translateY(-2px);
+  background: none;
 }
 
 .notification:hover {
-  color: var(--header-primary);
-  background: var(--header-hover);
+  background: none;
 }
 
 .notificationBadge {
@@ -144,7 +170,7 @@
   height: 16px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--header-primary);
+  background: #7d71f2;
   color: #ffffff;
   border: 2px solid var(--header-bg);
   font-size: 10px;
@@ -160,7 +186,7 @@
   max-width: calc(100vw - 32px);
   background: var(--header-dropdown-bg);
   border: 1px solid var(--header-border);
-  box-shadow: 0 14px 38px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 14px 38px rgba(79, 76, 190, 0.16);
   border-radius: 12px;
   z-index: 300;
   overflow: hidden;
@@ -279,7 +305,7 @@
   padding: 4px 7px;
   border: 1px solid var(--header-border);
   border-radius: 7px;
-  background: #f8fafc;
+  background: rgba(125, 113, 242, 0.05);
   color: var(--header-muted);
   font-size: 11px;
   line-height: 1.25;
@@ -301,20 +327,21 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  color: var(--header-muted);
-  transition: background 0.2s ease, color 0.2s ease;
+  font-size: 1.05rem;
+  color: #17172b;
+  transition: transform 0.2s ease, color 0.2s ease;
 }
 
 .settings:hover {
-  color: var(--header-primary);
-  background: var(--header-hover);
+  color: #17172b;
+  transform: translateY(-2px) rotate(18deg);
+  background: none;
 }
 
 /* Profile */
@@ -322,18 +349,49 @@
   position: relative;
 }
 
+.profileControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #17172b;
+  cursor: pointer;
+}
+
 .profilePic {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background-color: var(--header-primary);
+  background: linear-gradient(135deg, #4f4cbe, #7d71f2);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--header-bg);
+  border: 1px solid #ffffff;
   font-size: 14px;
+  box-shadow: 0 0 0 1px rgba(79, 76, 190, 0.18), 0 6px 16px rgba(79, 76, 190, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.profileControl:hover .profilePic {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 0 2px rgba(125, 113, 242, 0.2), 0 9px 20px rgba(79, 76, 190, 0.22);
+}
+
+.profileChevron {
+  font-size: 0.72rem;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.profileControl:hover .profileChevron {
+  color: var(--header-primary);
+}
+
+.profileChevronOpen {
+  transform: rotate(180deg);
 }
 
 .profileInitial {
@@ -371,11 +429,23 @@
   color: var(--header-primary);
 }
 
-@media (max-width: 900px) {
+/* Compact laptop layout: keep every control visible without wrapping. */
+@media (max-width: 1200px) {
   .header {
-    height: 64px;
+    gap: clamp(10px, 1.4vw, 18px);
+    padding-inline: clamp(16px, 2.2vw, 28px);
   }
 
+  .channels {
+    gap: clamp(8px, 1.6vw, 20px);
+  }
+
+  .actions {
+    gap: clamp(6px, 1vw, 12px);
+  }
+}
+
+@media (max-width: 900px) {
   .channels {
     justify-content: flex-start;
     padding: 0 4px;
@@ -386,10 +456,11 @@
   }
 
   .notification,
+  .help,
   .settings,
   .profilePic {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
   }
 }
 
@@ -444,8 +515,9 @@
   }
 
   .notification,
+  .help,
   .profilePic {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
   }
 }

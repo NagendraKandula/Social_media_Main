@@ -1,17 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import apiClient from '../../../lib/axios';
 import styles from '../../../styles/LandingCSS/Tabs/ActivePlatforms.module.css';
-import { addNotification } from '../../../utils/notifications';
+import {
+  addNotification,
+  AppNotification,
+  getNotifications,
+  NOTIFICATIONS_UPDATED_EVENT,
+} from '../../../utils/notifications';
 import {
   FaFacebookF,
+  FaFire,
+  FaHistory,
   FaInstagram,
   FaPlus,
   FaUnlink,
   FaSyncAlt,
   FaYoutube,
   FaAt,
+  FaCheckCircle,
+  FaExclamationTriangle,
   FaTwitter,
   FaLinkedin,
+  FaInfoCircle,
+  FaTimesCircle,
 } from 'react-icons/fa';
 
 const ACTIVE_ACCOUNTS_CACHE_KEY = 'story_active_accounts';
@@ -22,6 +33,36 @@ const PLATFORM_LABELS: Record<string, string> = {
   threads: 'Threads',
   twitter: 'X (Twitter)',
   linkedin: 'LinkedIn',
+};
+const TRENDING_TOPICS = [
+  'AI workflows',
+  'Creator tips',
+  'Short-form video',
+  'Community building',
+  'Product stories',
+  'Behind the scenes',
+  'Customer wins',
+  'Industry insights',
+  'Weekly recap',
+];
+const CONTENT_ANGLES = [
+  'Turn one customer question into a useful carousel.',
+  'Share a quick before-and-after transformation.',
+  'Show the process behind your latest result.',
+];
+
+const formatRelativeTime = (dateString: string) => {
+  const elapsed = Date.now() - new Date(dateString).getTime();
+  const minutes = Math.max(1, Math.floor(elapsed / 60_000));
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+};
+
+const getDisplayNameFromEmail = (email?: string) => {
+  const emailName = email?.split('@')[0]?.split(/[._-]/)[0]?.trim();
+  return emailName ? emailName.charAt(0).toUpperCase() + emailName.slice(1) : 'there';
 };
 
 const getCachedAccounts = () => {
@@ -42,6 +83,8 @@ const ActivePlatforms = () => {
   const [accounts, setAccounts] = useState<any>(() => getCachedAccounts());
   const [loading, setLoading] = useState(() => !getCachedAccounts());
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [recentActivity, setRecentActivity] = useState<AppNotification[]>([]);
+  const [displayName, setDisplayName] = useState('there');
 
   const fetchAccounts = async (showLoading = true) => {
     try {
@@ -73,6 +116,16 @@ const ActivePlatforms = () => {
 
   useEffect(() => {
     fetchAccounts(!accounts);
+
+    apiClient.get('/auth/profile')
+      .then(({ data }) => setDisplayName(data?.fullName?.split(' ')[0] || getDisplayNameFromEmail(data?.email)))
+      .catch((err) => console.error('Failed to fetch user profile:', err));
+
+    const syncActivity = () => setRecentActivity(getNotifications());
+    syncActivity();
+    window.addEventListener(NOTIFICATIONS_UPDATED_EVENT, syncActivity);
+
+    return () => window.removeEventListener(NOTIFICATIONS_UPDATED_EVENT, syncActivity);
   }, []);
 
   const notifyHeader = () => {
@@ -127,111 +180,182 @@ const ActivePlatforms = () => {
   const getAccountName = (account: any, fallback: string) =>
     account?.name || account?.username || `${fallback} User`;
 
+  const connectedCount = platforms.filter((platform) => accounts?.[platform.id] && !accounts[platform.id].needsReconnect).length;
+  const sortedPlatforms = platforms
+    .map((platform, index) => ({ ...platform, originalIndex: index }))
+    .sort((a, b) => {
+      const aConnected = accounts?.[a.id] ? 1 : 0;
+      const bConnected = accounts?.[b.id] ? 1 : 0;
+      return bConnected - aConnected || a.originalIndex - b.originalIndex;
+    });
+
   return (
     <div className={styles.container}>
-      <h1 className={styles.pageTitle}>Social Media Connections</h1>
+      <section className={styles.hero}>
+        <div>
+          <h1 className={styles.pageTitle}>Hey {displayName}, welcome back <span aria-hidden="true">👋</span></h1>
+          <p>Here’s what’s happening with your social channels today.</p>
+        </div>
+      </section>
 
       {loading ? (
         <p className={styles.loadingText}>Loading connected accounts…</p>
       ) : (
-        <div className={styles.platformGrid}>
-          {platforms.map((p) => (
-            <div key={p.id} className={styles.platformCard}>
-              <div className={styles.cardBody}>
-                {accounts?.[p.id] ? (
-                  <div className={styles.connectedProfile}>
-                    {accounts[p.id].profilePic ? (
-                      <img
-                        src={accounts[p.id].profilePic}
-                        className={styles.avatar}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.remove(styles.hiddenIcon);
-                        }}
-                        alt={`${p.name} Profile`}
-                      />
-                    ) : null}
+        <>
+          <div className={styles.dashboardTop}>
+            <section className={styles.section}>
+              <div className={styles.sectionHeading}>
+                <div>
+                  <h2>Active platforms</h2>
+                </div>
+                <span>{connectedCount} connected</span>
+              </div>
 
-                    <div
-                      className={`${styles.platformIcon} ${styles.connectedIconFallback} ${p.color} ${
-                        accounts[p.id].profilePic ? styles.hiddenIcon : ''
-                      }`}
-                    >
-                      {p.icon}
-                    </div>
+              <div className={styles.platformGrid}>
+                {sortedPlatforms.map((p) => {
+                  const account = accounts?.[p.id];
+                  const needsReconnect = account?.needsReconnect;
 
-                    <div className={styles.profileInfo}>
-  <p className={styles.userName}>
-    {getAccountName(accounts[p.id], p.name)}
-  </p>
+                  return (
+                    <article key={p.id} className={styles.platformCard}>
+                      <div className={styles.cardBody}>
+                        {account?.profilePic ? (
+                          <>
+                            <img
+                              src={account.profilePic}
+                              className={styles.avatar}
+                              alt={`${p.name} profile`}
+                              onError={(event) => {
+                                event.currentTarget.style.display = 'none';
+                                event.currentTarget.nextElementSibling?.classList.remove(styles.hiddenIcon);
+                              }}
+                            />
+                            <div className={`${styles.platformIcon} ${styles.hiddenIcon} ${p.color}`}>
+                              {p.icon}
+                            </div>
+                          </>
+                        ) : (
+                          <div className={`${styles.platformIcon} ${p.color}`}>{p.icon}</div>
+                        )}
+                        <div className={styles.profileInfo}>
+                          <p className={styles.platformName}>{p.name}</p>
+                          <p className={styles.userName}>
+                            {account ? getAccountName(account, p.name) : 'Not connected'}
+                          </p>
+                        </div>
+                      </div>
 
-  <p className={styles.platformName}>
-    {p.name}
-  </p>
+                      <div className={styles.cardFooter}>
+                        {account ? (
+                          <>
+                            <button onClick={() => handleAction(p.id, 'reconnect')} className={styles.reconnectBtn}>
+                              <FaSyncAlt /> {needsReconnect ? 'Fix connection' : 'Reconnect'}
+                            </button>
+                            <button
+                              onClick={() => handleAction(p.id, 'disconnect')}
+                              className={styles.iconButton}
+                              aria-label={`Disconnect ${p.name}`}
+                              title={`Disconnect ${p.name}`}
+                            >
+                              <FaUnlink />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleAction(p.id, 'connect')}
+                            className={styles.connectBtn}
+                            disabled={actionLoading === p.id}
+                          >
+                            <FaPlus /> {actionLoading === p.id ? 'Connecting…' : 'Connect'}
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
 
-  {accounts[p.id].needsReconnect ? (
-                        <p
-                          className={`${styles.statusBadge} ${styles.expiredBadge}`}
-                        >
-                          Session Expired
-                        </p>
-                      ) : (
-                        <p className={styles.statusBadge}>Connected</p>
+          </div>
+
+          <div className={styles.insightGrid}>
+            <section className={styles.insightCard}>
+              <div className={styles.insightHeader}>
+                <div className={styles.headingWithIcon}>
+                  <span className={`${styles.panelIcon} ${styles.activityIcon}`}><FaHistory /></span>
+                  <div>
+                    <h2>Recent activity</h2>
+                    <p>{recentActivity.length} latest account and publishing updates</p>
+                  </div>
+                </div>
+              </div>
+              <div className={`${styles.list} ${styles.activityList}`}>
+                {recentActivity.length > 0 ? recentActivity.map((item) => (
+                  <div
+                    className={`${styles.activityRow} ${styles[`activityRow-${item.type}`]}`}
+                    key={item.id}
+                  >
+                    <span className={`${styles.activityMarker} ${styles[`activity-${item.type}`]}`}>
+                      {item.type === 'success' && <FaCheckCircle />}
+                      {item.type === 'warning' && <FaExclamationTriangle />}
+                      {item.type === 'error' && <FaTimesCircle />}
+                      {item.type === 'info' && <FaInfoCircle />}
+                    </span>
+                    <div className={styles.rowContent}>
+                      <strong>{item.title}</strong>
+                      <span>{item.message}</span>
+                      {item.details && item.details.length > 0 && (
+                        <div className={styles.activityDetails}>
+                          {item.details.slice(0, 3).map((detail) => (
+                            <span key={`${item.id}-${detail.label}`}>
+                              <strong>{detail.label}</strong>
+                              {detail.value}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
-                  </div>
-                ) : (
-                  <div className={styles.connectedProfile}>
-                    <div className={`${styles.platformIcon} ${p.color}`}>
-                      {p.icon}
-                    </div>
-
-                    <div className={styles.profileInfo}>
-                      <p className={styles.userName}>No username</p>
-
-                      <p className={styles.platformName}>
-                        {p.name}
-                      </p>
-
-                      <p className={`${styles.statusBadge} ${styles.notConnectedBadge}`}>
-                        Not Connected
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.cardFooter}>
-                {accounts?.[p.id] ? (
-                  <>
-                    <button
-                      onClick={() => handleAction(p.id, 'reconnect')}
-                      className={styles.reconnectBtn}
+                    <time
+                      dateTime={item.createdAt}
+                      title={new Date(item.createdAt).toLocaleString()}
                     >
-                      <FaSyncAlt />{' '}
-                      {accounts[p.id].needsReconnect ? 'Fix Connection' : 'Reconnect'}
-                    </button>
-
-                    <button
-                      onClick={() => handleAction(p.id, 'disconnect')}
-                      className={styles.disconnectBtn}
-                    >
-                      <FaUnlink /> Disconnect
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => handleAction(p.id, 'connect')}
-                    className={styles.connectBtn}
-                    disabled={actionLoading === p.id}
-                  >
-                    <FaPlus /> {actionLoading === p.id ? 'Connecting...' : 'Connect'}
-                  </button>
-                )}
+                      {formatRelativeTime(item.createdAt)}
+                    </time>
+                  </div>
+                )) : <p className={styles.emptyState}>Activity will appear here as you work.</p>}
               </div>
-            </div>
-          ))}
-        </div>
+            </section>
+
+            <section className={`${styles.insightCard} ${styles.trendsCard}`}>
+              <div className={styles.insightHeader}>
+                <div className={styles.headingWithIcon}>
+                  <span className={`${styles.panelIcon} ${styles.trendIcon}`}><FaFire /></span>
+                  <div><h2>Trending topics</h2></div>
+                </div>
+              </div>
+              <div className={styles.topicList}>
+                {TRENDING_TOPICS.map((topic, index) => (
+                  <span key={topic} className={styles.topic} style={{ '--topic-index': index } as React.CSSProperties}>
+                    #{topic}
+                  </span>
+                ))}
+              </div>
+              <div className={styles.trendNote}>
+                <strong>Fresh directions for your next post</strong>
+                <p>Curated prompts to help you start—not live trend analytics.</p>
+              </div>
+              <div className={styles.contentAngles}>
+                <span>Content angles</span>
+                {CONTENT_ANGLES.map((angle, index) => (
+                  <div key={angle}>
+                    <strong>{String(index + 1).padStart(2, '0')}</strong>
+                    <p>{angle}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </>
       )}
     </div>
   );

@@ -23,8 +23,12 @@ export class AiAssistantController {
     @UploadedFiles() files: Express.Multer.File[],
     @Body() generateContentDto: GenerateContentDto,
   ) {
-    if (!generateContentDto.content && (!files || files.length === 0)) {
-      throw new BadRequestException('Provide either existing content or media to analyze.');
+    if (
+      !generateContentDto.action &&
+      !generateContentDto.content &&
+      (!files || files.length === 0)
+    ) {
+      throw new BadRequestException('Choose an AI action or provide content or media.');
     }
 
     try {

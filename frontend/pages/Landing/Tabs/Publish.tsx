@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { Eye, Sparkles } from 'lucide-react';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
@@ -11,6 +12,8 @@ import apiClient from '../../../lib/axios';
 import { validateInstagramMediaSpecs } from '../../../utils/instagramMediaSpecs';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { addNotification } from '../../../utils/notifications';
+import { useAppDispatch } from '../../../store/hooks';
+import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -122,6 +125,7 @@ interface SocialAccount {
 ================================ */
 
 export default function Publish() {
+  const dispatch = useAppDispatch();
   /* ===============================
      Core State
   ================================ */
@@ -130,7 +134,7 @@ export default function Publish() {
   const [files, setFiles] = useState<File[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
-  const [rightTab, setRightTab] = useState<'ai' | 'preview'>('ai');
+  const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | null>('ai');
   const [aiRecommendations, setAiRecommendations] = useState<PlatformRecommendation[]>([]);
   const handleAnalysisComplete = (result: AiAnalysisResult) => {
     setAiRecommendations(result.analysis?.recommendedPlatforms || []);
@@ -824,121 +828,113 @@ const handleSubmit = async (isScheduled: boolean) => {
           <p>Create once, tailor by platform, and publish when it is ready.</p>
         </div>
 
-        <div className={styles.headerMeta}>
-          <span>{selectedChannels.size} channel{selectedChannels.size === 1 ? '' : 's'}</span>
-          <span>{files.length} media</span>
-        </div>
       </div>
 
-      <div className={styles.mainLayout}>
-        {/* LEFT COLUMN */}
-        <div className={styles.leftColumn}>
-          <div className={styles.leftCard}>
-           {/* TOP ROW */}
-<div className={styles.topRow}>
-  <ChannelSelector
-    accounts={accounts}
-    selectedChannels={selectedChannels}
-    onSelectionChange={setSelectedChannels}
-    disabledChannels={disabledChannels}
-    facebookPages={facebookPages}
-    selectedFacebookPageId={platformState.facebookPageId}
-    onFacebookPageSelect={(pageId) =>
-      setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
-    }
-    aiRecommendations={aiRecommendations}
-  />
+      <div className={`${styles.mainLayout} ${!activeSidePanel ? styles.previewHidden : ''}`}>
+        <div className={styles.topRow}>
+          <ChannelSelector
+            accounts={accounts}
+            selectedChannels={selectedChannels}
+            onSelectionChange={setSelectedChannels}
+            disabledChannels={disabledChannels}
+            facebookPages={facebookPages}
+            selectedFacebookPageId={platformState.facebookPageId}
+            onFacebookPageSelect={(pageId) =>
+              setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
+            }
+            onAddChannel={() => dispatch(setActiveTab(DASHBOARD_TABS.ACTIVE))}
+          />
 
-  <div className={styles.topActions}>
-    <button className={styles.secondaryBtn}>Draft</button>
-    <button
-      className={styles.secondaryBtn}
-      onClick={() => setShowScheduleModal(true)}
-    >
-      Schedule
-    </button>
-    <button
-      className={styles.primaryBtn}
-      onClick={() => openReview('publish')}
-      disabled={uploading || publishing}
-    >
-      {uploading || publishing ? 'Publishing...' : 'Publish'}
-    </button>
-  </div>
-</div>
-
-
-            {/* Content Editor */}
-            <LazyContentEditor
-              content={content}
-              onContentChange={setContent}
-              files={files}
-              onFilesChange={setFiles}
-              effectiveRules={effectiveRules}
-              validation={{}}
-              selectedChannels={selectedChannelList}
-              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-            />
-
-            {/* Platform Fields */}
-            <LazyPlatformFields
-              selectedChannels={selectedChannels}
-              platformState={platformState}
-              setPlatformState={setPlatformState}
-              facebookPages={facebookPages}
-            />
+          <div className={styles.topActions}>
+            <button
+              type="button"
+              className={`${styles.headerToolBtn} ${activeSidePanel === 'ai' ? styles.headerToolActive : ''}`}
+              onClick={() => setActiveSidePanel((panel) => panel === 'ai' ? null : 'ai')}
+              aria-pressed={activeSidePanel === 'ai'}
+            >
+              <Sparkles size={15} aria-hidden="true" />
+              AI Assistant
+            </button>
+            <button
+              type="button"
+              className={`${styles.headerToolBtn} ${activeSidePanel === 'preview' ? styles.headerToolActive : ''}`}
+              onClick={() => setActiveSidePanel((panel) => panel === 'preview' ? null : 'preview')}
+              aria-pressed={activeSidePanel === 'preview'}
+            >
+              <Eye size={15} aria-hidden="true" />
+              Preview
+            </button>
+            <button
+              className={styles.secondaryBtn}
+              onClick={() => setShowScheduleModal(true)}
+            >
+              Schedule
+            </button>
+            <button
+              className={styles.primaryBtn}
+              onClick={() => openReview('publish')}
+              disabled={uploading || publishing}
+            >
+              {uploading || publishing ? 'Publishing...' : 'Publish'}
+            </button>
           </div>
         </div>
 
-        {/* DIVIDER */}
-        <div className={styles.divider} />
+        <section className={styles.composerPane} aria-label="Post composer">
+          <LazyContentEditor
+            content={content}
+            onContentChange={setContent}
+            files={files}
+            onFilesChange={setFiles}
+            effectiveRules={effectiveRules}
+            validation={{}}
+            selectedChannels={selectedChannelList}
+            validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+            size="publish"
+            aiRecommendations={aiRecommendations}
+          />
 
-{/* RIGHT COLUMN */}
-<div className={styles.rightColumn}>
-  <div className={styles.rightCard}>
-    
-    {/* Tabs INSIDE the box */}
-    <div className={styles.rightHeader}>
-      <button
-        className={rightTab === 'ai' ? styles.activeTab : ''}
-        onClick={() => setRightTab('ai')}
-      >
-        AI Assistant
-      </button>
-      <button
-        className={rightTab === 'preview' ? styles.activeTab : ''}
-        onClick={() => setRightTab('preview')}
-      >
-        Preview
-      </button>
-    </div>
+          <LazyPlatformFields
+            selectedChannels={selectedChannels}
+            platformState={platformState}
+            setPlatformState={setPlatformState}
+            facebookPages={facebookPages}
+          />
+        </section>
 
-    {/* Content */}
-    <div className={styles.rightPanel}>
-      {rightTab === 'ai' ? (
-        <LazyAIAssistant 
-        files={files}
-      onAnalysisComplete={handleAnalysisComplete}
-      onApplyCaption={handleApplyCaption}
-      onApplyHashtags={handleApplyHashtags}
-      onAutoSelectPlatforms={handleAutoSelectPlatforms}/>
-      ) : (
-        <LazyDynamicPreview
-          selectedPlatforms={selectedChannelList}
-          content={content}
-          mediaFiles={files}
-          facebookPostType={platformState.facebookPostType}
-          instagramPostType={platformState.instagramPostType}
-          youtubeType={platformState.youtubeType}
-          accounts={accounts}
-          facebookPage={selectedFacebookPage}
-        />
-      )}
-    </div>
+        {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : 'AI Assistant'}>
+          <div className={`${styles.rightHeader} ${activeSidePanel === 'ai' ? styles.aiRightHeader : ''}`}>
+            <div>
+              {activeSidePanel === 'preview' && <span>Live preview</span>}
+              <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
+            </div>
+          </div>
 
-  </div>
-</div>
-</div>
+          <div className={styles.rightPanel}>
+            {activeSidePanel === 'preview' ? (
+              <LazyDynamicPreview
+                selectedPlatforms={selectedChannelList}
+                content={content}
+                mediaFiles={files}
+                facebookPostType={platformState.facebookPostType}
+                instagramPostType={platformState.instagramPostType}
+                youtubeType={platformState.youtubeType}
+                accounts={accounts}
+                facebookPage={selectedFacebookPage}
+              />
+            ) : (
+              <LazyAIAssistant
+                files={files}
+                content={content}
+                onAnalysisComplete={handleAnalysisComplete}
+                onApplyCaption={handleApplyCaption}
+                onApplyHashtags={handleApplyHashtags}
+                onAutoSelectPlatforms={handleAutoSelectPlatforms}
+              />
+            )}
+          </div>
+        </aside>}
+      </div>
 
 
       {/* Schedule Modal */}

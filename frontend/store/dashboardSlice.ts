@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export const DASHBOARD_TABS = {
-  ACTIVE: "Active Platforms",
+  ACTIVE: "Connect",
   CREATE: "Create",
   PUBLISH: "Publish",
   SCHEDULE: "Schedule",

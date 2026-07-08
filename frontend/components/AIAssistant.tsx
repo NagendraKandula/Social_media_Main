@@ -1,11 +1,20 @@
 // frontend/components/AIAssistant.tsx
 import React, { useState } from 'react';
+import { ArrowUp, CornerDownRight, Sparkles } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
 import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
 import styles from '../styles/AIAssistant.module.css';
 
+const STARTER_PROMPTS = [
+  { label: 'Brainstorm caption ideas', action: 'post ideas' },
+  { label: 'Suggest relevant hashtags', action: 'hashtags' },
+  { label: 'Find the best posting time', action: 'best time' },
+  { label: 'Improve or shorten my text', action: 'improve text' },
+];
+
 interface Props {
   files: MediaItem[] | File[];
+  content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
@@ -14,21 +23,20 @@ interface Props {
 
 export default function AIAssistant({ 
   files, 
+  content = '',
   onAnalysisComplete, 
   onApplyCaption, 
   onApplyHashtags, 
   onAutoSelectPlatforms 
 }: Props) {
   const [instructions, setInstructions] = useState('');
+  const [action, setAction] = useState('post ideas');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
 
   const handleAnalyze = async () => {
-    if (files.length === 0 && !instructions) {
-      alert("Please upload an image/video or add instructions first.");
-      return;
-    }
-    
+    const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
     setIsAnalyzing(true);
     const formData = new FormData();
     
@@ -42,7 +50,9 @@ export default function AIAssistant({
       }
     }
     
-    if (instructions) formData.append('content', instructions);
+    const promptContext = [existingText, instructions].filter(Boolean).join('\n\n');
+    if (promptContext) formData.append('content', promptContext);
+    formData.append('action', action);
 
     try {
       // ✅ FIX: Use apiClient instead of naked fetch
@@ -71,7 +81,7 @@ export default function AIAssistant({
       <div className={styles.container}>
         <div className={styles.spinnerContainer}>
           <div className={styles.spinner}></div>
-          <p className="font-semibold">✨ AI Co-Pilot is thinking...</p>
+          <p className="font-semibold">AI Assistant is thinking...</p>
           <ul className={styles.checklist}>
             <li>✓ Analyzing visual aesthetic</li>
             <li>✓ Evaluating aspect ratios</li>
@@ -154,28 +164,47 @@ export default function AIAssistant({
     );
   }
   return (
-    <div className={styles.container}>
-      <h3 className={styles.title}>✨ AI Co-Pilot</h3>
-      <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-        Upload media in the editor, optionally tell me what you want to achieve, and I'll strategize your post.
-      </p>
-      
-      <textarea 
-        placeholder="Optional instructions (e.g., 'Promote this as a luxury product')..."
-        value={instructions}
-        onChange={(e) => setInstructions(e.target.value)}
-        rows={3}
-        style={{ width: '100%', border: '1px solid #d1d5db', borderRadius: '8px', padding: '0.75rem', fontSize: '0.875rem' }}
-      />
-      
-      <button 
-        onClick={handleAnalyze} 
-        className={styles.btnPrimary}
-        disabled={files.length === 0 && !instructions}
-        style={{ opacity: (files.length === 0 && !instructions) ? 0.5 : 1 }}
-      >
-        Analyze with AI
-      </button>
+    <div className={`${styles.container} ${styles.chatStart}`}>
+      <div className={styles.welcome}>
+        <Sparkles size={24} aria-hidden="true" />
+        <strong>How can I help with your post?</strong>
+        <p>Ask for ideas, rewrites, hashtags, timing, or feedback.</p>
+      </div>
+
+      <div className={styles.starterPrompts} aria-label="Suggested prompts">
+        {STARTER_PROMPTS.map((item) => (
+          <button
+            key={item.action}
+            type="button"
+            onClick={() => {
+              setAction(item.action);
+              setInstructions(item.label);
+            }}
+          >
+            <CornerDownRight size={15} aria-hidden="true" />
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.chatComposer}>
+        <textarea
+          placeholder="Ask AI Assistant"
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          rows={2}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void handleAnalyze();
+            }
+          }}
+        />
+        <button type="button" onClick={handleAnalyze} aria-label="Send to AI Assistant" title="Send">
+          <ArrowUp size={18} aria-hidden="true" />
+        </button>
+      </div>
+      <small className={styles.disclaimer}>AI can make mistakes. Review suggestions before publishing.</small>
     </div>
   );
 }

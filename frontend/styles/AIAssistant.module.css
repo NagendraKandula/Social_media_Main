@@ -3,11 +3,117 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  background-color: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+
+.chatStart {
+  min-height: min(540px, calc(100vh - 310px));
+}
+
+.welcome {
+  display: flex;
+  flex: 1;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #4f4cbe;
+  text-align: center;
+}
+
+.welcome strong {
+  color: #29293c;
+  font-size: 0.94rem;
+}
+
+.welcome p {
+  max-width: 270px;
+  margin: 0;
+  color: #77788b;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+.starterPrompts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.starterPrompts button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #535465;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.starterPrompts button:hover {
+  background: rgba(125, 113, 242, 0.08);
+  color: #4f4cbe;
+}
+
+.chatComposer {
+  position: relative;
+  padding: 10px 48px 10px 12px;
+  border: 1px solid rgba(79, 76, 190, 0.2);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.chatComposer:focus-within {
+  border-color: #7d71f2;
+  box-shadow: 0 0 0 3px rgba(125, 113, 242, 0.12);
+}
+
+.chatComposer textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: none;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: #252537;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.chatComposer button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: #4f4cbe;
+  color: #fff;
+  cursor: pointer;
+}
+
+.chatComposer button:hover {
+  background: #7d71f2;
+}
+
+.disclaimer {
+  color: #8a8b99;
+  font-size: 0.62rem;
+  text-align: center;
 }
 
 .header {
@@ -86,7 +192,7 @@
 }
 
 .btnPrimary {
-  background-color: #2563eb;
+  background-color: #4f4cbe;
   color: white;
   border: none;
   padding: 0.75rem;
@@ -99,7 +205,7 @@
 }
 
 .btnPrimary:hover {
-  background-color: #1d4ed8;
+  background-color: #7d71f2;
 }
 
 .spinnerContainer {

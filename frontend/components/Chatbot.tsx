@@ -96,7 +96,7 @@ const chatbotData = {
 • Download or publish your final post`
 },
     {
-      q: "How do Active Platforms work?",
+      q: "How does Connect work?",
       a: `🔗 sers can select social media platforms such as Facebook, Instagram, YouTube, Threads, X (Twitter), and LinkedIn.
 
 • Click on the "Connect" button for the platform you want to link.
@@ -188,6 +188,14 @@ export default function Chatbot({
     if (type === "landing") {
       setTimeout(() => setOpen(true), 3000);
     }
+  }, [type]);
+
+  useEffect(() => {
+    if (type !== "post-login") return;
+
+    const openHelp = () => setOpen(true);
+    window.addEventListener("story-open-help", openHelp);
+    return () => window.removeEventListener("story-open-help", openHelp);
   }, [type]);
 
   const handleSend = (text: string) => {
