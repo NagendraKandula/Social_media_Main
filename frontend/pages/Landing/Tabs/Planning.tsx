@@ -9,6 +9,7 @@ import { PlatformState } from '../../../components/PlatformFields';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { usePostCreation } from '../../../hooks/usePostCreation';
 import { addNotification } from '../../../utils/notifications';
+import { AiAnalysisResult, PlatformRecommendation } from '../../../types';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -197,6 +198,28 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   const [content, setContent] = useState(post?.content || '');
   const [files, setFiles] = useState<any[]>(post?.files || []);
   const [isScheduling, setIsScheduling] = useState(false);
+  // Inside function Publish() or function Planning()
+const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
+
+const handleAnalysisComplete = (result: AiAnalysisResult) => {
+    setAiAnalysis(result);
+};
+
+const handleApplyCaption = (caption: string) => {
+    setContent(caption);
+};
+
+const handleApplyHashtags = (hashtags: string[]) => {
+    setContent(prev => `${prev}\n\n${hashtags.join(" ")}`);
+};
+
+const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) => {
+    const next = new Set<Channel>();
+    recommendations.forEach((r) => {
+        next.add(r.platform.toLowerCase() as Channel);
+    });
+    setSelectedChannels(next);
+};
   
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(
     new Set(post?.platforms ? post.platforms : (post?.platform ? [post.platform as Channel] : []))
@@ -541,6 +564,7 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
               onFacebookPageSelect={(pageId) =>
                 setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
               }
+              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
             />
             <LazyContentEditor
               content={content}
@@ -572,7 +596,13 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
             </div>
             <div className={styles.scheduleSideContent}>
               {rightTab === 'ai' ? (
-                <LazyAIAssistant />
+               <LazyAIAssistant 
+  files={files}
+  onAnalysisComplete={handleAnalysisComplete}
+  onApplyCaption={handleApplyCaption}
+  onApplyHashtags={handleApplyHashtags}
+  onAutoSelectPlatforms={handleAutoSelectPlatforms}
+/>
               ) : (
                 <LazyDynamicPreview
                   selectedPlatforms={selectedChannelList}
