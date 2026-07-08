@@ -16,6 +16,11 @@ export interface MediaItem {
   // if you want to support analyzing multiple images individually later.
   aiAnalysis?: AiAnalysisResult;
 }
+export interface MediaSummary {
+  index: number;
+  type: string;
+  description: string;
+}
 export interface PlatformRecommendation {
   platform: string; // e.g., 'Instagram', 'LinkedIn', 'Facebook', 'Threads', 'Twitter', 'YouTube'
   rating: number;   // 1 to 5 scale
@@ -24,9 +29,9 @@ export interface PlatformRecommendation {
 
 export interface AiAnalysisResult {
   analysis: {
-    summary: string;
-    mood: string;
-    audience: string;
+    mediaSummary: MediaSummary[];
+    overallTheme: string;
+    story: string;
     recommendedPlatforms: PlatformRecommendation[];
     bestAspectRatio: string;
     engagementPrediction: string;
