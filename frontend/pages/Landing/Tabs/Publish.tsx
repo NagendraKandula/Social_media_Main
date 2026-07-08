@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
+import { AiAnalysisResult, PlatformRecommendation } from '../../../types';
 import { PlatformState } from '../../../components/PlatformFields';
 
 import { usePostCreation } from '../../../hooks/usePostCreation';
@@ -130,7 +131,30 @@ export default function Publish() {
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
   const [rightTab, setRightTab] = useState<'ai' | 'preview'>('ai');
+  const [aiRecommendations, setAiRecommendations] = useState<PlatformRecommendation[]>([]);
+  const handleAnalysisComplete = (result: AiAnalysisResult) => {
+    setAiRecommendations(result.analysis?.recommendedPlatforms || []);
+  };
+  const handleApplyCaption = (aiCaption: string) => {
+    // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
+    setContent((prev) => (prev ? `${prev}<br/><br/>${aiCaption}` : aiCaption));
+  };
 
+  const handleApplyHashtags = (aiHashtags: string[]) => {
+    const tagsString = aiHashtags.join(' ');
+    setContent((prev) => (prev ? `${prev}<br/><br/>${tagsString}` : tagsString));
+  };
+
+  const handleAutoSelectPlatforms = (platforms: PlatformRecommendation[]) => {
+    const next = new Set(selectedChannels);
+    platforms.forEach((p) => {
+      // Auto-select if the AI gave it 4 or 5 stars
+      if (p.rating >= 4) {
+        next.add(p.platform.toLowerCase() as Channel);
+      }
+    });
+    setSelectedChannels(next);
+  };
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
     instagramPostType: 'post',
@@ -822,6 +846,7 @@ const handleSubmit = async (isScheduled: boolean) => {
     onFacebookPageSelect={(pageId) =>
       setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
     }
+    aiRecommendations={aiRecommendations}
   />
 
   <div className={styles.topActions}>
@@ -891,7 +916,12 @@ const handleSubmit = async (isScheduled: boolean) => {
     {/* Content */}
     <div className={styles.rightPanel}>
       {rightTab === 'ai' ? (
-        <LazyAIAssistant />
+        <LazyAIAssistant 
+        files={files}
+      onAnalysisComplete={handleAnalysisComplete}
+      onApplyCaption={handleApplyCaption}
+      onApplyHashtags={handleApplyHashtags}
+      onAutoSelectPlatforms={handleAutoSelectPlatforms}/>
       ) : (
         <LazyDynamicPreview
           selectedPlatforms={selectedChannelList}

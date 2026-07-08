@@ -1,39 +1,41 @@
+// Backend/src/ai-assistant/ai-assistant.controller.ts
 import {
   Controller,
   Post,
   UseInterceptors,
-  UploadedFiles, // Changed to plural
+  UploadedFiles,
   Body,
   BadRequestException,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express'; // Changed to plural
+import 'multer';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { AiAssistantService } from './ai-assistant.service';
 import { GenerateContentDto } from './dto/generate-content.dto';
 
-@Controller('ai-assistant')
+
+@Controller('ai')
 export class AiAssistantController {
   constructor(private readonly aiAssistantService: AiAssistantService) {}
 
   @Post('generate')
-  @UseInterceptors(FilesInterceptor('images')) // Field name 'images' must match frontend
+  @UseInterceptors(FilesInterceptor('media')) // Matches the 'media[]' field from frontend
   async generateContent(
-    @UploadedFiles() files: Express.Multer.File[], // Handles the array of images
+    @UploadedFiles() files: Express.Multer.File[],
     @Body() generateContentDto: GenerateContentDto,
   ) {
-    const { prompt, type } = generateContentDto;
-
-    if (!prompt && (!files || files.length === 0)) {
-      throw new BadRequestException('Prompt or images are required.');
+    if (!generateContentDto.content && (!files || files.length === 0)) {
+      throw new BadRequestException('Provide either existing content or media to analyze.');
     }
 
     try {
-      const result = await this.aiAssistantService.generateContent(
-        prompt,
-        type,
+      const result = await this.aiAssistantService.analyzeAndGenerate(
+        generateContentDto,
         files,
       );
-      return { success: true, data: result };
-    } catch (error:any) {
+      
+      // The service will return a structured JSON response containing recommendations
+      return { success: true, data: JSON.parse(result) };
+    } catch (error: any) {
       throw new BadRequestException(`AI Error: ${error.message}`);
     }
   }

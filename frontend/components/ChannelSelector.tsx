@@ -1,3 +1,4 @@
+// frontend/components/ChannelSelector.tsx
 import React from 'react';
 import {
   FaFacebookF,
@@ -8,6 +9,7 @@ import {
   FaLinkedin,
 } from 'react-icons/fa';
 import styles from '../styles/ChannelSelector.module.css';
+import { PlatformRecommendation } from '../types'; // ADDED: Import the AI type
 
 export type Channel =
   | 'facebook'
@@ -38,10 +40,11 @@ interface Props {
   accounts: Partial<Record<Channel, Account>>;
   selectedChannels: Set<Channel>;
   onSelectionChange: (s: Set<Channel>) => void;
-  disabledChannels?: Set<Channel>; // <-- ADDED: Track which channels are disabled by rules
+  disabledChannels?: Set<Channel>;
   facebookPages?: FacebookPage[];
   selectedFacebookPageId?: string;
   onFacebookPageSelect?: (pageId: string) => void;
+  aiRecommendations?: PlatformRecommendation[]; // ADDED: Receive AI Data
 }
 
 const icons: Record<Channel, JSX.Element> = {
@@ -53,14 +56,20 @@ const icons: Record<Channel, JSX.Element> = {
   linkedin: <FaLinkedin />,
 };
 
+// ADDED: Helper to render stars
+const renderStars = (rating: number) => {
+  return '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+};
+
 export default function ChannelSelector({
   accounts,
   selectedChannels,
   onSelectionChange,
-  disabledChannels = new Set(), // <-- Default to empty set
+  disabledChannels = new Set(),
   facebookPages = [],
   selectedFacebookPageId,
   onFacebookPageSelect,
+  aiRecommendations = [], // Default to empty array
 }: Props) {
   const toggle = (channel: Channel) => {
     const next = new Set(selectedChannels);
@@ -95,19 +104,19 @@ export default function ChannelSelector({
           if (!account) return null;
 
           const isSelected = selectedChannels.has(channel);
-          
-          // Disable if disconnected OR blocked by multi-file rules
           const disabled = account.needsReconnect || disabledChannels.has(channel);
+          
+          // ADDED: Find if AI has a recommendation for this channel
+          const aiRec = aiRecommendations.find(
+            (r) => r.platform.toLowerCase() === channel.toLowerCase()
+          );
 
           if (channel === 'facebook' && facebookPages.length > 0) {
             return (
               <React.Fragment key={channel}>
                 {facebookPages.map((page) => {
-                  const pageImage =
-                    page.pictureUrl || page.picture?.data?.url || account.profilePic || '/profile.png';
-                  const isPageSelected =
-                    isSelected &&
-                    (selectedFacebookPageId ? selectedFacebookPageId === page.id : facebookPages[0]?.id === page.id);
+                  const pageImage = page.pictureUrl || page.picture?.data?.url || account.profilePic || '/profile.png';
+                  const isPageSelected = isSelected && (selectedFacebookPageId ? selectedFacebookPageId === page.id : facebookPages[0]?.id === page.id);
 
                   return (
                     <button
@@ -117,25 +126,26 @@ export default function ChannelSelector({
                         styles.avatarBtn,
                         isPageSelected && styles.selected,
                         disabled && styles.disabled,
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
+                      ].filter(Boolean).join(' ')}
                       onClick={() => !disabled && selectFacebookPage(page.id)}
-                      title={disabled ? `${page.name} (Unavailable for current media)` : `Facebook: ${page.name}`}
-                      aria-pressed={isPageSelected}
                       disabled={disabled}
-                      style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+                      style={{ 
+                        opacity: disabled ? 0.5 : 1, 
+                        cursor: disabled ? 'not-allowed' : 'pointer',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' // Added for stack layout
+                      }}
                     >
-                      <img
-                        src={pageImage}
-                        alt={page.name}
-                        onError={(e) => {
-                          e.currentTarget.src = '/profile.png';
-                        }}
-                      />
-                      <span className={styles.platformBadge}>
-                        {icons.facebook}
-                      </span>
+                      <div style={{ position: 'relative' }}>
+                        <img src={pageImage} alt={page.name} onError={(e) => { e.currentTarget.src = '/profile.png'; }} />
+                        <span className={styles.platformBadge}>{icons.facebook}</span>
+                      </div>
+                      
+                      {/* ADDED: Render AI Stars */}
+                      {aiRec && (
+                        <div style={{ fontSize: '10px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                          {renderStars(aiRec.rating)}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -151,25 +161,26 @@ export default function ChannelSelector({
                 styles.avatarBtn,
                 isSelected && styles.selected,
                 disabled && styles.disabled,
-              ]
-                .filter(Boolean)
-                .join(' ')}
+              ].filter(Boolean).join(' ')}
               onClick={() => !disabled && toggle(channel)}
-              title={disabled ? `${account.name} (Unavailable for current media)` : account.name}
-              aria-pressed={isSelected}
               disabled={disabled}
-              style={{ opacity: disabled ? 0.5 : 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
+              style={{ 
+                opacity: disabled ? 0.5 : 1, 
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' // Added for stack layout
+              }}
             >
-              <img
-                src={account.profilePic || '/profile.png'}
-                alt={account.name}
-                onError={(e) => {
-                  e.currentTarget.src = '/profile.png';
-                }}
-              />
-              <span className={styles.platformBadge}>
-                {icons[channel]}
-              </span>
+              <div style={{ position: 'relative' }}>
+                <img src={account.profilePic || '/profile.png'} alt={account.name} onError={(e) => { e.currentTarget.src = '/profile.png'; }} />
+                <span className={styles.platformBadge}>{icons[channel]}</span>
+              </div>
+              
+              {/* ADDED: Render AI Stars */}
+              {aiRec && (
+                <div style={{ fontSize: '10px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                  {renderStars(aiRec.rating)}
+                </div>
+              )}
             </button>
           );
         })}
