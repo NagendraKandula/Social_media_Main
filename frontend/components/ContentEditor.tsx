@@ -30,15 +30,6 @@ const CROP_RATIOS = [
     value: 1,
     outputWidth: 1080,
     outputHeight: 1080,
-    recommendation: "Best all-round crop for feeds across most platforms.",
-  },
-  {
-    label: "Feed 4:5",
-    sizeLabel: "4:5",
-    value: 4 / 5,
-    outputWidth: 1080,
-    outputHeight: 1350,
-    recommendation: "Great for Instagram feed when you want more screen space.",
   },
   {
     label: "Landscape",
@@ -46,28 +37,7 @@ const CROP_RATIOS = [
     value: 1200 / 627,
     outputWidth: 1200,
     outputHeight: 627,
-    recommendation: "Good for link-style posts, YouTube thumbnails, and wide creative.",
   },
-  {
-    label: "Story/Reel",
-    sizeLabel: "9:16",
-    value: 9 / 16,
-    outputWidth: 1080,
-    outputHeight: 1920,
-    recommendation: "Best for Stories, Reels, Shorts, and vertical-first posts.",
-  },
-];
-
-const CROP_FOCUS_POINTS = [
-  { label: "Top left", x: 0, y: 0 },
-  { label: "Top", x: 50, y: 0 },
-  { label: "Top right", x: 100, y: 0 },
-  { label: "Left", x: 0, y: 50 },
-  { label: "Center", x: 50, y: 50 },
-  { label: "Right", x: 100, y: 50 },
-  { label: "Bottom left", x: 0, y: 100 },
-  { label: "Bottom", x: 50, y: 100 },
-  { label: "Bottom right", x: 100, y: 100 },
 ];
 
 const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
@@ -294,52 +264,9 @@ export default function ContentEditor({
   const cropTargetPreview =
     cropTargetIndex !== null ? filePreviews[cropTargetIndex] : undefined;
 
-  const cropRecommendations = useMemo(() => {
-    const selected = new Set(selectedChannels.map((channel) => channel.toLowerCase()));
-
-    if (selected.size === 0) {
-      return CROP_RATIOS.map((ratio) => ({
-        ...ratio,
-        personalizedRecommendation: ratio.recommendation,
-        priority: 10,
-      }));
-    }
-
-    return CROP_RATIOS.map((ratio) => {
-      let priority = 20;
-      let personalizedRecommendation = ratio.recommendation;
-
-      if (ratio.label === "Feed 4:5" && selected.has("instagram")) {
-        priority = 1;
-        personalizedRecommendation = "Recommended for your selected Instagram feed post.";
-      } else if (ratio.label === "Story/Reel" && (selected.has("instagram") || selected.has("youtube"))) {
-        priority = selected.has("youtube") ? 2 : 3;
-        personalizedRecommendation = selected.has("youtube")
-          ? "Useful for YouTube Shorts or vertical-first creative."
-          : "Useful if this Instagram creative is meant for Stories or Reels.";
-      } else if (ratio.label === "Landscape" && (selected.has("youtube") || selected.has("facebook") || selected.has("linkedin") || selected.has("twitter"))) {
-        priority = selected.has("youtube") ? 1 : 4;
-        personalizedRecommendation = selected.has("youtube")
-          ? "Recommended for your selected YouTube channel."
-          : "Good fit for Facebook, LinkedIn, and X wide-format posts.";
-      } else if (ratio.label === "Square") {
-        priority = selected.has("threads") ? 1 : 2;
-        personalizedRecommendation = selected.has("threads")
-          ? "Recommended for your selected Threads post."
-          : "Safe multi-platform crop for the channels you selected.";
-      }
-
-      return {
-        ...ratio,
-        personalizedRecommendation,
-        priority,
-      };
-    }).sort((a, b) => a.priority - b.priority);
-  }, [selectedChannels]);
-
   const openCrop = (index: number) => {
     setCropTargetIndex(index);
-    setCropRatio(cropRecommendations[0] || CROP_RATIOS[0]);
+    setCropRatio(CROP_RATIOS[0]);
     setCropZoom(1);
     setCropX(50);
     setCropY(50);
@@ -655,9 +582,9 @@ export default function ContentEditor({
 
             <div className={styles.cropControls}>
               <div className={styles.cropRecommendations}>
-                <span>Recommendations</span>
+                <span>Crop ratio</span>
                 <div className={styles.recommendationGrid}>
-                  {cropRecommendations.map((ratio) => (
+                  {CROP_RATIOS.map((ratio) => (
                     <button
                       key={ratio.label}
                       type="button"
@@ -666,7 +593,6 @@ export default function ContentEditor({
                     >
                       <span>{ratio.sizeLabel}</span>
                       <strong>{ratio.label}</strong>
-                      <small>{ratio.personalizedRecommendation}</small>
                     </button>
                   ))}
                 </div>
@@ -689,24 +615,6 @@ export default function ContentEditor({
                 </div>
               </div>
 
-              <div className={styles.cropToolGroup}>
-                <span>Focus point</span>
-                <div className={styles.focusGrid}>
-                  {CROP_FOCUS_POINTS.map((point) => (
-                    <button
-                      key={point.label}
-                      type="button"
-                      className={cropX === point.x && cropY === point.y ? styles.selectedFocus : ""}
-                      onClick={() => {
-                        setCropX(point.x);
-                        setCropY(point.y);
-                      }}
-                      aria-label={point.label}
-                      title={point.label}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
 
             <div className={styles.cropActions}>
