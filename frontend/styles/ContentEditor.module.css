@@ -268,16 +268,18 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(15, 23, 42, 0.46);
+  background: rgba(17, 24, 39, 0.48);
+  backdrop-filter: blur(4px);
 }
 
 .cropModal {
-  width: min(760px, 100%);
+  width: min(860px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+  border: 1px solid rgba(79, 76, 190, 0.12);
+  border-radius: 16px;
+  background: #fffefa;
+  box-shadow: 0 28px 80px rgba(17, 24, 39, 0.28);
 }
 
 .cropHeader {
@@ -286,47 +288,46 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 16px 18px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(79, 76, 190, 0.1);
+  background: rgba(255, 255, 255, 0.74);
 }
 
 .cropHeader h3 {
   margin: 0;
-  color: #111827;
-  font-size: 16px;
+  color: #17172b;
+  font-size: 17px;
   line-height: 1.2;
 }
 
 .cropHeader p {
   margin: 4px 0 0;
-  color: #64748b;
+  color: #6f7085;
   font-size: 12px;
 }
 
 .cropHeader button {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 50%;
   background: none;
-  color: #111827;
+  color: #17172b;
   cursor: pointer;
   font-size: 20px;
   line-height: 1;
 }
 
+.cropHeader button:hover {
+  background: rgba(125, 113, 242, 0.08);
+  color: #4f4cbe;
+}
+
 .cropStage {
   display: flex;
   justify-content: center;
-  padding: 22px;
-  background:
-    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
-    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-  background-color: #f8fafc;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0;
-  background-size: 20px 20px;
+  padding: 28px;
+  background: linear-gradient(160deg, #fffefa 0%, rgba(247, 243, 126, 0.14) 100%);
 }
 
 .cropPreview {
@@ -334,10 +335,10 @@
   max-height: min(56vh, 560px);
   margin: 0 auto;
   overflow: hidden;
-  border: 2px solid #ffffff;
-  border-radius: 8px;
+  border: 3px solid #ffffff;
+  border-radius: 14px;
   background: #111827;
-  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.22);
+  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.22);
   position: relative;
   cursor: grab;
   touch-action: none;
@@ -374,7 +375,7 @@
   height: 16px;
   border: 2px solid #ffffff;
   border-radius: 50%;
-  background: #f63e22;
+  background: #4f4cbe;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.35);
   pointer-events: none;
   transform: translate(-50%, -50%);
@@ -383,8 +384,9 @@
 .cropControls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px 18px;
-  padding: 16px 18px;
+  gap: 18px;
+  padding: 20px 22px;
+  background: #ffffff;
 }
 
 .cropRecommendations > span,
@@ -392,13 +394,13 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  color: #111827;
-  font-size: 13px;
-  font-weight: 600;
+  color: #17172b;
+  font-size: 14px;
+  font-weight: 750;
 }
 
 .cropToolGroup > span strong {
-  color: #64748b;
+  color: #6f7085;
   font-size: 12px;
 }
 
@@ -411,60 +413,51 @@
 .recommendationGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 
 .recommendationGrid button {
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: start;
+  align-items: center;
   column-gap: 10px;
-  row-gap: 3px;
-  min-height: 70px;
-  padding: 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  min-height: 58px;
+  padding: 11px 12px;
+  border: 1px solid rgba(79, 76, 190, 0.16);
+  border-radius: 12px;
   background: #ffffff;
-  color: #111827;
+  color: #17172b;
   text-align: left;
   cursor: pointer;
 }
 
 .recommendationGrid button:hover,
 .selectedRecommendation {
-  border-color: #f63e22;
-  background: #fff7f5;
+  border-color: rgba(79, 76, 190, 0.34);
+  background: rgba(125, 113, 242, 0.08);
 }
 
 .recommendationGrid button > span {
-  grid-row: 1 / span 2;
   min-width: 48px;
   padding: 5px 7px;
-  border-radius: 7px;
-  background: #f1f5f9;
-  color: #475569;
+  border-radius: 9px;
+  background: rgba(125, 113, 242, 0.09);
+  color: #4f4cbe;
   font-size: 12px;
   font-weight: 700;
   text-align: center;
 }
 
 .selectedRecommendation > span {
-  background: #f63e22;
+  background: #4f4cbe;
   color: #ffffff;
 }
 
 .recommendationGrid strong {
   display: block;
-  color: #111827;
+  color: #17172b;
   font-size: 13px;
   line-height: 1.2;
-}
-
-.recommendationGrid small {
-  display: block;
-  color: #64748b;
-  font-size: 11px;
-  line-height: 1.3;
 }
 
 .cropToolGroup {
@@ -476,9 +469,9 @@
   display: grid;
   grid-template-columns: 42px minmax(120px, 1fr) 42px;
   align-items: center;
-  min-height: 44px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  min-height: 48px;
+  border: 1px solid rgba(79, 76, 190, 0.16);
+  border-radius: 12px;
   overflow: hidden;
   background: #ffffff;
 }
@@ -486,15 +479,15 @@
 .zoomControls button {
   height: 100%;
   border: 0;
-  background: #f8fafc;
-  color: #111827;
+  background: rgba(125, 113, 242, 0.06);
+  color: #17172b;
   cursor: pointer;
   font-size: 18px;
 }
 
 .zoomControls button:hover {
-  background: #fff0ed;
-  color: #f63e22;
+  background: rgba(125, 113, 242, 0.12);
+  color: #4f4cbe;
 }
 
 .zoomMeter {
@@ -509,65 +502,23 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #f63e22;
-}
-
-.focusGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 34px);
-  gap: 6px;
-  justify-content: start;
-  width: max-content;
-  padding: 7px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.focusGrid button {
-  width: 34px;
-  height: 34px;
-  border: 1px solid #d1d5db;
-  border-radius: 7px;
-  background: #ffffff;
-  cursor: pointer;
-  position: relative;
-}
-
-.focusGrid button::after {
-  content: "";
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #94a3b8;
-  transform: translate(-50%, -50%);
-}
-
-.focusGrid button:hover,
-.selectedFocus {
-  border-color: #f63e22;
-  background: #fff7f5;
-}
-
-.selectedFocus::after {
-  background: #f63e22;
+  background: #4f4cbe;
 }
 
 .cropActions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  padding: 14px 20px 20px;
-  border-top: 1px solid #e5e7eb;
+  padding: 16px 22px 22px;
+  border-top: 1px solid rgba(79, 76, 190, 0.1);
+  background: #ffffff;
 }
 
 .cropActions button {
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid rgba(79, 76, 190, 0.18);
+  border-radius: 9px;
   background: #ffffff;
-  color: #111827;
+  color: #17172b;
   font-size: 15px;
   padding: 9px 14px;
   cursor: pointer;
@@ -575,9 +526,19 @@
 }
 
 .cropActions button:last-child {
-  border-color: #f63e22;
-  background: #f63e22;
+  border-color: #4f4cbe;
+  background: #4f4cbe;
   color: #ffffff;
+}
+
+.cropActions button:hover {
+  border-color: rgba(79, 76, 190, 0.3);
+  background: rgba(125, 113, 242, 0.08);
+}
+
+.cropActions button:last-child:hover {
+  border-color: #7d71f2;
+  background: #7d71f2;
 }
 
 @media (max-width: 640px) {
@@ -606,15 +567,6 @@
 
   .recommendationGrid {
     grid-template-columns: 1fr;
-  }
-
-  .focusGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    width: auto;
-  }
-
-  .focusGrid button {
-    width: 100%;
   }
 
   .cropActions {
