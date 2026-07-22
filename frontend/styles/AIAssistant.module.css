@@ -367,3 +367,42 @@
     grid-template-columns: 1fr;
   }
 }
+.chatSection {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chatInputRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.chatInput:focus {
+  border-color: #6366f1;
+}
+
+.chatButton {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #6366f1;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chatButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

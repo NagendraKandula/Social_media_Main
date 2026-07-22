@@ -11,6 +11,7 @@ import 'multer';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AiAssistantService } from './ai-assistant.service';
 import { GenerateContentDto } from './dto/generate-content.dto';
+import { ChatAiDto } from './dto/chat-ai.dto';
 
 
 @Controller('ai')
@@ -59,4 +60,24 @@ export class AiAssistantController {
       throw new BadRequestException(`AI Error: ${error.message}`);
     }
   }
+  @Post('chat')
+@UseInterceptors(FilesInterceptor('media'))
+async chatWithAi(
+  @UploadedFiles() files: Express.Multer.File[],
+  @Body() chatAiDto: ChatAiDto,
+) {
+  try {
+    const result = await this.aiAssistantService.chatWithAnalysis(
+      chatAiDto,
+      files,
+    );
+
+    return {
+      success: true,
+      data: this.parseAiResponse(result),
+    };
+  } catch (error: any) {
+    throw new BadRequestException(`AI Error: ${error.message}`);
+  }
+}
 }

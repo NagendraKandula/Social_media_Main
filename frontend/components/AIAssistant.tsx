@@ -1,6 +1,6 @@
 // frontend/components/AIAssistant.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
 import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
 import styles from '../styles/AIAssistant.module.css';
@@ -11,7 +11,7 @@ interface Props {
   onAnalysisComplete: (result: AiAnalysisResult) => void;
   onAnalysisReset?: () => void;
   onResultControlsChange?: (
-    controls: { onBack: () => void; onRegenerate: () => void } | null
+    controls: { onBack: () => void } | null
   ) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
@@ -30,6 +30,8 @@ export default function AIAssistant({
 }: Props) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+  const [instruction, setInstruction] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const mediaSignature = useMemo(() => {
@@ -104,6 +106,58 @@ export default function AIAssistant({
     }
   }, [content, files, hasMedia, onAnalysisComplete]);
 
+  const handleChat = useCallback(async () => {
+    if (!analysis || !instruction.trim()) return;
+
+    setIsChatLoading(true);
+
+    const formData = new FormData();
+
+    // Attach media again
+    if (files.length > 0) {
+      for (const item of files) {
+        const file = item instanceof File ? item : (item as any).file;
+
+        if (file) {
+          formData.append("media", file);
+        }
+      }
+    }
+
+    formData.append("instruction", instruction);
+    formData.append(
+      "currentAnalysis",
+      JSON.stringify(analysis)
+    );
+
+    try {
+      const response = await apiClient.post("/ai/chat", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (response.data.success) {
+        setAnalysis(response.data.data);
+
+        // Notify parent
+        onAnalysisComplete(response.data.data);
+
+        // Clear textbox
+        setInstruction("");
+      }
+    } catch (error: any) {
+      console.error(error);
+
+      alert(
+        error?.response?.data?.message ||
+        "Unable to update AI response."
+      );
+    } finally {
+      setIsChatLoading(false);
+    }
+  }, [analysis, instruction, files, onAnalysisComplete]);
+
   const handleStopAnalysis = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
@@ -136,13 +190,13 @@ export default function AIAssistant({
       return;
     }
 
+    // Removed onRegenerate here since the function is deprecated
     onResultControlsChange?.({
       onBack: handleBackToStart,
-      onRegenerate: handleAnalyze,
     });
 
     return () => onResultControlsChange?.(null);
-  }, [analysis, handleAnalyze, onResultControlsChange]);
+  }, [analysis, onResultControlsChange]);
 
   if (isAnalyzing) {
     return (
@@ -168,8 +222,6 @@ export default function AIAssistant({
     );
   }
 
-  // frontend/components/AIAssistant.tsx
-
   if (analysis) {
     return (
       <div className={styles.container}>
@@ -184,16 +236,10 @@ export default function AIAssistant({
             >
               <ArrowLeft size={17} aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className={styles.regenerateButton}
-              onClick={handleAnalyze}
-            >
-              <RefreshCw size={15} aria-hidden="true" />
-              Regenerate
-            </button>
+            {/* Regenerate button successfully removed from here */}
           </div>
         )}
+        
         {/* ---------------- NEW STRATEGY SECTION ---------------- */}
         <div className={`${styles.section} ${styles.strategySection}`}>
           <h4 className={styles.sectionTitle}>Content Strategy</h4>
@@ -260,9 +306,43 @@ export default function AIAssistant({
         >
           Apply All Recommendations
         </button>
+
+        <div className={styles.chatSection}>
+          <h4 className={styles.sectionTitle}>
+            Ask AI
+          </h4>
+          <div className={styles.chatInputRow}>
+            <input
+              type="text"
+              placeholder="Ask AI to improve this post..."
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              className={styles.chatInput}
+              disabled={isChatLoading}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleChat();
+                }
+              }}
+            />
+            <button
+              onClick={handleChat}
+              disabled={
+                isChatLoading ||
+                !instruction.trim()
+              }
+              className={styles.chatButton}
+            >
+              {isChatLoading ? "Thinking..." : "Send"}
+            </button>
+          </div>
+        </div>
+
       </div>
     );
   }
+
   return (
     <div className={`${styles.container} ${styles.chatStart}`}>
       <div className={styles.welcome}>
