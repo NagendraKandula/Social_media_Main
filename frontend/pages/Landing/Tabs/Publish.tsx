@@ -139,7 +139,7 @@ export default function Publish() {
   const [aiEngagement, setAiEngagement] = useState<string | null>(null);
   const [aiResultControls, setAiResultControls] = useState<{
     onBack: () => void;
-    onRegenerate: () => void;
+    
   } | null>(null);
   const engagementTone = (value?: string | null) => {
     const normalized = value?.toLowerCase();
@@ -938,16 +938,7 @@ const handleSubmit = async (isScheduled: boolean) => {
               <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
             </div>
             <div className={styles.rightHeaderActionGroup}>
-              {activeSidePanel === 'ai' && aiResultControls && (
-                <button
-                  type="button"
-                  className={styles.aiRegenerateBtn}
-                  onClick={aiResultControls.onRegenerate}
-                >
-                  <RefreshCw size={15} aria-hidden="true" />
-                  Regenerate
-                </button>
-              )}
+              
               {activeSidePanel === 'ai' && aiEngagement && (
                 <span className={styles.aiEngagementBadge}>
                   {engagementTone(aiEngagement)}
