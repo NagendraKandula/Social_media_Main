@@ -1,8 +1,8 @@
 // frontend/components/AIAssistant.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Star } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
-import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
+import apiClient from '../lib/axios';
 import styles from '../styles/AIAssistant.module.css';
 
 interface Props {
@@ -29,7 +29,7 @@ export default function AIAssistant({
   onAutoSelectPlatforms 
 }: Props) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<any | null>(null);
   const [instruction, setInstruction] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -58,7 +58,6 @@ export default function AIAssistant({
     setIsAnalyzing(true);
     const formData = new FormData();
     
-    // ✅ FIX: Loop through ALL files to support carousels/albums
     if (files.length > 0) {
       for (const item of files) {
         const file = item instanceof File ? item : (item as any).file;
@@ -72,7 +71,6 @@ export default function AIAssistant({
     formData.append('action', 'analyze_media');
 
     try {
-      // ✅ FIX: Use apiClient instead of naked fetch
       const response = await apiClient.post('/ai/generate', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -84,7 +82,7 @@ export default function AIAssistant({
       
       if (json.success) {
         setAnalysis(json.data);
-        onAnalysisComplete(json.data); // Bubble up to Parent
+        onAnalysisComplete(json.data);
       }
     } catch (error: any) {
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
@@ -113,11 +111,9 @@ export default function AIAssistant({
 
     const formData = new FormData();
 
-    // Attach media again
     if (files.length > 0) {
       for (const item of files) {
         const file = item instanceof File ? item : (item as any).file;
-
         if (file) {
           formData.append("media", file);
         }
@@ -125,10 +121,7 @@ export default function AIAssistant({
     }
 
     formData.append("instruction", instruction);
-    formData.append(
-      "currentAnalysis",
-      JSON.stringify(analysis)
-    );
+    formData.append("currentAnalysis", JSON.stringify(analysis));
 
     try {
       const response = await apiClient.post("/ai/chat", formData, {
@@ -139,16 +132,11 @@ export default function AIAssistant({
 
       if (response.data.success) {
         setAnalysis(response.data.data);
-
-        // Notify parent
         onAnalysisComplete(response.data.data);
-
-        // Clear textbox
         setInstruction("");
       }
     } catch (error: any) {
       console.error(error);
-
       alert(
         error?.response?.data?.message ||
         "Unable to update AI response."
@@ -207,7 +195,7 @@ export default function AIAssistant({
             <li>✓ Analyzing visual aesthetic</li>
             <li>✓ Evaluating aspect ratios</li>
             <li>✓ Checking platform suitability</li>
-            <li>✓ Crafting engaging caption</li>
+            <li>✓ Crafting platform-specific captions</li>
           </ul>
           <button
             type="button"
@@ -220,6 +208,9 @@ export default function AIAssistant({
       </div>
     );
   }
+
+  // Safely extract platforms array
+  const platformList = analysis?.recommendedPlatforms || analysis?.analysis?.recommendedPlatforms || [];
 
   if (analysis) {
     return (
@@ -238,13 +229,13 @@ export default function AIAssistant({
           </div>
         )}
         
-        {/* ---------------- NEW STRATEGY SECTION ---------------- */}
+        {/* ---------------- CONTENT STRATEGY SUMMARY ---------------- */}
         <div className={`${styles.section} ${styles.strategySection}`}>
-          <h4 className={styles.sectionTitle}>Content Strategy</h4>
+          <h4 className={styles.sectionTitle}>Campaign Strategy</h4>
           <div className={styles.strategyGrid}>
             <div className={styles.strategyItem}>
               <span>Theme</span>
-              <strong>{analysis.analysis?.overallTheme || 'Not specified'}</strong>
+              <strong>{analysis.analysis?.overallTheme || 'General'}</strong>
             </div>
             <div className={styles.strategyItem}>
               <span>Aspect Ratio</span>
@@ -255,64 +246,86 @@ export default function AIAssistant({
               <strong>{analysis.analysis?.bestPostingTime || 'Anytime'}</strong>
             </div>
           </div>
-          <div className={styles.storyBlock}>
-            <span>Story</span>
-            <p>{analysis.analysis?.story || 'No story summary generated.'}</p>
-          </div>
+          {analysis.analysis?.story && (
+            <div className={styles.storyBlock}>
+              <span>Storyline</span>
+              <p>{analysis.analysis.story}</p>
+            </div>
+          )}
         </div>
 
-        {/* ---------------- CONTENT SECTION ---------------- */}
+        {/* ---------------- PLATFORM-SPECIFIC RECOMMENDATIONS ---------------- */}
         <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Caption</h4>
-          <p className={styles.textBlock}>
-            {analysis.content?.caption || 'No caption generated.'}
-            <br/><br/>
-            {analysis.content?.cta && <strong>{analysis.content.cta}</strong>}
-          </p>
-          <button 
-            onClick={() => {
-              const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
-              onApplyCaption(fullText.trim());
-            }} 
-            className={styles.btnApply}
-          >
-            Use Caption & CTA
-          </button>
+          <h4 className={styles.sectionTitle}>Platform-Specific Content</h4>
+          
+          {platformList.map((item: any, idx: number) => {
+            const fullPlatformCaption = `${item.caption || ''}\n\n${item.cta || ''}`.trim();
+
+            return (
+              <div key={idx} className={styles.platformCard} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <strong style={{ fontSize: '15px' }}>{item.platform}</strong>
+                  <span style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}>
+                    <Star size={14} fill="#f59e0b" /> {item.rating}/5
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
+                  <em>{item.reason}</em>
+                </p>
+
+                {/* Caption preview */}
+              <div style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px', fontSize: '13px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+                  {item.caption}
+                  {item.cta && <div style={{ marginTop: '6px', fontWeight: 'bold' }}>{item.cta}</div>}
+                </div>
+
+                {/* Hashtags */}
+                {item.hashtags && item.hashtags.length > 0 && (
+                  <p style={{ fontSize: '12px', color: '#2563eb', marginBottom: '8px' }}>
+                    {item.hashtags.join(' ')}
+                  </p>
+                )}
+
+                {/* Action Button to apply this specific platform's content */}
+                <button 
+                  onClick={() => {
+                    onApplyCaption(fullPlatformCaption);
+                    if (item.hashtags) onApplyHashtags(item.hashtags);
+                  }} 
+                  className={styles.btnApply}
+                  style={{ width: '100%', fontSize: '12px', padding: '6px 10px' }}
+                >
+                  Use {item.platform} Copy & Hashtags
+                </button>
+              </div>
+            );
+          })}
         </div>
 
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Hashtags</h4>
-          <p className={`${styles.textBlock} ${styles.hashtags}`}>
-            {analysis.content?.hashtags?.join(' ') || '#social'}
-          </p>
-          <button 
-            onClick={() => onApplyHashtags(analysis.content?.hashtags || [])} 
-            className={styles.btnApply}
-          >
-            Use Hashtags
-          </button>
-        </div>
-
+        {/* Apply All Button */}
         <button 
           onClick={() => {
-            const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
-            onApplyCaption(fullText.trim());
-            onApplyHashtags(analysis.content?.hashtags || []);
-            onAutoSelectPlatforms(analysis.analysis?.recommendedPlatforms || []); 
+            onAutoSelectPlatforms(platformList);
+            if (platformList.length > 0) {
+              const topChoice = platformList[0];
+              const fullText = `${topChoice.caption || ''}\n\n${topChoice.cta || ''}`.trim();
+              onApplyCaption(fullText);
+              onApplyHashtags(topChoice.hashtags || []);
+            }
           }} 
           className={styles.btnPrimary}
         >
-          Apply All Recommendations
+          Auto-Select Platforms & Apply Top Recommendation
         </button>
 
+        {/* ---------------- ASK AI / CHAT SECTION ---------------- */}
         <div className={styles.chatSection}>
-          <h4 className={styles.sectionTitle}>
-            Ask AI
-          </h4>
+          <h4 className={styles.sectionTitle}>Ask AI</h4>
           <div className={styles.chatInputRow}>
             <input
               type="text"
-              placeholder="Ask AI to improve this post..."
+              placeholder="Ask AI to adjust character limits or tone..."
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               className={styles.chatInput}
@@ -326,10 +339,7 @@ export default function AIAssistant({
             />
             <button
               onClick={handleChat}
-              disabled={
-                isChatLoading ||
-                !instruction.trim()
-              }
+              disabled={isChatLoading || !instruction.trim()}
               className={styles.chatButton}
             >
               {isChatLoading ? "Thinking..." : "Send"}
@@ -348,7 +358,7 @@ export default function AIAssistant({
         <strong>{hasMedia ? 'Ready to analyze your media' : 'Add media to start analysis'}</strong>
         <p>
           {hasMedia
-            ? 'AI will review the uploaded media and suggest strategy, caption, hashtags, timing, and channels.'
+            ? 'AI will review the uploaded media and suggest strategy, platform-specific captions, hashtags, and limits.'
             : 'Upload an image or video in the editor, then run AI analysis when you are ready.'}
         </p>
       </div>
