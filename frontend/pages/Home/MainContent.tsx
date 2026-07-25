@@ -4,31 +4,24 @@ import styles from "../../styles/HomeCSS/MainContent.module.css";
 
 export default function MainContent() {
   return (
-    <div className={styles.mainContent}>
-      <div className={styles.contentWrapper}>
-
-        <div className={styles.textContent}>
-          <h1 className={styles.heading}>
-            One Story Across Every Platform
-          </h1>
+    <main className={styles.mainContent}>
+      <section className={styles.hero}>
+        <div className={styles.heroCopy}>
+          <h1 className={styles.heading}>Your social media workspace, beautifully connected.</h1>
           <p className={styles.subheading}>
-            Create, schedule, and 
-            publish content across all your social channels from a single workspace.
+            Plan posts, tailor content by channel, review AI suggestions, and schedule everything from one clear workspace.
           </p>
-        </div>
-      
-        {/* CTA */}
-        <Link href="/Auth/register" className={styles.ctaButton}>
-          Get Started →
-        </Link>
 
-        <img
-          src="/hero3.png"
-          alt=""
-          className={styles.heroImage}
-          aria-hidden="true"
-        />
-      </div>
-    </div>
+          <div className={styles.heroActions}>
+            <Link href="/Auth/register" className={styles.ctaButton}>
+              Start creating
+            </Link>
+            <Link href="/Auth/login" className={styles.secondaryButton}>
+              Log in
+            </Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

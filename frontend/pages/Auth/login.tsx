@@ -59,7 +59,7 @@ try {
         {/* HEADER */}
         <header className={styles.authHeader}>
           <div className={styles.logo}>
-            Story<span>.</span>
+            SOci
           </div>
         </header>
 
@@ -180,7 +180,7 @@ try {
           <span>Privacy Policy</span>
           <span>Cookie Policy</span>
           <span>Accessibility</span>
-          <span>©️ 2025 Story.</span>
+          <span>© 2026 SOci.</span>
         </footer>
       </div>
 
