@@ -2,6 +2,7 @@
    Editor Card
 ================================ */
 .editorCard {
+  position: relative;
   border: 1px solid #d1d5db;
   border-radius: 10px;
   background: #fff;
@@ -16,6 +17,34 @@
   border: 0;
   border-radius: 0;
   overflow: visible;
+}
+
+.publishEditorCard .channelNavigator {
+  position: static;
+}
+
+.publishEditorCard .channelNavButton {
+  position: absolute;
+  top: 46%;
+  z-index: 4;
+  width: 44px;
+  height: 56px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 16px rgba(23, 23, 43, 0.08);
+  transform: translateY(-50%);
+}
+
+.publishEditorCard .channelNavButton:first-child {
+  left: 4px;
+}
+
+.publishEditorCard .channelNavButton:last-child {
+  right: 4px;
+}
+
+.publishEditorCard .channelNavButton:hover:not(:disabled) {
+  transform: translateY(-50%) scale(1.04);
 }
 
 .publishEditorCard .toolbar {
@@ -104,6 +133,59 @@
   align-items: center;
   gap: 10px;
   margin-left: auto;
+}
+
+.channelNavigator {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #6f7085;
+}
+
+.channelNavButton {
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: #4f4cbe;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.channelNavButton:hover:not(:disabled) {
+  border-color: rgba(79, 76, 190, 0.14);
+  background: rgba(125, 113, 242, 0.08);
+  transform: translateY(-1px);
+}
+
+.channelNavButton:disabled {
+  color: #c2c4d0;
+  cursor: not-allowed;
+}
+
+.channelContentLabel {
+  min-width: 0;
+  color: #6f7085;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.channelContentLabel small {
+  display: block;
+  margin-top: 2px;
+  color: #9ca3af;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .aiAssistantButton {

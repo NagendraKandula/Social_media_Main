@@ -20,7 +20,10 @@ export interface ContentMetadata {
   platformOverrides?: {
     [key: string]: { 
       text?: string;
-      mediaUrl?: string; 
+      mediaUrl?: string;
+      pageId?: string;
+      postType?: string;
+      title?: string;
     };
   };
 }
