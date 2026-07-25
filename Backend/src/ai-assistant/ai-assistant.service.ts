@@ -39,12 +39,12 @@ Analyze the provided media files together as a single post or carousel collectio
 Generate tailored post recommendations FOR EACH target or recommended platform.
 
 ### Platform Limit Rules:
-1. **Twitter / X**: Max 280 characters total. Concise, punchy, 1-2 hashtags max.
-2. **Threads**: Max 500 characters. Conversational, engaging.
-3. **LinkedIn**: Professional tone, structured with bullet points, 3-5 relevant hashtags.
-4. **Instagram**: Engaging visual caption, emoji-friendly, call-to-action, 5-10 targeted hashtags.
-5. **Facebook**: Story-driven, medium length, clear call-to-action.
-6. **YouTube**: Concise video description format with timestamp placeholders if applicable.
+
+1. **Threads**: Max 500 characters. Conversational, engaging.
+2. **LinkedIn**: Professional tone, structured with bullet points, 3-5 relevant hashtags.
+3. **Instagram**: Engaging visual caption, emoji-friendly, call-to-action, 5-10 targeted hashtags.
+4. **Facebook**: Story-driven, medium length, clear call-to-action.
+5. **YouTube**: Concise video description format with timestamp placeholders if applicable.
 
 ### Strict JSON Output Schema:
 Return ONLY a JSON object matching this structure:
@@ -61,7 +61,7 @@ Return ONLY a JSON object matching this structure:
   },
   "recommendedPlatforms": [
     {
-      "platform": "Twitter | LinkedIn | Instagram | Facebook | Threads | YouTube",
+      "platform": "LinkedIn | Instagram | Facebook | Threads | YouTube",
       "rating": 5,
       "reason": "Why this platform fits or doesn't fit the media",
       "caption": "Platform-tailored text strictly adhering to character limits",

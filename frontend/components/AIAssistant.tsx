@@ -10,12 +10,11 @@ interface Props {
   content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
   onAnalysisReset?: () => void;
-  onResultControlsChange?: (
-    controls: { onBack: () => void } | null
-  ) => void;
+  onResultControlsChange?: (controls: { onBack: () => void } | null) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
   onAutoSelectPlatforms: (platforms: any[]) => void;
+  onApplyPlatformData?: (platformsData: any[]) => void; // 👈 1. Add to interface
 }
 
 export default function AIAssistant({ 
@@ -26,7 +25,8 @@ export default function AIAssistant({
   onResultControlsChange,
   onApplyCaption, 
   onApplyHashtags, 
-  onAutoSelectPlatforms 
+  onAutoSelectPlatforms ,
+  onApplyPlatformData,
 }: Props) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any | null>(null);
@@ -47,7 +47,7 @@ export default function AIAssistant({
   }, [files]);
   const hasMedia = mediaSignature.length > 0;
 
-  const handleAnalyze = useCallback(async () => {
+const handleAnalyze = useCallback(async () => {
     if (!hasMedia) return;
 
     const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -56,53 +56,55 @@ export default function AIAssistant({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     setIsAnalyzing(true);
-    const formData = new FormData();
     
+    const formData = new FormData();
     if (files.length > 0) {
       for (const item of files) {
         const file = item instanceof File ? item : (item as any).file;
-        if (file) {
-          formData.append('media', file);
-        }
+        if (file) formData.append('media', file);
       }
     }
-    
     if (existingText) formData.append('content', existingText);
     formData.append('action', 'analyze_media');
 
     try {
       const response = await apiClient.post('/ai/generate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
         signal: abortController.signal,
       });
       
       const json = response.data;
       
       if (json.success) {
-        setAnalysis(json.data);
-        onAnalysisComplete(json.data);
+        const resultData = json.data;
+        
+        // 1. Set local state (in case they still want to chat/ask questions)
+        setAnalysis(resultData);
+        onAnalysisComplete(resultData); 
+
+        // 2. IMMEDIATELY SEND TO DYNAMIC EDITOR
+        const platformList = resultData.recommendedPlatforms || resultData.analysis?.recommendedPlatforms || [];
+        
+        if (platformList.length > 0) {
+          // Auto-select the platform tabs in the UI
+          onAutoSelectPlatforms(platformList);
+          
+          // Send the array to populate the editor's text areas (Fixed 'props.' reference)
+          if (onApplyPlatformData) {
+            onApplyPlatformData(platformList);
+          }
+        }
       }
     } catch (error: any) {
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        return;
-      }
-
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
       console.error("AI Analysis failed", error);
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to analyze content. Please try again.";
-      alert(message);
+      alert(error?.response?.data?.message || "Failed to analyze content. Please try again.");
     } finally {
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
+      if (abortControllerRef.current === abortController) abortControllerRef.current = null;
       setIsAnalyzing(false);
     }
-  }, [content, files, hasMedia, onAnalysisComplete]);
+    // Fixed dependency array here by replacing 'props' with 'onApplyPlatformData'
+  }, [content, files, hasMedia, onAnalysisComplete, onAutoSelectPlatforms, onApplyPlatformData]);
 
   const handleChat = useCallback(async () => {
     if (!analysis || !instruction.trim()) return;
@@ -229,103 +231,29 @@ export default function AIAssistant({
           </div>
         )}
         
-        {/* ---------------- CONTENT STRATEGY SUMMARY ---------------- */}
-        <div className={`${styles.section} ${styles.strategySection}`}>
-          <h4 className={styles.sectionTitle}>Campaign Strategy</h4>
-          <div className={styles.strategyGrid}>
-            <div className={styles.strategyItem}>
-              <span>Theme</span>
-              <strong>{analysis.analysis?.overallTheme || 'General'}</strong>
-            </div>
-            <div className={styles.strategyItem}>
-              <span>Aspect Ratio</span>
-              <strong>{analysis.analysis?.bestAspectRatio || 'Flexible'}</strong>
-            </div>
-            <div className={styles.strategyItem}>
-              <span>Best Time</span>
-              <strong>{analysis.analysis?.bestPostingTime || 'Anytime'}</strong>
-            </div>
+        {/* ---------------- SUCCESS STATE ---------------- */}
+        <div style={{ textAlign: 'center', padding: '2rem 0', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#10b981' }}>
+            <Sparkles size={36} aria-hidden="true" />
           </div>
-          {analysis.analysis?.story && (
-            <div className={styles.storyBlock}>
-              <span>Storyline</span>
-              <p>{analysis.analysis.story}</p>
-            </div>
-          )}
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px' }}>
+            Content Generated!
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: '1.5' }}>
+            Platform-tailored captions and hashtags have been applied directly to your editor tabs.
+          </p>
         </div>
-
-        {/* ---------------- PLATFORM-SPECIFIC RECOMMENDATIONS ---------------- */}
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Platform-Specific Content</h4>
-          
-          {platformList.map((item: any, idx: number) => {
-            const fullPlatformCaption = `${item.caption || ''}\n\n${item.cta || ''}`.trim();
-
-            return (
-              <div key={idx} className={styles.platformCard} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <strong style={{ fontSize: '15px' }}>{item.platform}</strong>
-                  <span style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', color: '#f59e0b' }}>
-                    <Star size={14} fill="#f59e0b" /> {item.rating}/5
-                  </span>
-                </div>
-
-                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px' }}>
-                  <em>{item.reason}</em>
-                </p>
-
-                {/* Caption preview */}
-              <div style={{ background: '#f8fafc', padding: '8px', borderRadius: '6px', fontSize: '13px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
-                  {item.caption}
-                  {item.cta && <div style={{ marginTop: '6px', fontWeight: 'bold' }}>{item.cta}</div>}
-                </div>
-
-                {/* Hashtags */}
-                {item.hashtags && item.hashtags.length > 0 && (
-                  <p style={{ fontSize: '12px', color: '#2563eb', marginBottom: '8px' }}>
-                    {item.hashtags.join(' ')}
-                  </p>
-                )}
-
-                {/* Action Button to apply this specific platform's content */}
-                <button 
-                  onClick={() => {
-                    onApplyCaption(fullPlatformCaption);
-                    if (item.hashtags) onApplyHashtags(item.hashtags);
-                  }} 
-                  className={styles.btnApply}
-                  style={{ width: '100%', fontSize: '12px', padding: '6px 10px' }}
-                >
-                  Use {item.platform} Copy & Hashtags
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Apply All Button */}
-        <button 
-          onClick={() => {
-            onAutoSelectPlatforms(platformList);
-            if (platformList.length > 0) {
-              const topChoice = platformList[0];
-              const fullText = `${topChoice.caption || ''}\n\n${topChoice.cta || ''}`.trim();
-              onApplyCaption(fullText);
-              onApplyHashtags(topChoice.hashtags || []);
-            }
-          }} 
-          className={styles.btnPrimary}
-        >
-          Auto-Select Platforms & Apply Top Recommendation
-        </button>
 
         {/* ---------------- ASK AI / CHAT SECTION ---------------- */}
-        <div className={styles.chatSection}>
-          <h4 className={styles.sectionTitle}>Ask AI</h4>
+        <div className={styles.chatSection} style={{ marginTop: 'auto' }}>
+          <h4 className={styles.sectionTitle}>Refine with AI</h4>
+          <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '10px' }}>
+            Need changes? Ask the AI to adjust the tone, length, or rewrite specific platforms.
+          </p>
           <div className={styles.chatInputRow}>
             <input
               type="text"
-              placeholder="Ask AI to adjust character limits or tone..."
+              placeholder="e.g., Make the Twitter post punchier..."
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               className={styles.chatInput}

@@ -185,6 +185,34 @@ export default function Publish() {
     });
     setSelectedChannels(next);
   };
+  const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
+    setChannelContents((prevContents) => {
+      const updatedContents = { ...prevContents };
+
+      aiPlatforms.forEach((aiPlat) => {
+        // 1. Get the raw lowercase string first
+        let rawPlatform = aiPlat.platform.toLowerCase();
+        
+        
+
+        // 3. Now safely cast it to your strict Channel type
+        const targetId = rawPlatform as Channel;
+
+        // Combine caption, CTA, and hashtags using HTML since ContentEditor uses innerHTML
+        const hashtagsStr = aiPlat.hashtags && aiPlat.hashtags.length > 0 
+          ? aiPlat.hashtags.join(' ') 
+          : '';
+        const ctaStr = aiPlat.cta ? `<br/><br/><strong>${aiPlat.cta}</strong>` : '';
+        
+        const fullContent = `${aiPlat.caption}${ctaStr}<br/><br/>${hashtagsStr}`.trim();
+
+        // Inject the formatted content into the specific channel's state
+        updatedContents[targetId] = fullContent;
+      });
+
+      return updatedContents;
+    });
+  };
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
     instagramPostType: 'post',
@@ -1047,6 +1075,7 @@ const handleSubmit = async (isScheduled: boolean) => {
                 onApplyCaption={handleApplyCaption}
                 onApplyHashtags={handleApplyHashtags}
                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
+                onApplyPlatformData={handleApplyAiPlatformData}
               />
             )}
           </div>
