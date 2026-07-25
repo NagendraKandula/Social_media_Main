@@ -20,7 +20,7 @@ export default function Header() {
         <div className={styles.headerContainer}>
 
           <div className={styles.logo}>
-            Story<span className={styles.dot}>.</span>
+            SOci
           </div>
 
           <nav className={styles.nav}>

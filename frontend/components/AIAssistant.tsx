@@ -190,7 +190,6 @@ export default function AIAssistant({
       return;
     }
 
-    // Removed onRegenerate here since the function is deprecated
     onResultControlsChange?.({
       onBack: handleBackToStart,
     });
@@ -236,7 +235,6 @@ export default function AIAssistant({
             >
               <ArrowLeft size={17} aria-hidden="true" />
             </button>
-            {/* Regenerate button successfully removed from here */}
           </div>
         )}
         

@@ -16,6 +16,7 @@ const YouTubePreview = dynamic(() => import("./preview/YouTubePreview"));
 interface DynamicPreviewProps {
   selectedPlatforms: string[];
   content: string;
+  channelContents?: Partial<Record<string, string>>;
   mediaFiles: any[];
   facebookPostType?: "feed" | "reel" | "story";
   instagramPostType?: "post" | "reel" | "story";
@@ -84,6 +85,7 @@ const getMediaType = (file: any): "image" | "video" => {
 export default function DynamicPreview({
   selectedPlatforms,
   content,
+  channelContents = {},
   mediaFiles,
   facebookPostType = "feed",
   instagramPostType = "post",
@@ -104,9 +106,13 @@ export default function DynamicPreview({
       .filter((preview) => Boolean(preview.url));
   }, [mediaFiles]);
 
-  const hasContent = content.trim() !== "" || mediaPreviews.length > 0;
+  const hasContent =
+    content.trim() !== "" ||
+    Object.values(channelContents).some((channelContent) => channelContent?.trim()) ||
+    mediaPreviews.length > 0;
 
   const renderPlatformPreview = (platform: string) => {
+    const platformContent = channelContents[platform] ?? content;
     const account =
       platform === "facebook" && facebookPage?.name
         ? { ...accounts[platform], ...facebookPage }
@@ -116,7 +122,7 @@ export default function DynamicPreview({
       case "facebook":
         return (
           <FacebookPreview
-            content={content}
+            content={platformContent}
             files={mediaPreviews}
             account={account}
             postType={facebookPostType}
@@ -124,12 +130,12 @@ export default function DynamicPreview({
         );
 
       case "twitter":
-        return <TwitterPreview content={content} files={mediaPreviews} />;
+        return <TwitterPreview content={platformContent} files={mediaPreviews} />;
 
       case "instagram":
         return (
           <InstagramPreview
-            content={content}
+            content={platformContent}
             files={mediaPreviews}
             postType={instagramPostType}
             account={account}
@@ -137,15 +143,15 @@ export default function DynamicPreview({
         );
 
       case "linkedin":
-        return <LinkedInPreview content={content} files={mediaPreviews} account={account} />;
+        return <LinkedInPreview content={platformContent} files={mediaPreviews} account={account} />;
 
       case "threads":
-        return <ThreadsPreview content={content} files={mediaPreviews} account={account} />;
+        return <ThreadsPreview content={platformContent} files={mediaPreviews} account={account} />;
 
       case "youtube":
         return (
           <YouTubePreview
-            description={content}
+            description={platformContent}
             files={mediaPreviews}
             account={account}
             postType={youtubeType}

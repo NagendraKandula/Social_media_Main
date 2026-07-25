@@ -389,19 +389,34 @@
   margin-bottom: 6px;
   padding: 8px 9px;
   border-radius: 8px;
-  cursor: not-allowed;
+  cursor: pointer;
   box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 .postCard:hover {
   opacity: 1;
-  transform: none;
-  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.1);
 }
 
 .postCard:active {
+  transform: translateY(0);
+}
+
+.postCard:focus-visible {
+  outline: 3px solid rgba(79, 76, 190, 0.18);
+  outline-offset: 2px;
+}
+
+.disabledPostCard {
   cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.disabledPostCard:hover {
+  transform: none;
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
 }
 
 .postCardHeader {
@@ -542,7 +557,27 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+}
+
+.monthPostPill:hover {
+  color: var(--planning-primary);
+  background: var(--planning-soft);
+}
+
+.monthPostPill:focus-visible {
+  outline: 3px solid rgba(79, 76, 190, 0.18);
+  outline-offset: 2px;
+}
+
+.disabledPostPill {
   cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.disabledPostPill:hover {
+  color: #374151;
+  background: #f8fafc;
 }
 
 .morePosts {
@@ -621,14 +656,23 @@
   border: 1px solid var(--planning-line);
   border-radius: 8px;
   background: #ffffff;
-  cursor: not-allowed;
+  cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .listItem:hover {
+  transform: translateY(-1px);
+  border-color: rgba(79, 76, 190, 0.22);
+  box-shadow: 0 10px 24px rgba(79, 76, 190, 0.08);
+}
+
+.disabledListItem,
+.disabledListItem:hover {
+  cursor: not-allowed;
+  opacity: 0.72;
   transform: none;
-  border-color: #e8ebf0;
+  border-color: var(--planning-line);
   box-shadow: none;
 }
 
