@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { ChatAiDto } from './dto/chat-ai.dto';
 
 @Injectable()
 export class AiAssistantService {
@@ -17,7 +18,55 @@ export class AiAssistantService {
 
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
+async chatWithAnalysis(
+  dto: ChatAiDto,
+  files: Express.Multer.File[],
+): Promise<any> {
 
+  const model = this.genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.7,
+    },
+  });
+
+  const prompt = `
+You are continuing an existing AI conversation.
+
+Current AI Analysis:
+
+${JSON.stringify(dto.currentAnalysis)}
+
+User Request:
+
+"${dto.instruction}"
+
+Rules:
+
+- Modify ONLY what the user requested.
+- Preserve all other fields.
+- Return exactly the same JSON structure.
+- Return JSON only.
+`;
+
+  const promptParts: any[] = [prompt];
+
+  if (files?.length) {
+    files.forEach((file) => {
+      promptParts.push({
+        inlineData: {
+          data: file.buffer.toString('base64'),
+          mimeType: file.mimetype,
+        },
+      });
+    });
+  }
+
+  const result = await model.generateContent(promptParts);
+
+  return result.response.text();
+}
   async analyzeAndGenerate(dto: any, files: Express.Multer.File[]): Promise<any> {
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
