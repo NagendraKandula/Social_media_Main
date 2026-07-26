@@ -17,7 +17,6 @@ import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
 import {
   getChannelContent,
   getNextChannel,
-  getSelectableDisabledChannels,
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
 
@@ -185,6 +184,34 @@ export default function Publish() {
       }
     });
     setSelectedChannels(next);
+  };
+  const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
+    setChannelContents((prevContents) => {
+      const updatedContents = { ...prevContents };
+
+      aiPlatforms.forEach((aiPlat) => {
+        // 1. Get the raw lowercase string first
+        let rawPlatform = aiPlat.platform.toLowerCase();
+        
+        
+
+        // 3. Now safely cast it to your strict Channel type
+        const targetId = rawPlatform as Channel;
+
+        // Combine caption, CTA, and hashtags using HTML since ContentEditor uses innerHTML
+        const hashtagsStr = aiPlat.hashtags && aiPlat.hashtags.length > 0 
+          ? aiPlat.hashtags.join(' ') 
+          : '';
+        const ctaStr = aiPlat.cta ? `<br/><br/><strong>${aiPlat.cta}</strong>` : '';
+        
+        const fullContent = `${aiPlat.caption}${ctaStr}<br/><br/>${hashtagsStr}`.trim();
+
+        // Inject the formatted content into the specific channel's state
+        updatedContents[targetId] = fullContent;
+      });
+
+      return updatedContents;
+    });
   };
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
@@ -978,25 +1005,23 @@ const handleSubmit = async (isScheduled: boolean) => {
         </div>
 
         <section className={styles.composerPane} aria-label="Post composer">
-          <div className={styles.editorSlot}>
-            <LazyContentEditor
-              content={content}
-              onContentChange={handleChannelContentChange}
-              files={files}
-              onFilesChange={setFiles}
-              effectiveRules={effectiveRules}
-              validation={{}}
-              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
-              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-              size="publish"
-              aiRecommendations={aiRecommendations}
-              activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
-              activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
-              totalChannels={selectedChannelList.length}
-              onPreviousChannel={() => navigateEditorChannel(-1)}
-              onNextChannel={() => navigateEditorChannel(1)}
-            />
-          </div>
+          <LazyContentEditor
+            content={content}
+            onContentChange={handleChannelContentChange}
+            files={files}
+            onFilesChange={setFiles}
+            effectiveRules={effectiveRules}
+            validation={{}}
+            selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+            validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+            size="publish"
+            aiRecommendations={aiRecommendations}
+            activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
+            activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
+            totalChannels={selectedChannelList.length}
+            onPreviousChannel={() => navigateEditorChannel(-1)}
+            onNextChannel={() => navigateEditorChannel(1)}
+          />
 
           {selectedChannels.size > 0 && (
             <div className={styles.platformSlot}>
@@ -1059,6 +1084,7 @@ const handleSubmit = async (isScheduled: boolean) => {
                 onApplyCaption={handleApplyCaption}
                 onApplyHashtags={handleApplyHashtags}
                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
+                onApplyPlatformData={handleApplyAiPlatformData}
               />
             )}
           </div>

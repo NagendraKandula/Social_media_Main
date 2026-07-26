@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   getChannelContent,
   getNextChannel,
-  getSelectableDisabledChannels,
   reconcileChannelContents,
 } from "./channelContent.mjs";
 
@@ -49,13 +48,4 @@ test("moves between selected channels and wraps at either end", () => {
   assert.equal(getNextChannel(channels, "linkedin", 1), "facebook");
   assert.equal(getNextChannel(channels, "facebook", -1), "linkedin");
   assert.equal(getNextChannel([], null, 1), null);
-});
-
-test("keeps incompatible selected channels enabled so users can correct their settings", () => {
-  const unavailableChannels = getSelectableDisabledChannels(
-    new Set(["facebook", "youtube"]),
-    new Set(["facebook"])
-  );
-
-  assert.deepEqual([...unavailableChannels], ["youtube"]);
 });

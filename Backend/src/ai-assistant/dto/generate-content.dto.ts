@@ -1,6 +1,6 @@
 // Backend/src/ai-assistant/dto/generate-content.dto.ts
 import { IsString, IsOptional, IsArray, IsEnum } from 'class-validator';
-
+import { Type } from 'class-transformer';
 export class GenerateContentDto {
   @IsOptional()
   @IsString()
