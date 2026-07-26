@@ -167,18 +167,37 @@ const getNotificationSnippet = (content?: string, mediaCount = 0) => {
 };
 
 /* ─── Post Card Component ────────────────────────────────────── */
-const PostCard = ({ post }: any) => {
+const isFutureScheduledPost = (post: any) =>
+  post?.status === 'scheduled' && new Date(post.scheduledAt).getTime() > Date.now();
+
+const isEditableCalendarPost = (post: any) =>
+  post?.status !== 'published' && isFutureScheduledPost(post);
+
+const PostCard = ({ post, onOpen }: any) => {
   const plt = PLATFORMS[post.platform] || PLATFORMS.instagram;
   const displayTitle = post.content ? post.content.substring(0, 25) + "..." : "Media Post";
+  const canEdit = isEditableCalendarPost(post);
 
   return (
     <div
-      className={styles.postCard}
+      className={`${styles.postCard} ${!canEdit ? styles.disabledPostCard : ""}`}
       draggable={false}
       onClick={(e) => {
         e.stopPropagation();
+        if (canEdit) onOpen?.(post);
       }}
-      title="Opening scheduled posts is temporarily disabled"
+      title={canEdit ? "Open and edit scheduled post" : "Published posts cannot be opened"}
+      role="button"
+      tabIndex={canEdit ? 0 : -1}
+      aria-disabled={!canEdit}
+      onKeyDown={(e) => {
+        if (!canEdit) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          onOpen?.(post);
+        }
+      }}
       style={{ background: plt.bg, border: `1px solid ${plt.border}` }}
     >
       <div className={styles.postCardHeader}>
@@ -951,6 +970,8 @@ const Planning = () => {
   }, [filtered, visibleYear]);
 
   const openEditPost = (post: any) => {
+    if (!isEditableCalendarPost(post)) return;
+
     const mappedFiles = post.mediaItems ? post.mediaItems.map((item: any) => ({
       ...item,
       type: item.type || item.mimeType,
@@ -962,7 +983,7 @@ const Planning = () => {
     setModal({
       type: "edit",
       post: { ...post, files: mappedFiles },
-      isReadOnly: post.status === 'published'
+      isReadOnly: false
     });
   };
 
@@ -970,6 +991,7 @@ const Planning = () => {
     <PostCard
       key={post.id}
       post={post}
+      onOpen={openEditPost}
     />
   );
 
@@ -1098,10 +1120,35 @@ const Planning = () => {
               </span>
               <div className={styles.monthPostList}>
                 {dayPosts.slice(0, 3).map((post: any) => (
-                  <span key={post.id} className={styles.monthPostPill}>
-                    <PlatformIcon platform={post.platform} size={10} />
-                    {post.content || "Media Post"}
-                  </span>
+                  (() => {
+                    const canEdit = isEditableCalendarPost(post);
+
+                    return (
+                      <span
+                        key={post.id}
+                        className={`${styles.monthPostPill} ${!canEdit ? styles.disabledPostPill : ""}`}
+                        role="button"
+                        tabIndex={canEdit ? 0 : -1}
+                        aria-disabled={!canEdit}
+                        title={canEdit ? "Open and edit scheduled post" : "Published posts cannot be opened"}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (canEdit) openEditPost(post);
+                        }}
+                        onKeyDown={(event) => {
+                          if (!canEdit) return;
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            openEditPost(post);
+                          }
+                        }}
+                      >
+                        <PlatformIcon platform={post.platform} size={10} />
+                        {post.content || "Media Post"}
+                      </span>
+                    );
+                  })()
                 ))}
                 {dayPosts.length > 3 && (
                   <span className={styles.morePosts}>+{dayPosts.length - 3} more</span>
@@ -1150,13 +1197,18 @@ const Planning = () => {
             const date = getPostDate(post);
             const platform = PLATFORMS[post.platform] || PLATFORMS.instagram;
             const postPlatforms = getPostPlatforms(post);
+            const canEdit = isEditableCalendarPost(post);
 
             return (
               <button
                 type="button"
                 key={post.id}
-                className={styles.listItem}
-                title="Opening scheduled posts is temporarily disabled"
+                className={`${styles.listItem} ${!canEdit ? styles.disabledListItem : ""}`}
+                title={canEdit ? "Open and edit scheduled post" : "Published posts cannot be opened"}
+                disabled={!canEdit}
+                onClick={() => {
+                  if (canEdit) openEditPost(post);
+                }}
               >
                 <span className={styles.listAvatarGroup}>
                   {postPlatforms.map((postPlatform: string) => {

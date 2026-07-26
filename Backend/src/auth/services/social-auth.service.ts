@@ -146,7 +146,7 @@ res.cookie("refresh_token", tokens.refreshToken, {
         });
         const snippet = response.data.items?.[0]?.snippet;
         finalProfilePic = snippet?.thumbnails?.default?.url || null;
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Failed to fetch fallback YouTube profile pic:', error.message);
         // It's okay, we just proceed without a pic rather than failing login
         finalProfilePic = null; 
@@ -231,7 +231,7 @@ res.cookie("refresh_token", tokens.refreshToken, {
       
       longLivedToken = response.data.access_token;
       expiresSeconds = response.data.expires_in; // 60 days
-    } catch (error) {
+    } catch (error: any) {
       console.error('⚠️ Failed to exchange long-lived token. Using short-lived token instead.', error.response?.data);
     }
 

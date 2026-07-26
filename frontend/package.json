@@ -47,6 +47,7 @@
     "glob-to-regexp": "^0.4.1",
     "lucide-react": "^0.545.0",
     "next": "^13.5.11",
+    "ogl": "^1.0.11",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-day-picker": "^9.11.0",

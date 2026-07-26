@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
 import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
@@ -64,6 +64,11 @@ export interface ContentEditorProps {
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
+  activeChannelLabel?: string;
+  activeChannelIndex?: number;
+  totalChannels?: number;
+  onPreviousChannel?: () => void;
+  onNextChannel?: () => void;
 }
 
 export default function ContentEditor({
@@ -78,6 +83,11 @@ export default function ContentEditor({
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
+  activeChannelLabel,
+  activeChannelIndex = 0,
+  totalChannels = 0,
+  onPreviousChannel,
+  onNextChannel,
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
@@ -118,12 +128,7 @@ export default function ContentEditor({
   useEffect(() => {
     if (!editorRef.current) return;
 
-    const currentText = editorRef.current.innerText;
-    const incomingText = new DOMParser()
-      .parseFromString(content, "text/html")
-      .body.innerText;
-
-    if (currentText !== incomingText) {
+    if (editorRef.current.innerHTML !== content) {
       editorRef.current.innerHTML = content;
     }
   }, [content]);
@@ -481,6 +486,36 @@ export default function ContentEditor({
             <Smile size={18} strokeWidth={2.4} />
           </button>
         </div>
+        {activeChannelLabel && (
+          <div className={styles.channelNavigator} aria-label="Channel content editor">
+            <button
+              type="button"
+              className={styles.channelNavButton}
+              onClick={onPreviousChannel}
+              disabled={isReadOnly || !onPreviousChannel || totalChannels <= 1}
+              aria-label="Previous channel content"
+              title="Previous channel"
+            >
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+            <span className={styles.channelContentLabel}>
+              {activeChannelLabel} content
+              {totalChannels > 1 && (
+                <small>{activeChannelIndex + 1} / {totalChannels}</small>
+              )}
+            </span>
+            <button
+              type="button"
+              className={styles.channelNavButton}
+              onClick={onNextChannel}
+              disabled={isReadOnly || !onNextChannel || totalChannels <= 1}
+              aria-label="Next channel content"
+              title="Next channel"
+            >
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <div className={styles.toolbarMeta}>
           <span className={`${styles.charCount} ${overLimit ? styles.overLimit : ""}`}>
             {charCount}{maxLength ? ` / ${maxLength}` : ""} chars

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { ChevronLeft, Eye, RefreshCw, Sparkles } from 'lucide-react';
+import { ChevronLeft, Eye, Sparkles } from 'lucide-react';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
@@ -14,6 +14,11 @@ import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { addNotification } from '../../../utils/notifications';
 import { useAppDispatch } from '../../../store/hooks';
 import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
+import {
+  getChannelContent,
+  getNextChannel,
+  reconcileChannelContents,
+} from '../../../utils/channelContent.mjs';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -99,6 +104,8 @@ const CHANNEL_LABELS: Record<Channel, string> = {
   threads: 'Threads',
 };
 
+type ChannelContentMap = Partial<Record<Channel, string>>;
+
 /* ===============================
    Types
 ================================ */
@@ -131,6 +138,8 @@ export default function Publish() {
   ================================ */
 
   const [content, setContent] = useState('');
+  const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
+  const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
@@ -159,12 +168,12 @@ export default function Publish() {
   };
   const handleApplyCaption = (aiCaption: string) => {
     // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
-    setContent((prev) => (prev ? `${prev}<br/><br/>${aiCaption}` : aiCaption));
+    handleChannelContentChange(content ? `${content}<br/><br/>${aiCaption}` : aiCaption);
   };
 
   const handleApplyHashtags = (aiHashtags: string[]) => {
     const tagsString = aiHashtags.join(' ');
-    setContent((prev) => (prev ? `${prev}<br/><br/>${tagsString}` : tagsString));
+    handleChannelContentChange(content ? `${content}<br/><br/>${tagsString}` : tagsString);
   };
 
   const handleAutoSelectPlatforms = (platforms: PlatformRecommendation[]) => {
@@ -176,6 +185,34 @@ export default function Publish() {
       }
     });
     setSelectedChannels(next);
+  };
+  const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
+    setChannelContents((prevContents) => {
+      const updatedContents = { ...prevContents };
+
+      aiPlatforms.forEach((aiPlat) => {
+        // 1. Get the raw lowercase string first
+        let rawPlatform = aiPlat.platform.toLowerCase();
+        
+        
+
+        // 3. Now safely cast it to your strict Channel type
+        const targetId = rawPlatform as Channel;
+
+        // Combine caption, CTA, and hashtags using HTML since ContentEditor uses innerHTML
+        const hashtagsStr = aiPlat.hashtags && aiPlat.hashtags.length > 0 
+          ? aiPlat.hashtags.join(' ') 
+          : '';
+        const ctaStr = aiPlat.cta ? `<br/><br/><strong>${aiPlat.cta}</strong>` : '';
+        
+        const fullContent = `${aiPlat.caption}${ctaStr}<br/><br/>${hashtagsStr}`.trim();
+
+        // Inject the formatted content into the specific channel's state
+        updatedContents[targetId] = fullContent;
+      });
+
+      return updatedContents;
+    });
   };
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
@@ -200,6 +237,55 @@ export default function Publish() {
     () => Array.from(selectedChannels),
     [selectedChannels]
   );
+
+  useEffect(() => {
+    const nextContents = reconcileChannelContents(
+      selectedChannelList,
+      channelContents,
+      content
+    ) as ChannelContentMap;
+
+    setChannelContents(nextContents);
+
+    if (selectedChannelList.length === 0) {
+      setActiveEditorChannel(null);
+      return;
+    }
+
+    if (!activeEditorChannel || !selectedChannels.has(activeEditorChannel)) {
+      const nextActiveChannel = selectedChannelList[0];
+      setActiveEditorChannel(nextActiveChannel);
+      setContent(getChannelContent(nextActiveChannel, nextContents, content));
+    }
+    // Selection changes are the only event that should reconcile channel editors.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChannelList]);
+
+  const handleChannelContentChange = (value: string) => {
+    setContent(value);
+    if (!activeEditorChannel) return;
+
+    setChannelContents((previousContents) => ({
+      ...previousContents,
+      [activeEditorChannel]: value,
+    }));
+  };
+
+  const hasPublishableContent = selectedChannelList.some(
+    (channel) => Boolean((channelContents[channel] ?? content).trim())
+  );
+
+  const navigateEditorChannel = (direction: -1 | 1) => {
+    const nextChannel = getNextChannel(
+      selectedChannelList,
+      activeEditorChannel,
+      direction
+    ) as Channel | null;
+
+    if (!nextChannel) return;
+    setActiveEditorChannel(nextChannel);
+    setContent(getChannelContent(nextChannel, channelContents, content));
+  };
 
   const selectedFacebookPage = useMemo(
     () =>
@@ -271,8 +357,8 @@ export default function Publish() {
   };
 
   const effectiveRules = useMemo(
-    () => resolveEditorRules(selectedChannelList),
-    [selectedChannelList]
+    () => resolveEditorRules(activeEditorChannel ? [activeEditorChannel] : selectedChannelList),
+    [activeEditorChannel, selectedChannelList]
   );
 
   const disabledChannels = useMemo(() => {
@@ -327,22 +413,15 @@ export default function Publish() {
     return disabled;
   }, [files, platformState.facebookPostType, platformState.instagramPostType]);
 
-  useEffect(() => {
-    let changed = false;
-    const nextChannels = new Set(selectedChannels);
-
-    disabledChannels.forEach((channel) => {
-      if (nextChannels.has(channel)) {
-        nextChannels.delete(channel);
-        changed = true;
-      }
-    });
-
-    if (changed) {
-      setSelectedChannels(nextChannels);
-      alert('Some selected channels were removed because the current media does not match their publishing limits.');
-    }
-  }, [files, selectedChannels, disabledChannels]);
+  const channelSelectorDisabledChannels = useMemo(
+    () =>
+      new Set(
+        Array.from(disabledChannels).filter(
+          (channel) => !selectedChannels.has(channel)
+        )
+      ),
+    [disabledChannels, selectedChannels]
+  );
 
   const getInstagramValidationErrors = async () => {
     if (!selectedChannels.has('instagram') || files.length === 0) {
@@ -505,6 +584,23 @@ export default function Publish() {
       oversizedPngImages.forEach((file) => {
         errors.push(`${file.name} cannot be uploaded to Facebook because PNG files should stay under 1 MB to avoid pixelation.`);
       });
+
+      const facebookPostType = platformState.facebookPostType || 'feed';
+      if (facebookPostType === 'feed' && hasVideos) {
+        errors.push('Facebook Feed supports images only. Switch Facebook to Reel or Story before uploading a video.');
+      }
+      if (
+        facebookPostType === 'reel' &&
+        (totalItems !== 1 || videoCount !== 1)
+      ) {
+        errors.push('Facebook Reel requires exactly one video.');
+      }
+      if (
+        facebookPostType === 'story' &&
+        (totalItems !== 1 || (imageCount !== 1 && videoCount !== 1))
+      ) {
+        errors.push('Facebook Story requires exactly one image or one video.');
+      }
     }
 
     if (selectedChannels.has('instagram')) {
@@ -663,7 +759,7 @@ const handleSubmit = async (isScheduled: boolean) => {
       return;
     }
 
-    if (!content && files.length === 0) {
+    if (!hasPublishableContent && files.length === 0) {
       alert('Add content or media.');
       return;
     }
@@ -703,14 +799,28 @@ const handleSubmit = async (isScheduled: boolean) => {
         platformOverrides.facebook = {
           pageId: platformState.facebookPageId,
           postType: platformState.facebookPostType,
+          text: channelContents.facebook ?? content,
         };
       }
       if (selectedChannels.has('instagram')) {
-        platformOverrides.instagram = { postType: platformState.instagramPostType };
+        platformOverrides.instagram = {
+          postType: platformState.instagramPostType,
+          text: channelContents.instagram ?? content,
+        };
       }
       if (selectedChannels.has('youtube')) {
-        platformOverrides.youtube = { title: platformState.youtubeTitle, postType: platformState.youtubeType };
+        platformOverrides.youtube = {
+          title: platformState.youtubeTitle,
+          postType: platformState.youtubeType,
+          text: channelContents.youtube ?? content,
+        };
       }
+      selectedChannelList.forEach((channel) => {
+        platformOverrides[channel] = {
+          ...platformOverrides[channel],
+          text: channelContents[channel] ?? content,
+        };
+      });
 
       // ✅ 2. Send the 'mediaItems' array to the backend
       const payload = {
@@ -790,6 +900,8 @@ const handleSubmit = async (isScheduled: boolean) => {
       alert(isScheduled ? 'Post scheduled successfully' : 'Post submitted for publishing');
 
       setContent('');
+      setChannelContents({});
+      setActiveEditorChannel(null);
       setFiles([]);
       setSelectedChannels(new Set());
       setScheduleDate('');
@@ -807,7 +919,7 @@ const handleSubmit = async (isScheduled: boolean) => {
       return;
     }
 
-    if (!content && files.length === 0) {
+    if (!hasPublishableContent && files.length === 0) {
       alert('Add content or media.');
       return;
     }
@@ -854,7 +966,7 @@ const handleSubmit = async (isScheduled: boolean) => {
             accounts={accounts}
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
-            disabledChannels={disabledChannels}
+            disabledChannels={channelSelectorDisabledChannels}
             facebookPages={facebookPages}
             selectedFacebookPageId={platformState.facebookPageId}
             onFacebookPageSelect={(pageId) =>
@@ -899,25 +1011,36 @@ const handleSubmit = async (isScheduled: boolean) => {
         </div>
 
         <section className={styles.composerPane} aria-label="Post composer">
-          <LazyContentEditor
-            content={content}
-            onContentChange={setContent}
-            files={files}
-            onFilesChange={setFiles}
-            effectiveRules={effectiveRules}
-            validation={{}}
-            selectedChannels={selectedChannelList}
-            validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-            size="publish"
-            aiRecommendations={aiRecommendations}
-          />
+          <div className={styles.editorSlot}>
+            <LazyContentEditor
+              content={content}
+              onContentChange={handleChannelContentChange}
+              files={files}
+              onFilesChange={setFiles}
+              effectiveRules={effectiveRules}
+              validation={{}}
+              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              size="publish"
+              aiRecommendations={aiRecommendations}
+              activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
+              activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
+              totalChannels={selectedChannelList.length}
+              onPreviousChannel={() => navigateEditorChannel(-1)}
+              onNextChannel={() => navigateEditorChannel(1)}
+            />
+          </div>
 
-          <LazyPlatformFields
-            selectedChannels={selectedChannels}
-            platformState={platformState}
-            setPlatformState={setPlatformState}
-            facebookPages={facebookPages}
-          />
+          {selectedChannels.size > 0 && (
+            <div className={styles.platformSlot}>
+              <LazyPlatformFields
+                selectedChannels={selectedChannels}
+                platformState={platformState}
+                setPlatformState={setPlatformState}
+                facebookPages={facebookPages}
+              />
+            </div>
+          )}
         </section>
 
         {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : 'AI Assistant'}>
@@ -952,6 +1075,7 @@ const handleSubmit = async (isScheduled: boolean) => {
               <LazyDynamicPreview
                 selectedPlatforms={selectedChannelList}
                 content={content}
+                channelContents={channelContents}
                 mediaFiles={files}
                 facebookPostType={platformState.facebookPostType}
                 instagramPostType={platformState.instagramPostType}
@@ -969,6 +1093,7 @@ const handleSubmit = async (isScheduled: boolean) => {
                 onApplyCaption={handleApplyCaption}
                 onApplyHashtags={handleApplyHashtags}
                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
+                onApplyPlatformData={handleApplyAiPlatformData}
               />
             )}
           </div>
@@ -1045,8 +1170,15 @@ const handleSubmit = async (isScheduled: boolean) => {
                 </div>
 
                 <div>
-                  <span className={styles.reviewLabel}>Caption</span>
-                  <p className={styles.captionPreview}>{content || 'No caption added.'}</p>
+                  <span className={styles.reviewLabel}>Channel captions</span>
+                  {selectedChannelList.map((channel) => (
+                    <div key={channel}>
+                      <strong>{CHANNEL_LABELS[channel]}</strong>
+                      <p className={styles.captionPreview}>
+                        {channelContents[channel] || 'No caption added.'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </section>
 
@@ -1054,6 +1186,7 @@ const handleSubmit = async (isScheduled: boolean) => {
                 <LazyDynamicPreview
                   selectedPlatforms={selectedChannelList}
                   content={content}
+                  channelContents={channelContents}
                   mediaFiles={files}
                   facebookPostType={platformState.facebookPostType}
                   instagramPostType={platformState.instagramPostType}

@@ -44,7 +44,7 @@ export default function LinkedInPreview({ content, files, account }: Props) {
               {displayName}
             </strong>
             <span className={styles.meta}>
-              1h · <FaGlobeAmericas />
+              Just now · <FaGlobeAmericas />
             </span>
           </div>
         </header>

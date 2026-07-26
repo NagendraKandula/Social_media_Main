@@ -1,8 +1,8 @@
 // frontend/components/AIAssistant.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Star } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
-import apiClient from '../lib/axios'; // ✅ IMPORT YOUR AXIOS CLIENT
+import apiClient from '../lib/axios';
 import styles from '../styles/AIAssistant.module.css';
 
 interface Props {
@@ -10,12 +10,11 @@ interface Props {
   content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
   onAnalysisReset?: () => void;
-  onResultControlsChange?: (
-    controls: { onBack: () => void } | null
-  ) => void;
+  onResultControlsChange?: (controls: { onBack: () => void } | null) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
   onAutoSelectPlatforms: (platforms: any[]) => void;
+  onApplyPlatformData?: (platformsData: any[]) => void; // 👈 1. Add to interface
 }
 
 export default function AIAssistant({ 
@@ -26,10 +25,11 @@ export default function AIAssistant({
   onResultControlsChange,
   onApplyCaption, 
   onApplyHashtags, 
-  onAutoSelectPlatforms 
+  onAutoSelectPlatforms ,
+  onApplyPlatformData,
 }: Props) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<AiAnalysisResult | null>(null);
+  const [analysis, setAnalysis] = useState<any | null>(null);
   const [instruction, setInstruction] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -47,7 +47,7 @@ export default function AIAssistant({
   }, [files]);
   const hasMedia = mediaSignature.length > 0;
 
-  const handleAnalyze = useCallback(async () => {
+const handleAnalyze = useCallback(async () => {
     if (!hasMedia) return;
 
     const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -56,55 +56,55 @@ export default function AIAssistant({
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
     setIsAnalyzing(true);
-    const formData = new FormData();
     
-    // ✅ FIX: Loop through ALL files to support carousels/albums
+    const formData = new FormData();
     if (files.length > 0) {
       for (const item of files) {
         const file = item instanceof File ? item : (item as any).file;
-        if (file) {
-          formData.append('media', file);
-        }
+        if (file) formData.append('media', file);
       }
     }
-    
     if (existingText) formData.append('content', existingText);
     formData.append('action', 'analyze_media');
 
     try {
-      // ✅ FIX: Use apiClient instead of naked fetch
       const response = await apiClient.post('/ai/generate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
         signal: abortController.signal,
       });
       
       const json = response.data;
       
       if (json.success) {
-        setAnalysis(json.data);
-        onAnalysisComplete(json.data); // Bubble up to Parent
+        const resultData = json.data;
+        
+        // 1. Set local state (in case they still want to chat/ask questions)
+        setAnalysis(resultData);
+        onAnalysisComplete(resultData); 
+
+        // 2. IMMEDIATELY SEND TO DYNAMIC EDITOR
+        const platformList = resultData.recommendedPlatforms || resultData.analysis?.recommendedPlatforms || [];
+        
+        if (platformList.length > 0) {
+          // Auto-select the platform tabs in the UI
+          onAutoSelectPlatforms(platformList);
+          
+          // Send the array to populate the editor's text areas (Fixed 'props.' reference)
+          if (onApplyPlatformData) {
+            onApplyPlatformData(platformList);
+          }
+        }
       }
     } catch (error: any) {
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        return;
-      }
-
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') return;
       console.error("AI Analysis failed", error);
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to analyze content. Please try again.";
-      alert(message);
+      alert(error?.response?.data?.message || "Failed to analyze content. Please try again.");
     } finally {
-      if (abortControllerRef.current === abortController) {
-        abortControllerRef.current = null;
-      }
+      if (abortControllerRef.current === abortController) abortControllerRef.current = null;
       setIsAnalyzing(false);
     }
-  }, [content, files, hasMedia, onAnalysisComplete]);
+    // Fixed dependency array here by replacing 'props' with 'onApplyPlatformData'
+  }, [content, files, hasMedia, onAnalysisComplete, onAutoSelectPlatforms, onApplyPlatformData]);
 
   const handleChat = useCallback(async () => {
     if (!analysis || !instruction.trim()) return;
@@ -113,11 +113,9 @@ export default function AIAssistant({
 
     const formData = new FormData();
 
-    // Attach media again
     if (files.length > 0) {
       for (const item of files) {
         const file = item instanceof File ? item : (item as any).file;
-
         if (file) {
           formData.append("media", file);
         }
@@ -125,10 +123,7 @@ export default function AIAssistant({
     }
 
     formData.append("instruction", instruction);
-    formData.append(
-      "currentAnalysis",
-      JSON.stringify(analysis)
-    );
+    formData.append("currentAnalysis", JSON.stringify(analysis));
 
     try {
       const response = await apiClient.post("/ai/chat", formData, {
@@ -139,16 +134,11 @@ export default function AIAssistant({
 
       if (response.data.success) {
         setAnalysis(response.data.data);
-
-        // Notify parent
         onAnalysisComplete(response.data.data);
-
-        // Clear textbox
         setInstruction("");
       }
     } catch (error: any) {
       console.error(error);
-
       alert(
         error?.response?.data?.message ||
         "Unable to update AI response."
@@ -190,7 +180,6 @@ export default function AIAssistant({
       return;
     }
 
-    // Removed onRegenerate here since the function is deprecated
     onResultControlsChange?.({
       onBack: handleBackToStart,
     });
@@ -208,7 +197,7 @@ export default function AIAssistant({
             <li>✓ Analyzing visual aesthetic</li>
             <li>✓ Evaluating aspect ratios</li>
             <li>✓ Checking platform suitability</li>
-            <li>✓ Crafting engaging caption</li>
+            <li>✓ Crafting platform-specific captions</li>
           </ul>
           <button
             type="button"
@@ -221,6 +210,9 @@ export default function AIAssistant({
       </div>
     );
   }
+
+  // Safely extract platforms array
+  const platformList = analysis?.recommendedPlatforms || analysis?.analysis?.recommendedPlatforms || [];
 
   if (analysis) {
     return (
@@ -236,85 +228,32 @@ export default function AIAssistant({
             >
               <ArrowLeft size={17} aria-hidden="true" />
             </button>
-            {/* Regenerate button successfully removed from here */}
           </div>
         )}
         
-        {/* ---------------- NEW STRATEGY SECTION ---------------- */}
-        <div className={`${styles.section} ${styles.strategySection}`}>
-          <h4 className={styles.sectionTitle}>Content Strategy</h4>
-          <div className={styles.strategyGrid}>
-            <div className={styles.strategyItem}>
-              <span>Theme</span>
-              <strong>{analysis.analysis?.overallTheme || 'Not specified'}</strong>
-            </div>
-            <div className={styles.strategyItem}>
-              <span>Aspect Ratio</span>
-              <strong>{analysis.analysis?.bestAspectRatio || 'Flexible'}</strong>
-            </div>
-            <div className={styles.strategyItem}>
-              <span>Best Time</span>
-              <strong>{analysis.analysis?.bestPostingTime || 'Anytime'}</strong>
-            </div>
+        {/* ---------------- SUCCESS STATE ---------------- */}
+        <div style={{ textAlign: 'center', padding: '2rem 0', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#10b981' }}>
+            <Sparkles size={36} aria-hidden="true" />
           </div>
-          <div className={styles.storyBlock}>
-            <span>Story</span>
-            <p>{analysis.analysis?.story || 'No story summary generated.'}</p>
-          </div>
-        </div>
-
-        {/* ---------------- CONTENT SECTION ---------------- */}
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Caption</h4>
-          <p className={styles.textBlock}>
-            {analysis.content?.caption || 'No caption generated.'}
-            <br/><br/>
-            {analysis.content?.cta && <strong>{analysis.content.cta}</strong>}
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px' }}>
+            Content Generated!
+          </h3>
+          <p style={{ fontSize: '0.85rem', color: '#6b7280', lineHeight: '1.5' }}>
+            Platform-tailored captions and hashtags have been applied directly to your editor tabs.
           </p>
-          <button 
-            onClick={() => {
-              const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
-              onApplyCaption(fullText.trim());
-            }} 
-            className={styles.btnApply}
-          >
-            Use Caption & CTA
-          </button>
         </div>
 
-        <div className={styles.section}>
-          <h4 className={styles.sectionTitle}>Hashtags</h4>
-          <p className={`${styles.textBlock} ${styles.hashtags}`}>
-            {analysis.content?.hashtags?.join(' ') || '#social'}
+        {/* ---------------- ASK AI / CHAT SECTION ---------------- */}
+        <div className={styles.chatSection} style={{ marginTop: 'auto' }}>
+          <h4 className={styles.sectionTitle}>Refine with AI</h4>
+          <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '10px' }}>
+            Need changes? Ask the AI to adjust the tone, length, or rewrite specific platforms.
           </p>
-          <button 
-            onClick={() => onApplyHashtags(analysis.content?.hashtags || [])} 
-            className={styles.btnApply}
-          >
-            Use Hashtags
-          </button>
-        </div>
-
-        <button 
-          onClick={() => {
-            const fullText = `${analysis.content?.caption || ''}\n\n${analysis.content?.cta || ''}`;
-            onApplyCaption(fullText.trim());
-            onApplyHashtags(analysis.content?.hashtags || []);
-            onAutoSelectPlatforms(analysis.analysis?.recommendedPlatforms || []); 
-          }} 
-          className={styles.btnPrimary}
-        >
-          Apply All Recommendations
-        </button>
-
-        <div className={styles.chatSection}>
-          <h4 className={styles.sectionTitle}>
-            Ask AI
-          </h4>
           <div className={styles.chatInputRow}>
             <input
               type="text"
-              placeholder="Ask AI to improve this post..."
+              placeholder="e.g., Make the Twitter post punchier..."
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               className={styles.chatInput}
@@ -328,10 +267,7 @@ export default function AIAssistant({
             />
             <button
               onClick={handleChat}
-              disabled={
-                isChatLoading ||
-                !instruction.trim()
-              }
+              disabled={isChatLoading || !instruction.trim()}
               className={styles.chatButton}
             >
               {isChatLoading ? "Thinking..." : "Send"}
@@ -350,7 +286,7 @@ export default function AIAssistant({
         <strong>{hasMedia ? 'Ready to analyze your media' : 'Add media to start analysis'}</strong>
         <p>
           {hasMedia
-            ? 'AI will review the uploaded media and suggest strategy, caption, hashtags, timing, and channels.'
+            ? 'AI will review the uploaded media and suggest strategy, platform-specific captions, hashtags, and limits.'
             : 'Upload an image or video in the editor, then run AI analysis when you are ready.'}
         </p>
       </div>

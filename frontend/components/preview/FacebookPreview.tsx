@@ -106,7 +106,7 @@ export default function FacebookPreview({
               }}
             />
             <strong>{displayName}</strong>
-            <span>21h</span>
+            <span>Just now</span>
           </div>
 
           <div className={styles.storyTopActions}>
@@ -155,7 +155,7 @@ export default function FacebookPreview({
           <div className={styles.profileText}>
             <strong>{displayName}</strong>
             <span>
-              Just Now · <FaGlobeAmericas />
+              Just now · <FaGlobeAmericas />
             </span>
           </div>
 

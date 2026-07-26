@@ -67,8 +67,6 @@ export class PostingProcessor {
       return;
     }
 
-    const contentText = post.content || '';
-    
     // ✅ FIX 1 & 3: Cast to any[] to bypass the 'never' error while Prisma Client updates
     const postMediaItems = (post as any).mediaItems || [];
 
@@ -101,6 +99,10 @@ export class PostingProcessor {
       if (platformEntry.status === 'PUBLISHED') continue;
 
       try {
+        const contentText =
+          (post.contentMetadata as any)?.platformOverrides?.[platformEntry.platform]?.text ??
+          post.content ??
+          '';
         let externalId = '';
         this.logger.log(`📤 Posting to ${platformEntry.platform}...`);
 
