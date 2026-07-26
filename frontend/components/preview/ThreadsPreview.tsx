@@ -63,7 +63,7 @@ export default function ThreadsPreview({ content, files, account }: Props) {
         <div className={styles.postBody}>
           <header className={styles.header}>
             <strong>{displayName}</strong>
-            <span>21h</span>
+            <span>Just now</span>
           </header>
 
           {captionText && <p className={styles.caption}>{captionText}</p>}

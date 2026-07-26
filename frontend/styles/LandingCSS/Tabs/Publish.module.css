@@ -138,10 +138,13 @@
 }
 
 .editorSlot {
+  display: flex;
+  flex: 1 1 auto;
   min-height: clamp(220px, 28vh, 260px);
 }
 
 .platformSlot {
+  flex: 0 0 auto;
   max-height: 220px;
   overflow-y: auto;
   border-top: 1px solid var(--publish-line);

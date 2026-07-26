@@ -61,7 +61,7 @@ export default function InstagramPreview({ content, files, postType = "post", ac
           <div className={styles.storyHeader}>
             <ProfileAvatar account={account} className={styles.storyAvatar} />
             <strong>{displayName}</strong>
-            <span>21h</span>
+            <span>Just now</span>
           </div>
 
           <div className={styles.storyMedia}>

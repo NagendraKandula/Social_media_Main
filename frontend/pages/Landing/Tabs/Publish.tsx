@@ -17,6 +17,7 @@ import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
 import {
   getChannelContent,
   getNextChannel,
+  getSelectableDisabledChannels,
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
 
@@ -384,22 +385,10 @@ export default function Publish() {
     return disabled;
   }, [files, platformState.facebookPostType, platformState.instagramPostType]);
 
-  useEffect(() => {
-    let changed = false;
-    const nextChannels = new Set(selectedChannels);
-
-    disabledChannels.forEach((channel) => {
-      if (nextChannels.has(channel)) {
-        nextChannels.delete(channel);
-        changed = true;
-      }
-    });
-
-    if (changed) {
-      setSelectedChannels(nextChannels);
-      alert('Some selected channels were removed because the current media does not match their publishing limits.');
-    }
-  }, [files, selectedChannels, disabledChannels]);
+  const channelSelectorDisabledChannels = useMemo(
+    () => getSelectableDisabledChannels(disabledChannels, selectedChannels) as Set<Channel>,
+    [disabledChannels, selectedChannels]
+  );
 
   const getInstagramValidationErrors = async () => {
     if (!selectedChannels.has('instagram') || files.length === 0) {
@@ -562,6 +551,23 @@ export default function Publish() {
       oversizedPngImages.forEach((file) => {
         errors.push(`${file.name} cannot be uploaded to Facebook because PNG files should stay under 1 MB to avoid pixelation.`);
       });
+
+      const facebookPostType = platformState.facebookPostType || 'feed';
+      if (facebookPostType === 'feed' && hasVideos) {
+        errors.push('Facebook Feed supports images only. Switch Facebook to Reel or Story before uploading a video.');
+      }
+      if (
+        facebookPostType === 'reel' &&
+        (totalItems !== 1 || videoCount !== 1)
+      ) {
+        errors.push('Facebook Reel requires exactly one video.');
+      }
+      if (
+        facebookPostType === 'story' &&
+        (totalItems !== 1 || (imageCount !== 1 && videoCount !== 1))
+      ) {
+        errors.push('Facebook Story requires exactly one image or one video.');
+      }
     }
 
     if (selectedChannels.has('instagram')) {
@@ -927,7 +933,7 @@ const handleSubmit = async (isScheduled: boolean) => {
             accounts={accounts}
             selectedChannels={selectedChannels}
             onSelectionChange={setSelectedChannels}
-            disabledChannels={disabledChannels}
+            disabledChannels={channelSelectorDisabledChannels}
             facebookPages={facebookPages}
             selectedFacebookPageId={platformState.facebookPageId}
             onFacebookPageSelect={(pageId) =>
@@ -972,30 +978,36 @@ const handleSubmit = async (isScheduled: boolean) => {
         </div>
 
         <section className={styles.composerPane} aria-label="Post composer">
-          <LazyContentEditor
-            content={content}
-            onContentChange={handleChannelContentChange}
-            files={files}
-            onFilesChange={setFiles}
-            effectiveRules={effectiveRules}
-            validation={{}}
-            selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
-            validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-            size="publish"
-            aiRecommendations={aiRecommendations}
-            activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
-            activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
-            totalChannels={selectedChannelList.length}
-            onPreviousChannel={() => navigateEditorChannel(-1)}
-            onNextChannel={() => navigateEditorChannel(1)}
-          />
+          <div className={styles.editorSlot}>
+            <LazyContentEditor
+              content={content}
+              onContentChange={handleChannelContentChange}
+              files={files}
+              onFilesChange={setFiles}
+              effectiveRules={effectiveRules}
+              validation={{}}
+              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              size="publish"
+              aiRecommendations={aiRecommendations}
+              activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
+              activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
+              totalChannels={selectedChannelList.length}
+              onPreviousChannel={() => navigateEditorChannel(-1)}
+              onNextChannel={() => navigateEditorChannel(1)}
+            />
+          </div>
 
-          <LazyPlatformFields
-            selectedChannels={selectedChannels}
-            platformState={platformState}
-            setPlatformState={setPlatformState}
-            facebookPages={facebookPages}
-          />
+          {selectedChannels.size > 0 && (
+            <div className={styles.platformSlot}>
+              <LazyPlatformFields
+                selectedChannels={selectedChannels}
+                platformState={platformState}
+                setPlatformState={setPlatformState}
+                facebookPages={facebookPages}
+              />
+            </div>
+          )}
         </section>
 
         {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : 'AI Assistant'}>

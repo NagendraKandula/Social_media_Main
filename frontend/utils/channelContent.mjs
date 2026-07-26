@@ -19,3 +19,9 @@ export function getNextChannel(selectedChannels, activeChannel, direction) {
 
   return selectedChannels[nextIndex];
 }
+
+export function getSelectableDisabledChannels(disabledChannels, selectedChannels) {
+  return new Set(
+    [...disabledChannels].filter((channel) => !selectedChannels.has(channel))
+  );
+}
