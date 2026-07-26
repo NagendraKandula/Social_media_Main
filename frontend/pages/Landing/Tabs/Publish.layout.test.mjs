@@ -10,10 +10,21 @@ const publishSource = await readFile(
 test("keeps the editor and platform settings in separate layout regions", () => {
   assert.match(
     publishSource,
-    /<section className=\{styles\.composerPane\}[\s\S]*?<LazyContentEditor/
+    /className=\{styles\.editorSlot\}[\s\S]*?<LazyContentEditor/
   );
   assert.match(
     publishSource,
     /className=\{styles\.platformSlot\}[\s\S]*?<LazyPlatformFields/
+  );
+});
+
+test("never removes selected channels because media is temporarily incompatible", () => {
+  assert.doesNotMatch(
+    publishSource,
+    /Some selected channels were removed because the current media does not match their publishing limits/
+  );
+  assert.match(
+    publishSource,
+    /Array\.from\(disabledChannels\)\.filter\([\s\S]*?!selectedChannels\.has\(channel\)/
   );
 });

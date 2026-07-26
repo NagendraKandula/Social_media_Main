@@ -1010,23 +1010,25 @@ const handleSubmit = async (isScheduled: boolean) => {
         </div>
 
         <section className={styles.composerPane} aria-label="Post composer">
-          <LazyContentEditor
-            content={content}
-            onContentChange={handleChannelContentChange}
-            files={files}
-            onFilesChange={setFiles}
-            effectiveRules={effectiveRules}
-            validation={{}}
-            selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
-            validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-            size="publish"
-            aiRecommendations={aiRecommendations}
-            activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
-            activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
-            totalChannels={selectedChannelList.length}
-            onPreviousChannel={() => navigateEditorChannel(-1)}
-            onNextChannel={() => navigateEditorChannel(1)}
-          />
+          <div className={styles.editorSlot}>
+            <LazyContentEditor
+              content={content}
+              onContentChange={handleChannelContentChange}
+              files={files}
+              onFilesChange={setFiles}
+              effectiveRules={effectiveRules}
+              validation={{}}
+              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              size="publish"
+              aiRecommendations={aiRecommendations}
+              activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
+              activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
+              totalChannels={selectedChannelList.length}
+              onPreviousChannel={() => navigateEditorChannel(-1)}
+              onNextChannel={() => navigateEditorChannel(1)}
+            />
+          </div>
 
           {selectedChannels.size > 0 && (
             <div className={styles.platformSlot}>

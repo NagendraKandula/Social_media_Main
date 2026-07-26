@@ -89,6 +89,8 @@
 .composerPane {
   grid-area: composer;
   display: flex;
+  box-sizing: border-box;
+  height: clamp(440px, calc(100vh - 230px), 640px);
   flex-direction: column;
   min-width: 0;
   min-height: 0;
@@ -141,6 +143,7 @@
   display: flex;
   flex: 1 1 auto;
   min-height: clamp(220px, 28vh, 260px);
+  overflow-y: auto;
 }
 
 .platformSlot {
