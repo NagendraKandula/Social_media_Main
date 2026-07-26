@@ -1,14 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { PrismaService } from '../prisma/prisma.service'; // Adjust path if needed
 import { GenerateContentDto } from './dto/generate-content.dto';
 import { ChatAiDto } from './dto/chat-ai.dto';
+
+const PLATFORM_LIMITS: Record<string, number> = {
+  twitter: 280,
+  x: 280,
+  threads: 500,
+  instagram: 2200,
+  linkedin: 3000,
+  facebook: 63206,
+  youtube: 5000,
+};
 
 @Injectable()
 export class AiAssistantService {
   private genAI: GoogleGenerativeAI;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private prisma: PrismaService,
+  ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
 
     if (!apiKey) {
@@ -18,10 +32,49 @@ export class AiAssistantService {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
+  private recalculateCharacterCounts(parsedJson: any) {
+    if (parsedJson.recommendedPlatforms && Array.isArray(parsedJson.recommendedPlatforms)) {
+      parsedJson.recommendedPlatforms = parsedJson.recommendedPlatforms.map((post: any) => {
+        const platformKey = post.platform.toLowerCase();
+        const limit = PLATFORM_LIMITS[platformKey] || 2200;
+        const captionLength = post.caption ? post.caption.length : 0;
+
+        return {
+          ...post,
+          characterCount: captionLength,
+          characterLimit: limit,
+          isWithinLimit: captionLength <= limit,
+          remainingCharacters: limit - captionLength,
+        };
+      });
+    }
+    return JSON.stringify(parsedJson);
+  }
+
   async analyzeAndGenerate(
+    userId: number,
     dto: GenerateContentDto,
     files: Express.Multer.File[],
   ): Promise<string> {
+    // 1. Fetch connected profiles using lowercase `socialAccount`
+    // 2. Select `provider` since `platform` does not exist in the schema
+    const profiles = await this.prisma.socialAccount.findMany({
+      where: { userId },
+      select: { provider: true },
+    });
+
+    let activePlatforms = profiles.map((p) => p.provider.toLowerCase());
+
+    if (activePlatforms.length === 0 && dto.platforms && dto.platforms.length > 0) {
+      activePlatforms = dto.platforms.map((p) => p.toLowerCase());
+    } else if (activePlatforms.length === 0) {
+      activePlatforms = ['twitter', 'instagram', 'linkedin', 'facebook', 'threads'];
+    }
+
+    const platformRulesStr = activePlatforms
+      .map((p) => `- ${p.toUpperCase()} (Max character limit: ${PLATFORM_LIMITS[p] || 2200})`)
+      .join('\n');
+
     const model = this.genAI.getGenerativeModel({
       model: 'gemini-2.5-flash',
       generationConfig: {
@@ -30,21 +83,22 @@ export class AiAssistantService {
       },
     });
 
-    const { content, platforms, tone, language } = dto;
+    const { content, tone, language } = dto;
 
     const systemInstruction = `
 You are an expert Social Media Campaign Strategist.
 Analyze the provided media files together as a single post or carousel collection.
 
-Generate tailored post recommendations FOR EACH target or recommended platform.
+Generate tailored post recommendations ONLY FOR THESE CONNECTED PLATFORMS:
+${platformRulesStr}
 
 ### Platform Limit Rules:
-
-1. **Threads**: Max 500 characters. Conversational, engaging.
+1. **Threads**: Conversational, engaging.
 2. **LinkedIn**: Professional tone, structured with bullet points, 3-5 relevant hashtags.
 3. **Instagram**: Engaging visual caption, emoji-friendly, call-to-action, 5-10 targeted hashtags.
 4. **Facebook**: Story-driven, medium length, clear call-to-action.
-5. **YouTube**: Concise video description format with timestamp placeholders if applicable.
+5. **Twitter/X**: Concise, punchy, strictly under character limits.
+6. **YouTube**: Concise video description format.
 
 ### Strict JSON Output Schema:
 Return ONLY a JSON object matching this structure:
@@ -61,9 +115,9 @@ Return ONLY a JSON object matching this structure:
   },
   "recommendedPlatforms": [
     {
-      "platform": "LinkedIn | Instagram | Facebook | Threads | YouTube",
+      "platform": "platform name",
       "rating": 5,
-      "reason": "Why this platform fits or doesn't fit the media",
+      "reason": "Why this platform fits",
       "caption": "Platform-tailored text strictly adhering to character limits",
       "hashtags": ["#tag1", "#tag2"],
       "cta": "Platform-specific call to action"
@@ -73,9 +127,6 @@ Return ONLY a JSON object matching this structure:
 
     let userPrompt = `Analyze the attached media.\n`;
     if (content) userPrompt += `Existing text/context: "${content}".\n`;
-    if (platforms && platforms.length > 0) {
-      userPrompt += `Target platforms requested: ${platforms.join(', ')}.\n`;
-    }
     if (tone) userPrompt += `Desired tone: ${tone}.\n`;
     if (language) userPrompt += `Output language: ${language}.\n`;
 
@@ -94,13 +145,17 @@ Return ONLY a JSON object matching this structure:
 
     try {
       const result = await model.generateContent(promptParts);
-      return result.response.text();
+      const jsonText = result.response.text();
+      const parsed = JSON.parse(jsonText);
+      
+      return this.recalculateCharacterCounts(parsed);
     } catch (error: any) {
       throw new Error(`AI generation failed: ${error.message}`);
     }
   }
 
   async chatWithAnalysis(
+    userId: number,
     dto: ChatAiDto,
     files: Express.Multer.File[],
   ): Promise<string> {
@@ -123,7 +178,7 @@ User Instruction:
 
 Rules:
 - Modify ONLY what the user explicitly requested.
-- Respect character limits for each platform (e.g., Twitter <= 280 chars).
+- Respect character limits for each platform.
 - Preserve all other fields in the JSON structure.
 - Return raw JSON only.
 `;
@@ -142,6 +197,9 @@ Rules:
     }
 
     const result = await model.generateContent(promptParts);
-    return result.response.text();
+    const jsonText = result.response.text();
+    const parsed = JSON.parse(jsonText);
+
+    return this.recalculateCharacterCounts(parsed);
   }
 }

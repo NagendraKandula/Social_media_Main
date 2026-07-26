@@ -1,4 +1,3 @@
-// Backend/src/ai-assistant/ai-assistant.controller.ts
 import {
   Controller,
   Post,
@@ -6,15 +5,18 @@ import {
   UploadedFiles,
   Body,
   BadRequestException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import 'multer';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AiAssistantService } from './ai-assistant.service';
 import { GenerateContentDto } from './dto/generate-content.dto';
 import { ChatAiDto } from './dto/chat-ai.dto';
-
+import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard'; // Adjust path if needed
 
 @Controller('ai')
+@UseGuards(JwtAuthGuard)
 export class AiAssistantController {
   constructor(private readonly aiAssistantService: AiAssistantService) {}
 
@@ -35,8 +37,9 @@ export class AiAssistantController {
   }
 
   @Post('generate')
-  @UseInterceptors(FilesInterceptor('media')) // Matches the 'media[]' field from frontend
+  @UseInterceptors(FilesInterceptor('media', 10))
   async generateContent(
+    @Req() req: any,
     @UploadedFiles() files: Express.Multer.File[],
     @Body() generateContentDto: GenerateContentDto,
   ) {
@@ -49,35 +52,42 @@ export class AiAssistantController {
     }
 
     try {
+      // Schema defines userId as Int, ensure we pass a number
+      const userId = Number(req.user.id);
+      
       const result = await this.aiAssistantService.analyzeAndGenerate(
+        userId,
         generateContentDto,
         files,
       );
       
-      // The service will return a structured JSON response containing recommendations
       return { success: true, data: this.parseAiResponse(result) };
     } catch (error: any) {
       throw new BadRequestException(`AI Error: ${error.message}`);
     }
   }
-  @Post('chat')
-@UseInterceptors(FilesInterceptor('media'))
-async chatWithAi(
-  @UploadedFiles() files: Express.Multer.File[],
-  @Body() chatAiDto: ChatAiDto,
-) {
-  try {
-    const result = await this.aiAssistantService.chatWithAnalysis(
-      chatAiDto,
-      files,
-    );
 
-    return {
-      success: true,
-      data: this.parseAiResponse(result),
-    };
-  } catch (error: any) {
-    throw new BadRequestException(`AI Error: ${error.message}`);
+  @Post('chat')
+  @UseInterceptors(FilesInterceptor('media', 10))
+  async chatWithAi(
+    @Req() req: any,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() chatAiDto: ChatAiDto,
+  ) {
+    try {
+      const userId = Number(req.user.id);
+      const result = await this.aiAssistantService.chatWithAnalysis(
+        userId,
+        chatAiDto,
+        files,
+      );
+
+      return {
+        success: true,
+        data: this.parseAiResponse(result),
+      };
+    } catch (error: any) {
+      throw new BadRequestException(`AI Error: ${error.message}`);
+    }
   }
-}
 }

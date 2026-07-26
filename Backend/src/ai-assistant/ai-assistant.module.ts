@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config'; // Import ConfigModule and ConfigService
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
+import { PrismaModule } from '../prisma/prisma.module'; // Ensure Prisma is imported
 
 @Module({
-  imports: [ConfigModule], // Make sure ConfigModule is imported
+  imports: [PrismaModule],
   controllers: [AiAssistantController],
-  providers: [AiAssistantService, ConfigService], // Add ConfigService to providers
+  providers: [AiAssistantService],
 })
 export class AiAssistantModule {}
