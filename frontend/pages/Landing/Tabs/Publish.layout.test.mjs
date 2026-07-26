@@ -10,7 +10,7 @@ const publishSource = await readFile(
 test("keeps the editor and platform settings in separate layout regions", () => {
   assert.match(
     publishSource,
-    /className=\{styles\.editorSlot\}[\s\S]*?<LazyContentEditor/
+    /<section className=\{styles\.composerPane\}[\s\S]*?<LazyContentEditor/
   );
   assert.match(
     publishSource,

@@ -413,7 +413,12 @@ export default function Publish() {
   }, [files, platformState.facebookPostType, platformState.instagramPostType]);
 
   const channelSelectorDisabledChannels = useMemo(
-    () => getSelectableDisabledChannels(disabledChannels, selectedChannels) as Set<Channel>,
+    () =>
+      new Set(
+        Array.from(disabledChannels).filter(
+          (channel) => !selectedChannels.has(channel)
+        )
+      ),
     [disabledChannels, selectedChannels]
   );
 
