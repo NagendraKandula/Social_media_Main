@@ -1,15 +1,9 @@
+// dto/create-post.dto.ts
 import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContentMetadata } from '../interfaces/content-metadata.interface';
+import { Platform, MediaType } from '@prisma/client'; // ✅ Import Prisma Enums
 
-export enum MediaTypeDto {
-  IMAGE = 'IMAGE',
-  VIDEO = 'VIDEO',
-  REEL = 'REEL',
-  STORY = 'STORY',
-}
-
-// ✅ 1. Create a DTO for individual media items
 export class MediaItemDto {
   @IsString()
   mediaUrl!: string;
@@ -20,8 +14,8 @@ export class MediaItemDto {
   @IsString()
   mimeType!: string;
 
-  @IsEnum(MediaTypeDto)
-  mediaType!: MediaTypeDto;
+  @IsEnum(MediaType) // ✅ Use Prisma MediaType
+  mediaType!: MediaType;
 
   @IsNumber()
   @IsOptional()
@@ -33,9 +27,6 @@ export class CreatePostDto {
   @IsOptional()
   content?: string;
 
-  // ❌ REMOVE OLD MEDIA FIELDS: mediaUrl, storagePath, mimeType, mediaType
-
-  // ✅ 2. Replace with an Array of Media Items
   @IsArray()
   @IsOptional()
   @ValidateNested({ each: true })
@@ -43,7 +34,8 @@ export class CreatePostDto {
   mediaItems?: MediaItemDto[];
 
   @IsArray()
-  platforms?: string[];
+  @IsEnum(Platform, { each: true, message: 'Invalid platform provided' }) // ✅ Validate Platforms
+  platforms?: Platform[];
 
   @IsBoolean()
   @IsOptional()

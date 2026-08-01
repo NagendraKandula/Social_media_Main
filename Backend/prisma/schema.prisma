@@ -1,29 +1,27 @@
-// Backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // or your provider
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id             Int             @id @default(autoincrement())
-  fullName       String
-  email          String          @unique
-  password       String
-  createdAt      DateTime        @default(now())
-  otpHash               String?   // Hashed OTP storage
-  otpExpiry             DateTime? // When the OTP itself expires
-  otpRequestCount       Int       @default(0) // Requests within the window
-  otpRequestWindowStart DateTime? // Tracks the 15-minute block
-  lastOtpSentAt         DateTime? // Tracks the 60-second cooldown
-  refreshTokens  RefreshToken[]
-  socialAccounts SocialAccount[]
-  posts          Post[]
-  media          Media[]
+  id                    Int             @id @default(autoincrement())
+  fullName              String
+  email                 String          @unique
+  password              String
+  createdAt             DateTime        @default(now())
+  otpExpiry             DateTime?
+  lastOtpSentAt         DateTime?
+  otpHash               String?
+  otpRequestCount       Int             @default(0)
+  otpRequestWindowStart DateTime?
+  media                 Media[]
+  posts                 Post[]
+  refreshTokens         RefreshToken[]
+  socialAccounts        SocialAccount[]
 }
 
 model RefreshToken {
@@ -32,106 +30,141 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-  user      User     @relation(fields: [userId], references: [id])
   userId    Int
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model SocialAccount {
-  id           Int       @id @default(autoincrement())
-  provider     String    // e.g. "twitter", "facebook", "threads"
-  providerId   String    // user ID from provider
-  accessToken  String
-  refreshToken String?
-  expiresAt    DateTime?
-  platformUsername String?  // Stores @username or channel ID
-  platformName     String?  // Stores Display Name (e.g. "John Doe")
-  profilePic       String?  // Stores URL to the profile image
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id               Int       @id @default(autoincrement())
+  provider         String
+  providerId       String
+  accessToken      String
+  refreshToken     String?
+  expiresAt        DateTime?
+  platformUsername String?
+  platformName     String?
+  profilePic       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  userId           Int
+  user             User      @relation(fields: [userId], references: [id])
 
-  user   User @relation(fields: [userId], references: [id])
-  userId Int
-
-  // ✅ CONSTRAINT 1: Prevent Account Theft
-  // No two users can claim the same external social account
   @@unique([provider, providerId])
-
-  // ✅ CONSTRAINT 2: Prevent Duplicates
-  // A single user cannot link the same platform twice
   @@unique([userId, provider])
 }
+
 model Post {
-  id              Int       @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   userId          Int
-  content         String?   // Basic text fallback
-  
-  // ✅ 1. FUTURE-PROOF METADATA (JSON)
-  contentMetadata Json?     
-
-  // Scheduling
-  isScheduled     Boolean   @default(false)
+  content         String?
+  contentMetadata Json?
+  isScheduled     Boolean        @default(false)
   scheduledAt     DateTime?
-  status          PostStatus @default(DRAFT)
-
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
+  status          PostStatus     @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   user            User           @relation(fields: [userId], references: [id])
-  platforms       PostPlatform[]
-  // ✅ ADD TO Post MODEL
   mediaItems      PostMedia[]
+  platforms       PostPlatform[]
 }
-// ✅ NEW TABLE
+
 model PostMedia {
-  id        Int      @id @default(autoincrement())
-  postId    Int
-  mediaId   Int
-  position  Int      // Keeps track of Carousel/Album order (0, 1, 2...)
+  id       Int   @id @default(autoincrement())
+  postId   Int
+  mediaId  Int
+  position Int
+  media    Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  post     Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, mediaId]) // Prevent duplicate linking
+  @@unique([postId, mediaId])
 }
+
 model PostPlatform {
-  id           Int        @id @default(autoincrement())
-  postId       Int
-  platform     String     // "facebook", "linkedin", "twitter"
-  
-  status       PostStatus @default(PENDING) 
-  externalId   String?    // ID from the social network
+  id Int @id @default(autoincrement())
+
+  postId Int
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  platform Platform
+
+  editId Int?
+  edit   MediaEdit? @relation(fields: [editId], references: [id])
+
+  status PostStatus @default(PENDING)
+
+  externalId   String?
   errorMessage String?
 
-  post         Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  retryCount  Int       @default(0)
+  publishedAt DateTime?
 }
 
-// ✅ 3. THE MISSING MEDIA TABLE
 model Media {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   userId      Int
-  
-  fileUrl     String   // The Public URL (e.g. storage.googleapis.com/...)
-  storagePath String   // The GCS internal path (for deletion)
-  mimeType    String   // image/jpeg, video/mp4
-  type        MediaType // IMAGE, VIDEO, REEL
-  
-  createdAt   DateTime @default(now())
-  
- posts       PostMedia[] 
-  user        User     @relation(fields: [userId], references: [id])
+  fileUrl     String
+  storagePath String
+  mimeType    String
+  type        MediaType
+  createdAt   DateTime    @default(now())
+  user        User        @relation(fields: [userId], references: [id])
+  posts       PostMedia[]
+  edits       MediaEdit[]
+}
 
+model MediaEdit {
+  id Int @id @default(autoincrement())
+
+  mediaId Int
+  media   Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  preset String // "1:1", "4:5", "16:9", "CUSTOM"
+
+  cropX      Float
+  cropY      Float
+  cropWidth  Float
+  cropHeight Float
+
+  version Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  variants  MediaVariant[]
+  platforms PostPlatform[]
+
+  @@index([mediaId])
+}
+
+model MediaVariant {
+  id Int @id @default(autoincrement())
+
+  editId Int
+  edit   MediaEdit @relation(fields: [editId], references: [id], onDelete: Cascade)
+
+  storagePath String
+  fileUrl     String
+
+  status VariantStatus @default(PENDING)
+
+  version Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([editId, version])
 }
 
 enum PostStatus {
   DRAFT
   PENDING
   SCHEDULED
-  PUBLISHING
   PUBLISHED
   FAILED
   PARTIAL
-  QUEUED
   DISPATCHING
+  QUEUED
+  PUBLISHING
 }
 
 enum MediaType {
@@ -139,4 +172,27 @@ enum MediaType {
   VIDEO
   REEL
   STORY
+}
+
+enum MediaStatus {
+  UPLOADED
+  DELETED
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  LINKEDIN
+  TWITTER
+  THREADS
+  YOUTUBE
+  PINTEREST
+  TIKTOK
+}
+
+enum VariantStatus {
+  PENDING
+  RENDERING
+  READY
+  FAILED
 }

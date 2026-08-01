@@ -1,10 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException,BadRequestException } from '@nestjs/common';
+import { 
+  Injectable, 
+  NotFoundException, 
+  ForbiddenException, 
+  BadRequestException 
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { StorageService } from '../storage/storage.service';
-import { PostStatus } from '@prisma/client';
+import { PostStatus, Platform,MediaType } from '@prisma/client';
 import { UpdatePostDto } from './dto/update-post.dto';
 
 const FACEBOOK_MAX_IMAGE_SIZE_BYTES = 10_000_000;
@@ -39,29 +44,35 @@ export class PostingService {
     const { 
       content, 
       mediaItems = [], 
-      platforms = [], // ✅ FIX 2: Default to empty array to prevent undefined error
+      platforms = [], 
       scheduledAt, 
       contentMetadata 
     } = dto;
+
+    // Normalize incoming platforms to uppercase Platform Enum
+    const normalizedPlatforms: Platform[] = platforms.map(
+      (p) => (typeof p === 'string' ? p.toUpperCase() : p) as Platform,
+    );
+
     const totalMedia = mediaItems.length;
     
-    // Count videos (including Reels/Stories which are technically video files)
+    // Count videos
     const videoCount = mediaItems.filter(m => 
-        m.mediaType === 'VIDEO' || m.mediaType === 'REEL' || m.mediaType === 'STORY' || (m.mimeType && m.mimeType.startsWith('video/'))
+        m.mediaType === MediaType.VIDEO || m.mediaType === MediaType.REEL || m.mediaType === MediaType.STORY || (m.mimeType && m.mimeType.startsWith('video/'))
     ).length;
     
     const imageCount = totalMedia - videoCount;
     const isMixedMedia = videoCount > 0 && imageCount > 0;
 
-    if (platforms.includes('threads') && (content || '').length > THREADS_MAX_TEXT_LENGTH) {
+    if (normalizedPlatforms.includes(Platform.THREADS) && (content || '').length > THREADS_MAX_TEXT_LENGTH) {
       throw new BadRequestException('Threads text posts are limited to 500 characters.');
     }
 
     if (totalMedia > 0) {
-      for (const platform of platforms) {
+      for (const platform of normalizedPlatforms) {
         switch (platform) {
           
-          case 'youtube':
+          case Platform.YOUTUBE:
             if (imageCount > 0) {
               throw new BadRequestException('YouTube does not support images. Please upload only 1 video.');
             }
@@ -70,7 +81,7 @@ export class PostingService {
             }
             break;
 
-          case 'facebook':
+          case Platform.FACEBOOK:
             const fbPostType = (contentMetadata as any)?.platformOverrides?.facebook?.postType || 'feed';
 
             if (fbPostType === 'feed') {
@@ -124,7 +135,7 @@ export class PostingService {
             }
             break;
 
-          case 'linkedin':
+          case Platform.LINKEDIN:
             if (isMixedMedia) {
               throw new BadRequestException('LinkedIn does not support mixing images and videos in a single gallery.');
             }
@@ -156,12 +167,10 @@ export class PostingService {
             }
             break;
 
-          case 'twitter':
+          case Platform.TWITTER:
             if (totalMedia > 4) {
               throw new BadRequestException('Twitter restricts posts to a maximum of 4 media items.');
             }
-            // Note on Twitter API: While the UI sometimes makes it look like you can mix, 
-            // the actual Twitter API v2 strictly forbids attaching a video and an image to the same Tweet ID.
             if (isMixedMedia) {
               throw new BadRequestException('Twitter API does not allow mixing images and videos in the same tweet.');
             }
@@ -170,7 +179,7 @@ export class PostingService {
             }
             break;
 
-          case 'instagram':
+          case Platform.INSTAGRAM:
             const igPostType =
               (contentMetadata as any)?.platformOverrides?.instagram?.postType?.toLowerCase() || 'post';
 
@@ -192,7 +201,7 @@ export class PostingService {
             }
             break;
             
-          case 'threads':
+          case Platform.THREADS:
             if ((content || '').length > THREADS_MAX_TEXT_LENGTH) {
               throw new BadRequestException('Threads text posts are limited to 500 characters.');
             }
@@ -218,34 +227,27 @@ export class PostingService {
                 }
               }
             }
-             break;
+            break;
         }
       }
     }
     const isScheduled = !!scheduledAt;
 
-    // ✅ FIX 1: Removed the old standalone `this.prisma.media.create` block!
-    
-    // It was leftover code trying to use the old `mediaUrl` variables.
-    // The nested `mediaItems: { create: ... }` block below handles this perfectly now.
-
-
-    // 2. Create Post Linked to Media
+    // Create Post Linked to Media and Platforms
     const post = await this.prisma.post.create({
       data: {
         userId,
         content,
         isScheduled,
         scheduledAt: isScheduled ? new Date(scheduledAt) : null,
-        status: isScheduled ? 'SCHEDULED' : 'PENDING',
+        status: isScheduled ? PostStatus.SCHEDULED : PostStatus.PENDING,
         contentMetadata: contentMetadata as any, 
         platforms: {
-          create: platforms.map((p) => ({ platform: p, status: 'PENDING' })),
+          create: normalizedPlatforms.map((p) => ({ platform: p, status: PostStatus.PENDING })),
         },
-        // Link multiple media items
         mediaItems: {
           create: mediaItems.map((item, index) => ({
-            position: index, // Keeps image order intact
+            position: index,
             media: {
               create: {
                 userId,
@@ -262,7 +264,7 @@ export class PostingService {
     });
 
     if (!isScheduled) {
-        await this.postingQueue.add('publish-post', { postId: post.id });
+      await this.postingQueue.add('publish-post', { postId: post.id });
     }
 
     return post;
@@ -277,11 +279,10 @@ export class PostingService {
     const endOfWeek = new Date(startOfWeek);
     endOfWeek.setDate(startOfWeek.getDate() + 7);
 
-    // 1. Fetch posts from Prisma
     const posts = await this.prisma.post.findMany({
       where: {
         userId,
-        status: { in: ['SCHEDULED', 'PUBLISHING', 'PUBLISHED', 'PARTIAL', 'PENDING', 'FAILED'] },
+        status: { in: [PostStatus.SCHEDULED, PostStatus.PUBLISHING, PostStatus.PUBLISHED, PostStatus.PARTIAL, PostStatus.PENDING, PostStatus.FAILED] },
         OR: [
           { scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
           { scheduledAt: null, createdAt: { gte: startOfWeek, lt: endOfWeek } }
@@ -296,10 +297,8 @@ export class PostingService {
       }, 
     });
 
-    // 2. Format response asynchronously to generate Secure Signed URLs
     const formattedPosts = await Promise.all(
       posts.map(async (post) => {
-        // ✅ FIX 3: Bypass the 'never' array error while Prisma Client updates
         const postMediaItems = (post as any).mediaItems || [];
 
         const secureMediaItems = await Promise.all(
@@ -359,12 +358,11 @@ export class PostingService {
     };
   }
 
-  // 2. Reschedule a Post (Drag & Drop)
   async reschedulePost(userId: number, postId: number, newScheduledAt: string) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-      if (post.status === 'PUBLISHED') {
+    if (post.status === PostStatus.PUBLISHED) {
        throw new ForbiddenException('Cannot reschedule a post that is already published.');
     }
     return this.prisma.post.update({
@@ -373,36 +371,34 @@ export class PostingService {
     });
   }
 
-  // 3. Update Post Content, Platform & Image (Edit Modal)
   async updatePost(userId: number, postId: number, data: UpdatePostDto) { 
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-    if (post.status === 'PUBLISHED' || post.status === 'FAILED') {
+    if (post.status === PostStatus.PUBLISHED || post.status === PostStatus.FAILED) {
        throw new ForbiddenException(`Cannot edit a post that is already ${post.status.toLowerCase()}.`);
     }
 
     let mediaUpdate = {};
     
-    // ✅ Adapted safely for the new schema
     if (data.mediaItems !== undefined) {
-      // 1. Always wipe out the old media links if the frontend sends a media state
       await this.prisma.postMedia.deleteMany({
         where: { postId: postId }
       });
-   if (data.mediaItems.length > 0) {
-      mediaUpdate = {
-        mediaItems: {
-          create: data.mediaItems.map((item: any, index: number) => ({
-            position: index,
-            media: {
-              create: {
-                userId,
-                fileUrl: item.mediaUrl,
-                storagePath: item.storagePath,
-                mimeType: item.mimeType,
-                type: item.mediaType || (item.mimeType?.startsWith("video/") ? "VIDEO" : "IMAGE"),
-             }
+
+      if (data.mediaItems.length > 0) {
+        mediaUpdate = {
+          mediaItems: {
+            create: data.mediaItems.map((item: any, index: number) => ({
+              position: index,
+              media: {
+                create: {
+                  userId,
+                  fileUrl: item.mediaUrl,
+                  storagePath: item.storagePath,
+                  mimeType: item.mimeType,
+                  type: item.mediaType || (item.mimeType?.startsWith('video/') ? MediaType.VIDEO : MediaType.IMAGE),
+                }
               }
             }))
           }
@@ -421,14 +417,19 @@ export class PostingService {
     });
 
     if (data.platforms && Array.isArray(data.platforms)) {
+      const normalizedUpdatePlatforms: Platform[] = data.platforms.map(
+        (p: string) => p.toUpperCase() as Platform,
+      );
+
       await this.prisma.postPlatform.deleteMany({
         where: { postId: postId },
       });
+
       await this.prisma.postPlatform.createMany({
-        data: data.platforms.map((platform: string) => ({
+        data: normalizedUpdatePlatforms.map((platform) => ({
           postId: postId,
           platform: platform,
-          status: 'PENDING',
+          status: PostStatus.PENDING,
         })),
       });
     }
@@ -436,16 +437,15 @@ export class PostingService {
     return updatedPost;
   }
 
-  // 4. Delete/Cancel a Scheduled Post
   async deletePost(userId: number, postId: number) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });
     if (!post) throw new NotFoundException('Post not found');
     if (post.userId !== userId) throw new ForbiddenException('Access denied');
-    if (post.status === 'PUBLISHED') {
+    if (post.status === PostStatus.PUBLISHED) {
       throw new ForbiddenException(
         'Cannot delete a post that is already published.'
       );
-  }
+    }
     return this.prisma.post.delete({
       where: { id: postId },
     });
