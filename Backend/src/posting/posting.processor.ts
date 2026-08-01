@@ -9,6 +9,7 @@ import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.ser
 import { YoutubeService } from '../social_media_platforms/youtube/youtube.service';
 import { ThreadsService } from '../social_media_platforms/threads/threads.service';
 import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
+import { Platform, PostStatus, MediaType } from '@prisma/client';
 
 @Processor('social-posting')
 export class PostingProcessor {
@@ -96,7 +97,7 @@ export class PostingProcessor {
     let hasFailures = false;
 
     for (const platformEntry of post.platforms) {
-      if (platformEntry.status === 'PUBLISHED') continue;
+      if (platformEntry.status === PostStatus.PUBLISHED) continue;
 
       try {
         const contentText =
@@ -106,7 +107,7 @@ export class PostingProcessor {
         let externalId = '';
         this.logger.log(`📤 Posting to ${platformEntry.platform}...`);
 
-        if (platformEntry.platform === 'facebook') {
+        if (platformEntry.platform === Platform.FACEBOOK) {
             if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
             const pageId = (post.contentMetadata as any)?.platformOverrides?.facebook?.pageId;
             if (!pageId) throw new Error('Facebook Page ID missing');
@@ -125,7 +126,7 @@ export class PostingProcessor {
             
             externalId = result.postId || 'fb_id';
         }
-       else if (platformEntry.platform === 'instagram') {
+       else if (platformEntry.platform === Platform.INSTAGRAM) {
             if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
             const account = await this.getAccount(post.userId, 'instagram');
             const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
@@ -139,9 +140,13 @@ export class PostingProcessor {
                 } else if (userPostType === 'reel') {
                     apiMediaType = 'REELS';
                 } else {
-                    if (mediaList[0].type === 'VIDEO') {
-                        apiMediaType = 'REELS';
-                    } else {
+                    if (
+            mediaList[0].type === MediaType.VIDEO || 
+            mediaList[0].type === MediaType.REEL || 
+            mediaList[0].type === MediaType.STORY
+        ) {
+            apiMediaType = 'REELS';
+        } else {
                         apiMediaType = 'IMAGE';
                     }
                 }
@@ -165,7 +170,7 @@ export class PostingProcessor {
                  externalId = result.id || 'insta_carousel_id';
             }
         }
-        else if (platformEntry.platform === 'linkedin') {
+        else if (platformEntry.platform === Platform.LINKEDIN) {
             const account = await this.getAccount(post.userId, 'linkedin');
             
             const linkedInMedia = mediaList.length > 0 
@@ -177,13 +182,13 @@ export class PostingProcessor {
             );
             externalId = result?.postId || 'linkedin_id';
         } 
-       else if (platformEntry.platform === 'threads') {
+       else if (platformEntry.platform === Platform.THREADS) {
             const account = await this.getAccount(post.userId, 'threads');
             
             const threadsMedia = mediaList.length > 0 
               ? mediaList.map((m: any) => ({ 
                   url: m.url, 
-                 type: ((m.type === 'VIDEO' || m.type === 'REEL') ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' }))
+                 type: ((m.type === MediaType.VIDEO || m.type === MediaType.REEL) ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' }))
               : undefined;
 
             const result = await this.threadsService.postToThreads(
@@ -192,17 +197,17 @@ export class PostingProcessor {
             externalId = result.postId || 'threads_id';
         }
         
-        else if (platformEntry.platform === 'youtube') {
-           if (mediaList.length === 0 || mediaList[0].type === 'IMAGE') {
+        else if (platformEntry.platform === Platform.YOUTUBE) {
+           if (mediaList.length === 0 || mediaList[0].type === MediaType.IMAGE) {
               throw new Error('Video file is required for YouTube');
             }
             const title = (post.contentMetadata as any)?.title || 'New Video';
             const result = await this.youtubeService.uploadVideoToYoutube(
-                post.userId, title, contentText, mediaList[0].type === 'REEL' ? 'SHORTS' : 'VIDEO', mediaList[0].url
+                post.userId, title, contentText, mediaList[0].type === MediaType.REEL ? 'SHORTS' : 'VIDEO', mediaList[0].url
             );
             externalId = result.videoId ?? 'unknown_id';
         }
-        else if (platformEntry.platform === 'twitter') {
+        else if (platformEntry.platform === Platform.TWITTER) {
             const account = await this.getAccount(post.userId, 'twitter');
             this.logger.log(`🐦 Posting to Twitter...`);
 
@@ -218,7 +223,7 @@ export class PostingProcessor {
         
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },
-          data: { status: 'PUBLISHED', externalId: externalId },
+          data: { status: PostStatus.PUBLISHED, externalId: externalId },
         });
 
       } catch (error: any) { // ✅ Fixed catch variable type
@@ -228,7 +233,7 @@ export class PostingProcessor {
 
         await this.prisma.postPlatform.update({
             where: { id: platformEntry.id },
-            data: { status: 'FAILED', errorMessage: detailedError }, 
+            data: { status: PostStatus.FAILED, errorMessage: detailedError }, 
         });
 
         hasFailures = true;
@@ -253,13 +258,13 @@ export class PostingProcessor {
         return;
     }
 
-    const allSuccess = updatedPost.platforms.every(p => p.status === 'PUBLISHED');
-    const anyFailed = updatedPost.platforms.some(p => p.status === 'FAILED');
+    const allSuccess = updatedPost.platforms.every(p => p.status === PostStatus.PUBLISHED);
+const allFailed = updatedPost.platforms.every(p => p.status === PostStatus.FAILED); // Changed this line
 
-    await this.prisma.post.update({
-      where: { id: postId },
-      data: { status: allSuccess ? 'PUBLISHED' : (anyFailed ? 'PARTIAL' : 'PUBLISHED') },
-    });
+await this.prisma.post.update({
+  where: { id: postId },
+  data: { status: allSuccess ? PostStatus.PUBLISHED : (allFailed ? PostStatus.FAILED : PostStatus.PARTIAL) }, // And this line
+});
 
     // ✅ FIX 5: Cast to any[] to fix the 'length' and Iterator errors on 'never' type
     const updatedMediaItems = (updatedPost as any).mediaItems || [];

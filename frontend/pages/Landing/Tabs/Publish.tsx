@@ -826,7 +826,7 @@ const handleSubmit = async (isScheduled: boolean) => {
       const payload = {
         content,
         mediaItems: uploadedMediaItems, 
-        platforms: selectedChannelList,
+        platforms: selectedChannelList.map(channel => channel.toUpperCase()),
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         contentMetadata: {
           text: content,
