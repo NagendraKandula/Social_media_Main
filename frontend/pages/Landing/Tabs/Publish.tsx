@@ -16,9 +16,10 @@ import { useAppDispatch } from '../../../store/hooks';
 import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
 import {
   getChannelContent,
-  getNextChannel,
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
+import { PLATFORM_IMAGE_LAYOUTS } from '../../../config/platformLayouts';
+import { getApplicableLayouts } from '../../../utils/imageLayoutCheck.mjs';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -139,7 +140,7 @@ export default function Publish() {
 
   const [content, setContent] = useState('');
   const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
-  const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
+  const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | 'all' | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
@@ -168,12 +169,16 @@ export default function Publish() {
   };
   const handleApplyCaption = (aiCaption: string) => {
     // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
-    handleChannelContentChange(content ? `${content}<br/><br/>${aiCaption}` : aiCaption);
+    handleChannelContentChange(
+      activeEditorContent ? `${activeEditorContent}<br/><br/>${aiCaption}` : aiCaption
+    );
   };
 
   const handleApplyHashtags = (aiHashtags: string[]) => {
     const tagsString = aiHashtags.join(' ');
-    handleChannelContentChange(content ? `${content}<br/><br/>${tagsString}` : tagsString);
+    handleChannelContentChange(
+      activeEditorContent ? `${activeEditorContent}<br/><br/>${tagsString}` : tagsString
+    );
   };
 
   const handleAutoSelectPlatforms = (platforms: PlatformRecommendation[]) => {
@@ -252,18 +257,32 @@ export default function Publish() {
       return;
     }
 
-    if (!activeEditorChannel || !selectedChannels.has(activeEditorChannel)) {
-      const nextActiveChannel = selectedChannelList[0];
-      setActiveEditorChannel(nextActiveChannel);
-      setContent(getChannelContent(nextActiveChannel, nextContents, content));
+    // Default to the shared "All" tab. Only fall back to it when the
+    // previously active tab is no longer valid (nothing selected yet, or a
+    // per-channel tab whose channel was just deselected).
+    if (
+      !activeEditorChannel ||
+      (activeEditorChannel !== 'all' && !selectedChannels.has(activeEditorChannel))
+    ) {
+      setActiveEditorChannel('all');
     }
     // Selection changes are the only event that should reconcile channel editors.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannelList]);
 
+  // What the editor is currently showing: the shared "All" text, or a
+  // specific channel's tailored override (falling back to the shared text
+  // until that channel has been edited on its own).
+  const activeEditorContent =
+    !activeEditorChannel || activeEditorChannel === 'all'
+      ? content
+      : getChannelContent(activeEditorChannel, channelContents, content);
+
   const handleChannelContentChange = (value: string) => {
-    setContent(value);
-    if (!activeEditorChannel) return;
+    if (!activeEditorChannel || activeEditorChannel === 'all') {
+      setContent(value);
+      return;
+    }
 
     setChannelContents((previousContents) => ({
       ...previousContents,
@@ -275,16 +294,8 @@ export default function Publish() {
     (channel) => Boolean((channelContents[channel] ?? content).trim())
   );
 
-  const navigateEditorChannel = (direction: -1 | 1) => {
-    const nextChannel = getNextChannel(
-      selectedChannelList,
-      activeEditorChannel,
-      direction
-    ) as Channel | null;
-
-    if (!nextChannel) return;
-    setActiveEditorChannel(nextChannel);
-    setContent(getChannelContent(nextChannel, channelContents, content));
+  const handleChannelTabChange = (tabId: string) => {
+    setActiveEditorChannel(tabId === 'all' ? 'all' : (tabId as Channel));
   };
 
   const selectedFacebookPage = useMemo(
@@ -357,8 +368,33 @@ export default function Publish() {
   };
 
   const effectiveRules = useMemo(
-    () => resolveEditorRules(activeEditorChannel ? [activeEditorChannel] : selectedChannelList),
+    () =>
+      resolveEditorRules(
+        activeEditorChannel && activeEditorChannel !== 'all'
+          ? [activeEditorChannel]
+          : selectedChannelList
+      ),
     [activeEditorChannel, selectedChannelList]
+  );
+
+  // Layouts (aspect ratios) relevant to the current selection, used by the
+  // Image Editing panel to flag images that will get cropped awkwardly.
+  const imageLayouts = useMemo(
+    () =>
+      getApplicableLayouts(PLATFORM_IMAGE_LAYOUTS, selectedChannelList, {
+        instagram: platformState.instagramPostType,
+        facebook: platformState.facebookPostType,
+        youtube: platformState.youtubeType,
+      }),
+    [selectedChannelList, platformState.instagramPostType, platformState.facebookPostType, platformState.youtubeType]
+  );
+
+  const channelTabs = useMemo(
+    () => [
+      { id: 'all', label: 'All' },
+      ...selectedChannelList.map((channel) => ({ id: channel, label: CHANNEL_LABELS[channel] || channel })),
+    ],
+    [selectedChannelList]
   );
 
   const disabledChannels = useMemo(() => {
@@ -1013,21 +1049,24 @@ const handleSubmit = async (isScheduled: boolean) => {
         <section className={styles.composerPane} aria-label="Post composer">
           <div className={styles.editorSlot}>
             <LazyContentEditor
-              content={content}
+              content={activeEditorContent}
               onContentChange={handleChannelContentChange}
               files={files}
               onFilesChange={setFiles}
               effectiveRules={effectiveRules}
               validation={{}}
-              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+              selectedChannels={
+                activeEditorChannel && activeEditorChannel !== 'all'
+                  ? [activeEditorChannel]
+                  : selectedChannelList
+              }
               validateFilesForSelectedChannels={validateFilesForSelectedChannels}
               size="publish"
               aiRecommendations={aiRecommendations}
-              activeChannelLabel={activeEditorChannel ? CHANNEL_LABELS[activeEditorChannel] : undefined}
-              activeChannelIndex={Math.max(0, selectedChannelList.indexOf(activeEditorChannel as Channel))}
-              totalChannels={selectedChannelList.length}
-              onPreviousChannel={() => navigateEditorChannel(-1)}
-              onNextChannel={() => navigateEditorChannel(1)}
+              channelTabs={channelTabs}
+              activeChannelTabId={activeEditorChannel || 'all'}
+              onChannelTabChange={handleChannelTabChange}
+              imageLayouts={imageLayouts}
             />
           </div>
 

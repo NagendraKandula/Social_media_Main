@@ -1,11 +1,16 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, ChevronDown, ChevronUp, Check, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
 import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
+import { ImageLayoutSpec } from "../config/platformLayouts";
+import {
+  evaluateImageLayouts,
+  summarizeLayoutStatuses,
+} from "../utils/imageLayoutCheck.mjs";
 import {
   areDimensionOnlyErrors,
   getCropOutputFormat,
@@ -38,7 +43,25 @@ const CROP_RATIOS = [
     outputWidth: 1200,
     outputHeight: 627,
   },
+  {
+    label: "Story",
+    sizeLabel: "9:16",
+    value: 9 / 16,
+    outputWidth: 1080,
+    outputHeight: 1920,
+  },
 ];
+
+// Turns a platform layout spec (from the Image Editing panel) into the same
+// shape CROP_RATIOS uses, so "Edit crop" can preselect the right ratio even
+// if it isn't one of the three defaults above.
+const cropRatioFromLayout = (layout: ImageLayoutSpec) => ({
+  label: layout.label,
+  sizeLabel: layout.sizeLabel,
+  value: layout.ratio,
+  outputWidth: layout.outputWidth,
+  outputHeight: layout.outputHeight,
+});
 
 const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
   facebook: "Facebook",
@@ -64,11 +87,13 @@ export interface ContentEditorProps {
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
-  activeChannelLabel?: string;
-  activeChannelIndex?: number;
-  totalChannels?: number;
-  onPreviousChannel?: () => void;
-  onNextChannel?: () => void;
+  // Per-channel content editor tabs ("All" + one tab per selected channel).
+  channelTabs?: { id: string; label: string }[];
+  activeChannelTabId?: string;
+  onChannelTabChange?: (id: string) => void;
+  // Image Editing panel: which layouts apply to the current selection, so we
+  // can flag images that will get cropped awkwardly before the user publishes.
+  imageLayouts?: ImageLayoutSpec[];
 }
 
 export default function ContentEditor({
@@ -83,11 +108,10 @@ export default function ContentEditor({
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
-  activeChannelLabel,
-  activeChannelIndex = 0,
-  totalChannels = 0,
-  onPreviousChannel,
-  onNextChannel,
+  channelTabs = [],
+  activeChannelTabId,
+  onChannelTabChange,
+  imageLayouts = [],
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
@@ -106,6 +130,8 @@ export default function ContentEditor({
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<Record<number, { width: number; height: number }>>({});
+  const [isImageEditingOpen, setIsImageEditingOpen] = useState(true);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cropPreviewRef = useRef<HTMLDivElement>(null);
@@ -269,9 +295,43 @@ export default function ContentEditor({
   const cropTargetPreview =
     cropTargetIndex !== null ? filePreviews[cropTargetIndex] : undefined;
 
-  const openCrop = (index: number) => {
+  useEffect(() => {
+    let isCancelled = false;
+    setImageDimensions({});
+
+    filePreviews.forEach((preview, index) => {
+      if (!preview.isImage || !preview.url) return;
+
+      const image = new Image();
+      image.onload = () => {
+        if (isCancelled) return;
+        setImageDimensions((previous) => ({
+          ...previous,
+          [index]: { width: image.naturalWidth, height: image.naturalHeight },
+        }));
+      };
+      image.src = preview.url;
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filePreviews.map((preview) => preview.url).join("|")]);
+
+  const primaryImageIndex = filePreviews.findIndex((preview) => preview.isImage);
+  const primaryImageDimensions =
+    primaryImageIndex >= 0 ? imageDimensions[primaryImageIndex] : undefined;
+
+  const layoutEvaluations = useMemo(
+    () => evaluateImageLayouts(primaryImageDimensions, imageLayouts),
+    [primaryImageDimensions, imageLayouts]
+  );
+  const layoutSummary = summarizeLayoutStatuses(layoutEvaluations);
+
+  const openCrop = (index: number, presetRatio?: typeof CROP_RATIOS[number]) => {
     setCropTargetIndex(index);
-    setCropRatio(CROP_RATIOS[0]);
+    setCropRatio(presetRatio || CROP_RATIOS[0]);
     setCropZoom(1);
     setCropX(50);
     setCropY(50);
@@ -473,6 +533,25 @@ export default function ContentEditor({
       className={`${styles.editorCard} ${size === "publish" ? styles.publishEditorCard : ""}`}
       style={{ opacity: isReadOnly ? 0.8 : 1 }}
     >
+      {/* Channel tabs: "All" plus one tab per selected channel */}
+      {channelTabs.length > 0 && (
+        <div className={styles.channelTabs} role="tablist" aria-label="Content editor per channel">
+          {channelTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeChannelTabId === tab.id}
+              className={`${styles.channelTab} ${activeChannelTabId === tab.id ? styles.channelTabActive : ""}`}
+              onClick={() => onChannelTabChange?.(tab.id)}
+              disabled={isReadOnly}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className={styles.toolbar} style={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.5 : 1 }}>
         <div className={styles.toolbarLeft}>
@@ -486,36 +565,6 @@ export default function ContentEditor({
             <Smile size={18} strokeWidth={2.4} />
           </button>
         </div>
-        {activeChannelLabel && (
-          <div className={styles.channelNavigator} aria-label="Channel content editor">
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onPreviousChannel}
-              disabled={isReadOnly || !onPreviousChannel || totalChannels <= 1}
-              aria-label="Previous channel content"
-              title="Previous channel"
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <span className={styles.channelContentLabel}>
-              {activeChannelLabel} content
-              {totalChannels > 1 && (
-                <small>{activeChannelIndex + 1} / {totalChannels}</small>
-              )}
-            </span>
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onNextChannel}
-              disabled={isReadOnly || !onNextChannel || totalChannels <= 1}
-              aria-label="Next channel content"
-              title="Next channel"
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          </div>
-        )}
         <div className={styles.toolbarMeta}>
           <span className={`${styles.charCount} ${overLimit ? styles.overLimit : ""}`}>
             {charCount}{maxLength ? ` / ${maxLength}` : ""} chars
@@ -736,6 +785,93 @@ export default function ContentEditor({
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {!isReadOnly && primaryImageDimensions && layoutEvaluations.length > 0 && (
+            <div className={styles.imageEditingPanel}>
+              <button
+                type="button"
+                className={styles.imageEditingHeader}
+                onClick={() => setIsImageEditingOpen((open) => !open)}
+                aria-expanded={isImageEditingOpen}
+              >
+                <span>Image Editing</span>
+                {isImageEditingOpen ? (
+                  <ChevronUp size={18} aria-hidden="true" />
+                ) : (
+                  <ChevronDown size={18} aria-hidden="true" />
+                )}
+              </button>
+
+              {isImageEditingOpen && (
+                <>
+                  {layoutSummary.needsAttention > 0 && (
+                    <div className={styles.imageEditingWarning} role="alert">
+                      <AlertTriangle size={16} aria-hidden="true" />
+                      <div>
+                        <strong>
+                          {layoutSummary.needsAttention} layout{layoutSummary.needsAttention === 1 ? "" : "s"} need
+                          {layoutSummary.needsAttention === 1 ? "s" : ""} your attention
+                        </strong>
+                        <p>Your image may get cropped or important parts may be hidden.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.layoutCardGrid}>
+                    {layoutEvaluations.map(({ layout, status }) => (
+                      <div key={layout.id} className={styles.layoutCard}>
+                        <div className={styles.layoutCardHeader}>
+                          <span>
+                            {layout.sizeLabel} · {layout.label}
+                          </span>
+                          {status === "good" ? (
+                            <span className={styles.layoutStatusGood}>
+                              <Check size={13} aria-hidden="true" />
+                              Looks good
+                            </span>
+                          ) : (
+                            <span className={styles.layoutStatusWarning}>
+                              <AlertTriangle size={13} aria-hidden="true" />
+                              Needs adjustment
+                            </span>
+                          )}
+                        </div>
+
+                        <div
+                          className={styles.layoutCardPreview}
+                          style={{ aspectRatio: `${layout.outputWidth} / ${layout.outputHeight}` }}
+                        >
+                          {filePreviews[primaryImageIndex]?.url && (
+                            <img src={filePreviews[primaryImageIndex].url} alt={`${layout.label} preview`} />
+                          )}
+                        </div>
+
+                        <p className={styles.layoutCardHint}>
+                          {status === "good"
+                            ? "Your image is optimized for this layout."
+                            : "The edges might get cropped."}
+                        </p>
+
+                        {status !== "good" && (
+                          <button
+                            type="button"
+                            className={styles.layoutCardEditButton}
+                            onClick={() => openCrop(primaryImageIndex, cropRatioFromLayout(layout))}
+                          >
+                            Edit crop
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className={styles.imageEditingTip}>
+                    Tip: Edit one layout and it will update for other platforms using the same aspect ratio.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
