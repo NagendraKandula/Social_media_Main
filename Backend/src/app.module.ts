@@ -44,6 +44,6 @@ import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook
     
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService],
+  providers: [AuthService],
 })
 export class AppModule {}

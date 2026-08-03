@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, Get, Query, Patch, Param, ParseIntPipe, Delete } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, Query, Patch, Param, ParseIntPipe, Delete, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { PostingService } from './posting.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { StorageService } from '../storage/storage.service'; 
@@ -8,79 +8,93 @@ import { MediaType } from '@prisma/client';
 
 @Controller('posting')
 export class PostingController {
+  private readonly logger = new Logger(PostingController.name);
+
   constructor(
     private readonly postingService: PostingService,
     private readonly storageService: StorageService
   ) {}
 
-  // 1. Get Pre-Signed URL for Upload
   @Get('presigned-url')
   @UseGuards(JwtAuthGuard)
   async getPresignedUrl(@Request() req, @Query('fileName') fileName: string, @Query('contentType') contentType: string) {
-    return this.storageService.getPresignedUrl(fileName, contentType, req.user.id);
+    try {
+      const userId = req.user.id || req.user.userId; // Safely handle JWT payload differences
+      return await this.storageService.getPresignedUrl(fileName, contentType, userId);
+    } catch (error: any) {
+      this.logger.error(`Presigned URL Error: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
-  // 2. Create the Post
-  @Post('create')
-  @UseGuards(JwtAuthGuard)
-  async create(@Request() req, @Body() createPostDto: CreatePostDto) {
-    return this.postingService.createPost(req.user.id, createPostDto);
-  }
-
-  @Get('scheduled')
-  @UseGuards(JwtAuthGuard)
-  async getScheduledPosts(
-    @Request() req, 
-    @Query('offset') offset: string
-  ) {
-    const weekOffset = parseInt(offset, 10) || 0;
-    return this.postingService.getScheduledPosts(req.user.id, weekOffset);
-  }
-
-  @Get(':id/status')
-  @UseGuards(JwtAuthGuard)
-  async getPostStatus(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number
-  ) {
-    return this.postingService.getPostStatus(req.user.id, id);
-  }
-
-  @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  async updatePost(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updatePostDto: UpdatePostDto
-  ) {
-    return this.postingService.updatePost(req.user.id, id, updatePostDto);
-  }
-
-  // 3. PATCH Reschedule time from Drag & Drop
-  @Patch(':id/reschedule')
-  @UseGuards(JwtAuthGuard)
-  async reschedulePost(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-    @Body('scheduledAt') scheduledAt: string
-  ) {
-    return this.postingService.reschedulePost(req.user.id, id, scheduledAt);
-  }
-
-  @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  async deletePost(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number
-  ) {
-    return this.postingService.deletePost(req.user.id, id);
-  }
   @Post('media/register')
   @UseGuards(JwtAuthGuard)
   async registerMedia(
     @Request() req, 
     @Body() body: { gcsPath: string; fileType: MediaType }
   ) {
-    return this.postingService.registerMedia(req.user.id, body.gcsPath, body.fileType);
+    try {
+      // 🔍 ADD THIS LOG
+      this.logger.log(`[API] 📥 Registering new media from Frontend. GCP Path: ${body.gcsPath}`);
+      
+      const userId = req.user.id || req.user.userId;
+      return await this.postingService.registerMedia(userId, body.gcsPath, body.fileType);
+    } catch (error:any) {
+      this.logger.error(`Media Register Error: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Post('create')
+  @UseGuards(JwtAuthGuard)
+  async create(@Request() req, @Body() createPostDto: CreatePostDto) {
+    try {
+      const userId = req.user.id || req.user.userId;
+      return await this.postingService.createPost(userId, createPostDto);
+    } catch (error: any) {
+      this.logger.error(`Create Post Error: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get('scheduled')
+  @UseGuards(JwtAuthGuard)
+  async getScheduledPosts(@Request() req, @Query('offset') offset: string) {
+    try {
+      const userId = req.user.id || req.user.userId;
+      const weekOffset = parseInt(offset, 10) || 0;
+      return await this.postingService.getScheduledPosts(userId, weekOffset);
+    } catch (error: any) {
+      this.logger.error(`Get Scheduled Error: ${error.message}`);
+      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Get(':id/status')
+  @UseGuards(JwtAuthGuard)
+  async getPostStatus(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const userId = req.user.id || req.user.userId;
+    return this.postingService.getPostStatus(userId, id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  async updatePost(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() updatePostDto: UpdatePostDto) {
+    const userId = req.user.id || req.user.userId;
+    return this.postingService.updatePost(userId, id, updatePostDto);
+  }
+
+  @Patch(':id/reschedule')
+  @UseGuards(JwtAuthGuard)
+  async reschedulePost(@Request() req, @Param('id', ParseIntPipe) id: number, @Body('scheduledAt') scheduledAt: string) {
+    const userId = req.user.id || req.user.userId;
+    return this.postingService.reschedulePost(userId, id, scheduledAt);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  async deletePost(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const userId = req.user.id || req.user.userId;
+    return this.postingService.deletePost(userId, id);
   }
 }

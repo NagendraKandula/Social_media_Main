@@ -18,23 +18,32 @@ export const usePostCreation = () => {
           contentType: file.type 
         }
       });
-     
-
-      const { uploadUrl, publicUrl, storagePath } = data;
+      console.log("Presigned Response:", data);
+      // ✅ FIX: Correctly extract `storagePath` from the backend response
+      const { uploadUrl, storagePath } = data;
 
       // B. Upload to Google (Bypassing Backend)
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type }
       });
+
+      // C. Register Media in the Database
       const mediaType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
       
       const mediaRes = await apiClient.post('/posting/media/register', {
-        gcsPath: storagePath,  // Updated to match new Prisma schema
-        fileType: mediaType,   // Updated to match new Prisma schema
+        gcsPath: storagePath,  // ✅ FIX: Map the backend's storagePath to the DB's gcsPath
+        fileType: mediaType,   
       });
+
+      console.log(`[Frontend] ☁️ Successfully uploaded to GCP! Path: ${storagePath} | DB Media ID: ${mediaRes.data.id}`);
+
       setUploading(false);
+      
+      // D. Return the ID along with the paths
       return { 
-        id:mediaRes.data.id, publicUrl, gcpPath: storagePath };
+        id: mediaRes.data.id, 
+        gcsPath: storagePath // ✅ FIX: Return it here so Publish.tsx can use it if needed
+      };
     } catch (error) {
       setUploading(false);
       console.error("Upload failed", error);

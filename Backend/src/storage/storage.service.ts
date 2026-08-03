@@ -32,7 +32,7 @@ export class StorageService {
 
     return {
       uploadUrl,
-      gcsPath // 2. Renamed to match your new Prisma schema terminology
+      storagePath:gcsPath // 2. Renamed to match your new Prisma schema terminology
       // Removed publicUrl since the bucket is private and it would throw a 403 anyway
     };
   }

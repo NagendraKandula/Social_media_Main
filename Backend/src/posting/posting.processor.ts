@@ -116,7 +116,12 @@ export class PostingProcessor {
             };
           })
         );
-
+           const invalidMedia = mediaList.find((m) => !m.url || m.url.trim() === '');
+        if (invalidMedia) {
+          throw new Error(
+            `Missing secure URL for media file (Path: ${invalidMedia.storagePath || 'Unknown'}). Ensure the file uploaded correctly to Google Cloud.`
+          );
+        }
         if (platformEntry.platform === Platform.FACEBOOK) {
           if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
           
@@ -177,8 +182,13 @@ export class PostingProcessor {
           }
         } 
         else if (platformEntry.platform === Platform.LINKEDIN) {
+          this.logger.log("STEP 1 - Got LinkedIn account");
           const account = await this.getAccount(post.userId, 'linkedin');
+            this.logger.log("STEP 2 - Account loaded");
 
+            this.logger.log(JSON.stringify(mediaList, null, 2));
+
+            this.logger.log("STEP 3 - Calling LinkedIn Service");
           // ✅ FIXED: Explicitly casting as 'IMAGE' | 'VIDEO' to resolve TS Error 2345
           const linkedInMedia = mediaList.length > 0
             ? mediaList.map((m) => ({ 
@@ -186,7 +196,7 @@ export class PostingProcessor {
                 type: (m.type === MediaType.VIDEO ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' 
               }))
             : undefined;
-
+          console.log("STEP 4 - Media prepared for LinkedIn:", JSON.stringify(linkedInMedia, null, 2));
           const result = await this.linkedinService.postToLinkedIn(
             account.accessToken,
             account.providerId,

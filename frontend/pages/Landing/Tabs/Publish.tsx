@@ -803,7 +803,7 @@ export default function Publish() {
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         mediaSlots: mediaSlots,
       };
-
+console.log(`[Frontend] 🚀 Sending Post Payload to Backend:`, JSON.stringify(payload, null, 2));
       // Send to backend
       const createdPost = await createPost(payload);
 

@@ -26,13 +26,14 @@ export class PostingService {
   ) {}
 
   // Added this helper so your frontend hook can register media!
+ // MUST BE INSIDE PostingService
   async registerMedia(userId: number, gcsPath: string, fileType: MediaType) {
     return this.prisma.media.create({
       data: {
         userId,
         gcsPath,
         fileType,
-        status: MediaStatus.UPLOADED,
+        status: 'UPLOADED', // From MediaStatus enum
       }
     });
   }
@@ -146,47 +147,66 @@ export class PostingService {
           } 
         }, 
       });
+const formattedPosts = await Promise.all(
+  posts.map(async (post) => {
+    const isPublished = post.status === PostStatus.PUBLISHED;
 
-      // Map data back to exactly what Landing.tsx expects
-      const formattedPosts = await Promise.all(
-        posts.map(async (post) => {
-          const secureMediaItems = await Promise.all(
-            post.mediaSlots.map(async (slot) => {
-               let url = slot.media.gcsPath;
-               if (slot.media.gcsPath) {
-                 try { 
-                   url = await this.storageService.getSignedReadUrl(slot.media.gcsPath, 'application/octet-stream'); 
-                 } catch (error: any) {
-                   this.logger.warn(`Failed to sign URL: ${error.message}`);
-                 }
-               }
-               return { 
-                 ...slot.media, 
-                 fileUrl: url, // Maps to old schema for frontend
-                 secureUrl: url, 
-                 platform: slot.platform 
-               };
-            })
-          );
+    let secureMediaItems: any[] = [];
+
+    // Only generate previews for posts whose media still exists in GCS
+    if (!isPublished) {
+      secureMediaItems = await Promise.all(
+        post.mediaSlots.map(async (slot) => {
+          let url: string | null = null;
+
+          if (slot.media.gcsPath) {
+            try {
+              url = await this.storageService.getSignedReadUrl(
+                slot.media.gcsPath,
+                "application/octet-stream",
+              );
+            } catch (error: any) {
+              this.logger.warn(`Failed to sign URL: ${error.message}`);
+            }
+          }
 
           return {
-            id: post.id,
-            content: post.primaryCaption, // Maps to old schema for frontend
-            scheduledAt: post.scheduledAt || post.createdAt,
-            status: post.status,
-            platforms: post.platforms.map((p) => p.platform.toLowerCase()), 
-            platformStatuses: post.platforms.map((p) => ({
-              platform: p.platform.toLowerCase(),
-              status: p.status,
-              externalId: p.externalId,
-              errorMessage: p.errorMessage,
-            })),
-            platform: post.platforms.length > 0 ? post.platforms[0].platform.toLowerCase() : 'instagram',
-            mediaItems: secureMediaItems, // Maps to old schema for frontend
+            ...slot.media,
+            fileUrl: url,
+            secureUrl: url,
+            platform: slot.platform,
           };
-        })
+        }),
       );
-      return formattedPosts;
+    }
+
+    return {
+      id: post.id,
+      content: post.primaryCaption,
+      scheduledAt: post.scheduledAt || post.createdAt,
+      status: post.status,
+
+      platforms: post.platforms.map((p) => p.platform.toLowerCase()),
+
+      platformStatuses: post.platforms.map((p) => ({
+        platform: p.platform.toLowerCase(),
+        status: p.status,
+        externalId: p.externalId,
+        errorMessage: p.errorMessage,
+      })),
+
+      platform:
+        post.platforms.length > 0
+          ? post.platforms[0].platform.toLowerCase()
+          : "instagram",
+
+      // Empty for published posts
+      mediaItems: secureMediaItems,
+    };
+  }),
+);
+
+return formattedPosts;
     } catch (error: any) {
       this.logger.error(`Failed to fetch scheduled posts: ${error.message}`, error.stack);
       throw error;
