@@ -1,59 +1,41 @@
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsArray, IsEnum, ValidateNested, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ContentMetadata } from '../interfaces/content-metadata.interface';
+import { Platform, PostStatus } from '@prisma/client'; 
 
-export enum MediaTypeDto {
-  IMAGE = 'IMAGE',
-  VIDEO = 'VIDEO',
-  REEL = 'REEL',
-  STORY = 'STORY',
-}
+export class PostMediaSlotDto {
+  @IsNumber()
+  mediaId!: number;
 
-// ✅ 1. Create a DTO for individual media items
-export class MediaItemDto {
-  @IsString()
-  mediaUrl!: string;
+  @IsEnum(Platform)
+  platform!: Platform;
 
-  @IsString()
-  storagePath!: string;
-
-  @IsString()
-  mimeType!: string;
-
-  @IsEnum(MediaTypeDto)
-  mediaType!: MediaTypeDto;
+  @IsNumber()
+  position!: number;
 
   @IsNumber()
   @IsOptional()
-  size?: number;
+  editId?: number;
 }
 
 export class CreatePostDto {
   @IsString()
   @IsOptional()
-  content?: string;
-
-  // ❌ REMOVE OLD MEDIA FIELDS: mediaUrl, storagePath, mimeType, mediaType
-
-  // ✅ 2. Replace with an Array of Media Items
-  @IsArray()
-  @IsOptional()
-  @ValidateNested({ each: true })
-  @Type(() => MediaItemDto)
-  mediaItems?: MediaItemDto[];
+  primaryCaption?: string;
 
   @IsArray()
-  platforms?: string[];
-
-  @IsBoolean()
-  @IsOptional()
-  isScheduled?: boolean;
+  @IsEnum(Platform, { each: true, message: 'Invalid platform provided' })
+  platforms!: Platform[];
 
   @IsDateString()
   @IsOptional()
   scheduledAt?: string;
 
+  @IsEnum(PostStatus)
   @IsOptional()
-  @IsObject()
-  contentMetadata?: ContentMetadata;
+  status?: PostStatus;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PostMediaSlotDto)
+  mediaSlots!: PostMediaSlotDto[];
 }

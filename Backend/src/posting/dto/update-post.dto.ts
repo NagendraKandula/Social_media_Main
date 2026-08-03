@@ -1,28 +1,30 @@
-import { IsEnum, IsString, IsOptional, IsArray,ValidateNested } from 'class-validator';
-import { Transform ,Type} from 'class-transformer';
-import { PostStatus } from '@prisma/client'; 
-import {MediaItemDto} from './create-post.dto';
+import { IsEnum, IsString, IsOptional, IsArray, ValidateNested, IsDateString } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { PostStatus, Platform } from '@prisma/client'; 
+import { PostMediaSlotDto } from './create-post.dto';
 
 export class UpdatePostDto {
   @IsOptional()
   @IsString()
-  content?: string;
-
- @IsOptional()
-  @IsArray()
-  platforms?: string[];
+  primaryCaption?: string;
 
   @IsOptional()
-  contentMetadata?: any;
+  @IsArray()
+  @IsEnum(Platform, { each: true, message: 'Invalid platform provided' })
+  platforms?: Platform[];
 
   @IsOptional()
   @Transform(({ value }) => typeof value === 'string' ? value.toUpperCase() : value)
   @IsEnum(PostStatus)
   status?: PostStatus;
 
- @IsOptional()
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => MediaItemDto)
-  mediaItems?: MediaItemDto[];
-} 
+  @Type(() => PostMediaSlotDto)
+  mediaSlots?: PostMediaSlotDto[];
+}

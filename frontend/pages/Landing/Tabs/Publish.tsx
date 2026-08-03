@@ -95,6 +95,7 @@ const matchesLinkedInRecommendedImageDimensions = ({ width, height }: { width: n
       (width >= 1080 && height >= 1920 && isNearRatio(ratio, 9 / 16, 0.08)))
   );
 };
+
 const CHANNEL_LABELS: Record<Channel, string> = {
   facebook: 'Facebook',
   instagram: 'Instagram',
@@ -133,6 +134,7 @@ interface SocialAccount {
 
 export default function Publish() {
   const dispatch = useAppDispatch();
+  
   /* ===============================
      Core State
   ================================ */
@@ -149,24 +151,26 @@ export default function Publish() {
   const [aiResultControls, setAiResultControls] = useState<{
     onBack: () => void;
   } | null>(null);
+
   const engagementTone = (value?: string | null) => {
     const normalized = value?.toLowerCase();
-
     if (normalized === 'high') return 'Strong';
     if (normalized === 'low') return 'Needs Attention';
     return 'Steady';
   };
+
   const handleAnalysisComplete = (result: AiAnalysisResult) => {
     setAiRecommendations(result.analysis?.recommendedPlatforms || []);
     setAiEngagement(result.analysis?.engagementPrediction || null);
   };
+
   const handleAnalysisReset = () => {
     setAiRecommendations([]);
     setAiEngagement(null);
     setAiResultControls(null);
   };
+
   const handleApplyCaption = (aiCaption: string) => {
-    // We use <br/><br/> instead of \n\n because the ContentEditor uses HTML
     handleChannelContentChange(content ? `${content}<br/><br/>${aiCaption}` : aiCaption);
   };
 
@@ -178,27 +182,21 @@ export default function Publish() {
   const handleAutoSelectPlatforms = (platforms: PlatformRecommendation[]) => {
     const next = new Set(selectedChannels);
     platforms.forEach((p) => {
-      // Auto-select if the AI gave it 4 or 5 stars
       if (p.rating >= 4) {
         next.add(p.platform.toLowerCase() as Channel);
       }
     });
     setSelectedChannels(next);
   };
+
   const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
     setChannelContents((prevContents) => {
       const updatedContents = { ...prevContents };
 
       aiPlatforms.forEach((aiPlat) => {
-        // 1. Get the raw lowercase string first
         let rawPlatform = aiPlat.platform.toLowerCase();
-        
-        
-
-        // 3. Now safely cast it to your strict Channel type
         const targetId = rawPlatform as Channel;
 
-        // Combine caption, CTA, and hashtags using HTML since ContentEditor uses innerHTML
         const hashtagsStr = aiPlat.hashtags && aiPlat.hashtags.length > 0 
           ? aiPlat.hashtags.join(' ') 
           : '';
@@ -206,13 +204,13 @@ export default function Publish() {
         
         const fullContent = `${aiPlat.caption}${ctaStr}<br/><br/>${hashtagsStr}`.trim();
 
-        // Inject the formatted content into the specific channel's state
         updatedContents[targetId] = fullContent;
       });
 
       return updatedContents;
     });
   };
+
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
     instagramPostType: 'post',
@@ -228,6 +226,7 @@ export default function Publish() {
   const [scheduleDate, setScheduleDate] = useState('');
 
   const { uploadMultipleMedia, createPost, uploading, publishing } = usePostCreation();
+  
   /* ===============================
      Derived Data
   ================================ */
@@ -256,7 +255,6 @@ export default function Publish() {
       setActiveEditorChannel(nextActiveChannel);
       setContent(getChannelContent(nextActiveChannel, nextContents, content));
     }
-    // Selection changes are the only event that should reconcile channel editors.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannelList]);
 
@@ -487,7 +485,6 @@ export default function Publish() {
       if (videoCount > 0) {
         return ['Facebook Feed supports image posts and carousel image posts only. Remove videos or choose Reel/Story.'];
       }
-
       return [];
     }
 
@@ -495,7 +492,6 @@ export default function Publish() {
       if (totalItems !== 1 || videoCount !== 1) {
         return ['Facebook Reel requires exactly one video. Remove images and extra videos.'];
       }
-
       return [];
     }
 
@@ -752,7 +748,7 @@ export default function Publish() {
      Submit
   ================================ */
 
-const handleSubmit = async (isScheduled: boolean) => {
+  const handleSubmit = async (isScheduled: boolean) => {
     if (selectedChannels.size === 0) {
       alert('Select at least one channel.');
       return;
@@ -776,63 +772,39 @@ const handleSubmit = async (isScheduled: boolean) => {
         return;
       }
 
-      // ✅ 1. Use YOUR existing hook to upload all files at once!
+      // ✅ 1. Upload media to the new backend endpoint that registers the media DB records
       let uploadedMediaItems: any[] = [];
 
       if (files.length > 0) {
-        const uploadResults = await uploadMultipleMedia(files);
-        
-        // Format the results to match your new backend DTO
-        uploadedMediaItems = uploadResults.map((result: any, index: number) => ({
-          mediaUrl: result.publicUrl,
-          storagePath: result.storagePath,
-          mimeType: files[index].type,
-          mediaType: files[index].type.startsWith('video') ? 'VIDEO' : 'IMAGE',
-          size: files[index].size,
-        }));
+        uploadedMediaItems = await uploadMultipleMedia(files);
       }
 
-      const platformOverrides: any = {};
+      // ✅ 2. Generate the explicit media slots required by the new schema
+      // We create a slot for EVERY piece of media on EVERY selected platform
+      const mediaSlots: any[] = [];
+      
+      if (uploadedMediaItems.length > 0) {
+        selectedChannelList.forEach((platform) => {
+          uploadedMediaItems.forEach((media, index) => {
+            mediaSlots.push({
+              mediaId: media.id, // Comes from your updated usePostCreation hook
+              platform: platform.toUpperCase(),
+              position: index,
+            });
+          });
+        });
+      }
 
-      if (selectedChannels.has('facebook')) {
-        platformOverrides.facebook = {
-          pageId: platformState.facebookPageId,
-          postType: platformState.facebookPostType,
-          text: channelContents.facebook ?? content,
-        };
-      }
-      if (selectedChannels.has('instagram')) {
-        platformOverrides.instagram = {
-          postType: platformState.instagramPostType,
-          text: channelContents.instagram ?? content,
-        };
-      }
-      if (selectedChannels.has('youtube')) {
-        platformOverrides.youtube = {
-          title: platformState.youtubeTitle,
-          postType: platformState.youtubeType,
-          text: channelContents.youtube ?? content,
-        };
-      }
-      selectedChannelList.forEach((channel) => {
-        platformOverrides[channel] = {
-          ...platformOverrides[channel],
-          text: channelContents[channel] ?? content,
-        };
-      });
-
-      // ✅ 2. Send the 'mediaItems' array to the backend
+      // ✅ 3. Construct the new payload matching CreatePostDto
       const payload = {
-        content,
-        mediaItems: uploadedMediaItems, 
-        platforms: selectedChannelList,
+        primaryCaption: content, // Map the UI's content variable to the new DB field name
+        platforms: selectedChannelList.map(channel => channel.toUpperCase()),
+        status: isScheduled ? 'SCHEDULED' : 'PENDING',
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
-        contentMetadata: {
-          text: content,
-          platformOverrides,
-        },
+        mediaSlots: mediaSlots,
       };
-
+console.log(`[Frontend] 🚀 Sending Post Payload to Backend:`, JSON.stringify(payload, null, 2));
+      // Send to backend
       const createdPost = await createPost(payload);
 
       const channelText = selectedChannelDetails.join(' | ');
@@ -1060,6 +1032,7 @@ const handleSubmit = async (isScheduled: boolean) => {
               <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
             </div>
             <div className={styles.rightHeaderActionGroup}>
+              
               {activeSidePanel === 'ai' && aiEngagement && (
                 <span className={styles.aiEngagementBadge}>
                   {engagementTone(aiEngagement)}
@@ -1097,7 +1070,6 @@ const handleSubmit = async (isScheduled: boolean) => {
           </div>
         </aside>}
       </div>
-
 
       {/* Schedule Modal */}
       {showScheduleModal && (

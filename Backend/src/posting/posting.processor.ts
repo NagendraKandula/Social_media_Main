@@ -9,6 +9,7 @@ import { LinkedinService } from '../social_media_platforms/linkedin/linkedin.ser
 import { YoutubeService } from '../social_media_platforms/youtube/youtube.service';
 import { ThreadsService } from '../social_media_platforms/threads/threads.service';
 import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
+import { Platform, PostStatus, MediaType, Placement, VariantStatus } from '@prisma/client';
 
 @Processor('social-posting')
 export class PostingProcessor {
@@ -51,14 +52,20 @@ export class PostingProcessor {
     const { postId } = job.data;
     this.logger.log(`🚀 Processing Job for Post #${postId}`);
 
+    // 1. Fetch Post with the new relational structure (using mediaSlots instead of mediaItems)
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: { 
-        platforms: true, 
-        mediaItems: { 
-          include: { media: true },
-          orderBy: { position: 'asc' }
-        } 
+      include: {
+        platforms: true,
+        mediaSlots: {
+          include: {
+            media: true,
+            edit: {
+              include: { variants: true }
+            }
+          },
+          orderBy: { position: 'asc' },
+        },
       },
     });
 
@@ -67,168 +74,204 @@ export class PostingProcessor {
       return;
     }
 
-    // ✅ FIX 1 & 3: Cast to any[] to bypass the 'never' error while Prisma Client updates
-    const postMediaItems = (post as any).mediaItems || [];
-
-    const mediaList = await Promise.all(
-      postMediaItems.map(async (item: any) => {
-        let signedUrl = item.media.fileUrl;
-        if (item.media.storagePath) {
-          try {
-            signedUrl = await this.storageService.getSignedReadUrl(
-              item.media.storagePath,
-              item.media.mimeType,
-            );
-          } catch (e: any) { 
-            // ✅ FIX 2: Added ': any' to 'e'
-            this.logger.warn(`Could not sign URL for ${item.media.storagePath}: ${e.message}`);
-          }
-        }
-        return {
-          url: signedUrl,
-          storagePath: item.media.storagePath,
-          type: item.media.type, 
-          mimeType: item.media.mimeType
-        };
-      })
-    );
-
     let hasFailures = false;
 
+    // 2. Loop through platforms
     for (const platformEntry of post.platforms) {
-      if (platformEntry.status === 'PUBLISHED') continue;
+      if (platformEntry.status === PostStatus.PUBLISHED) continue;
 
       try {
-        const contentText =
-          (post.contentMetadata as any)?.platformOverrides?.[platformEntry.platform]?.text ??
-          post.content ??
-          '';
-        let externalId = '';
         this.logger.log(`📤 Posting to ${platformEntry.platform}...`);
+        
+        // Use primaryCaption (content and contentMetadata are gone in the new schema)
+        const contentText = post.primaryCaption ?? '';
+        let externalId = '';
 
-        if (platformEntry.platform === 'facebook') {
-            if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
-            const pageId = (post.contentMetadata as any)?.platformOverrides?.facebook?.pageId;
-            if (!pageId) throw new Error('Facebook Page ID missing');
-            const facebookPostType = (post.contentMetadata as any)?.platformOverrides?.facebook?.postType || 'feed';
+        // Filter media slots specific to THIS platform
+        const platformSlots = post.mediaSlots.filter(s => s.platform === platformEntry.platform);
 
-            const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
-
-            const result = await this.facebookService.postToFacebook(
-                post.userId, 
-                pageId, 
-                contentText, 
-                urlsParam, 
-                mediaList[0].type as any,
-                facebookPostType,
-            );
+        // Resolve URLs for this platform's media
+        const mediaList = await Promise.all(
+          platformSlots.map(async (slot) => {
+            // Check if there is a ready, edited variant
+            const readyVariant = slot.edit?.variants.find(v => v.status === VariantStatus.READY);
             
-            externalId = result.postId || 'fb_id';
-        }
-       else if (platformEntry.platform === 'instagram') {
-            if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
-            const account = await this.getAccount(post.userId, 'instagram');
-            const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
-            const userPostType = instaMeta?.postType || 'post'; 
+            // Use gcsPath from new Media schema
+            const targetPath = readyVariant?.gcsPath || slot.media.gcsPath;
+            let signedUrl = readyVariant?.cdnUrl || '';
 
-            if (mediaList.length === 1) {
-                let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
-                
-                if (userPostType === 'story') {
-                    apiMediaType = 'STORIES';
-                } else if (userPostType === 'reel') {
-                    apiMediaType = 'REELS';
-                } else {
-                    if (mediaList[0].type === 'VIDEO') {
-                        apiMediaType = 'REELS';
-                    } else {
-                        apiMediaType = 'IMAGE';
-                    }
-                }
-
-                const result = await this.instagramBusinessService.publishContent(
-                    account.providerId, account.accessToken, apiMediaType, mediaList[0].url, contentText
-                );
-                externalId = result.id;
-            } else {
-                 const carouselMedia = mediaList.map((m: any) => ({
-                    url: m.url,
-                    type: m.type // Explicitly carry the type down!
-                 }));
-                 const result = await this.instagramBusinessService.publishContent(
-                    account.providerId, 
-                    account.accessToken, 
-                    'CAROUSEL',   
-                    carouselMedia,         
-                    contentText
-                 );
-                 externalId = result.id || 'insta_carousel_id';
+            if (!signedUrl && targetPath) {
+              try {
+                signedUrl = await this.storageService.getSignedReadUrl(targetPath, 'application/octet-stream');
+              } catch (e: any) {
+                this.logger.warn(`Could not sign URL for ${targetPath}: ${e.message}`);
+              }
             }
+
+            return {
+              url: signedUrl,
+              storagePath: targetPath,
+              type: slot.media.fileType, // IMAGE or VIDEO from new schema
+              placement: slot.edit?.placement // FEED, STORY, REEL, etc.
+            };
+          })
+        );
+           const invalidMedia = mediaList.find((m) => !m.url || m.url.trim() === '');
+        if (invalidMedia) {
+          throw new Error(
+            `Missing secure URL for media file (Path: ${invalidMedia.storagePath || 'Unknown'}). Ensure the file uploaded correctly to Google Cloud.`
+          );
         }
-        else if (platformEntry.platform === 'linkedin') {
-            const account = await this.getAccount(post.userId, 'linkedin');
-            
-            const linkedInMedia = mediaList.length > 0 
-                ? mediaList.map((m: any) => ({ url: m.url, type: m.type as 'IMAGE' | 'VIDEO' })) 
-                : undefined;
-                
-            const result = await this.linkedinService.postToLinkedIn(
-                account.accessToken, account.providerId, contentText, linkedInMedia
-            );
-            externalId = result?.postId || 'linkedin_id';
+        if (platformEntry.platform === Platform.FACEBOOK) {
+          if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
+          
+          const account = await this.getAccount(post.userId, 'facebook');
+          const pageId = account.providerId; 
+          const facebookPostType = 'feed'; // Defaulting to feed since contentMetadata is gone
+
+          const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m) => m.url);
+
+          const result = await this.facebookService.postToFacebook(
+            post.userId,
+            pageId,
+            contentText,
+            urlsParam,
+            mediaList[0].type as any,
+            facebookPostType,
+          );
+
+          externalId = result.postId || 'fb_id';
         } 
-       else if (platformEntry.platform === 'threads') {
-            const account = await this.getAccount(post.userId, 'threads');
-            
-            const threadsMedia = mediaList.length > 0 
-              ? mediaList.map((m: any) => ({ 
-                  url: m.url, 
-                 type: ((m.type === 'VIDEO' || m.type === 'REEL') ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' }))
-              : undefined;
+        else if (platformEntry.platform === Platform.INSTAGRAM) {
+          if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
+          const account = await this.getAccount(post.userId, 'instagram');
 
-            const result = await this.threadsService.postToThreads(
-                account.accessToken, contentText, threadsMedia
-            );
-            externalId = result.postId || 'threads_id';
-        }
-        
-        else if (platformEntry.platform === 'youtube') {
-           if (mediaList.length === 0 || mediaList[0].type === 'IMAGE') {
-              throw new Error('Video file is required for YouTube');
+          if (mediaList.length === 1) {
+            let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
+
+            // Determine if reel or story using the new Placement enum and MediaType
+            if (mediaList[0].placement === Placement.STORY) {
+              apiMediaType = 'STORIES';
+            } else if (mediaList[0].placement === Placement.REEL) {
+              apiMediaType = 'REELS';
+            } else if (mediaList[0].type === MediaType.VIDEO) {
+              apiMediaType = 'REELS';
             }
-            const title = (post.contentMetadata as any)?.title || 'New Video';
-            const result = await this.youtubeService.uploadVideoToYoutube(
-                post.userId, title, contentText, mediaList[0].type === 'REEL' ? 'SHORTS' : 'VIDEO', mediaList[0].url
-            );
-            externalId = result.videoId ?? 'unknown_id';
-        }
-        else if (platformEntry.platform === 'twitter') {
-            const account = await this.getAccount(post.userId, 'twitter');
-            this.logger.log(`🐦 Posting to Twitter...`);
 
-            const storagePaths = mediaList.map((m: any) => m.storagePath).filter(Boolean);
-
-            const result = await this.twitterService.postTweetWithUserToken(
-                contentText,
-                storagePaths, 
-                account.accessToken
+            const result = await this.instagramBusinessService.publishContent(
+              account.providerId,
+              account.accessToken,
+              apiMediaType,
+              mediaList[0].url,
+              contentText,
             );
-            externalId = result.tweetId;
+            externalId = result.id;
+          } else {
+            const carouselMedia = mediaList.map((m) => ({
+              url: m.url,
+              type: m.type,
+            }));
+            const result = await this.instagramBusinessService.publishContent(
+              account.providerId,
+              account.accessToken,
+              'CAROUSEL',
+              carouselMedia,
+              contentText,
+            );
+            externalId = result.id || 'insta_carousel_id';
+          }
+        } 
+        else if (platformEntry.platform === Platform.LINKEDIN) {
+          this.logger.log("STEP 1 - Got LinkedIn account");
+          const account = await this.getAccount(post.userId, 'linkedin');
+            this.logger.log("STEP 2 - Account loaded");
+
+            this.logger.log(JSON.stringify(mediaList, null, 2));
+
+            this.logger.log("STEP 3 - Calling LinkedIn Service");
+          // ✅ FIXED: Explicitly casting as 'IMAGE' | 'VIDEO' to resolve TS Error 2345
+          const linkedInMedia = mediaList.length > 0
+            ? mediaList.map((m) => ({ 
+                url: m.url, 
+                type: (m.type === MediaType.VIDEO ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' 
+              }))
+            : undefined;
+          console.log("STEP 4 - Media prepared for LinkedIn:", JSON.stringify(linkedInMedia, null, 2));
+          const result = await this.linkedinService.postToLinkedIn(
+            account.accessToken,
+            account.providerId,
+            contentText,
+            linkedInMedia,
+          );
+          externalId = result?.postId || 'linkedin_id';
+        } 
+        else if (platformEntry.platform === Platform.THREADS) {
+          const account = await this.getAccount(post.userId, 'threads');
+
+          // ✅ FIXED: Explicitly casting as 'IMAGE' | 'VIDEO' to resolve TS Error 2345
+          const threadsMedia = mediaList.length > 0
+            ? mediaList.map((m) => ({
+                url: m.url,
+                type: (m.type === MediaType.VIDEO ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO',
+              }))
+            : undefined;
+
+          const result = await this.threadsService.postToThreads(
+            account.accessToken,
+            contentText,
+            threadsMedia,
+          );
+          externalId = result.postId || 'threads_id';
         }
-        
+        else if (platformEntry.platform === Platform.YOUTUBE) {
+          if (mediaList.length === 0 || mediaList[0].type === MediaType.IMAGE) {
+            throw new Error('Video file is required for YouTube');
+          }
+          
+          // YouTube relies on SHORT placement to determine shorts vs video
+          const videoType = mediaList[0].placement === Placement.SHORT ? 'SHORTS' : 'VIDEO';
+          
+          const result = await this.youtubeService.uploadVideoToYoutube(
+            post.userId,
+            'New Video', // Defaulting title
+            contentText,
+            videoType,
+            mediaList[0].url,
+          );
+          externalId = result.videoId ?? 'unknown_id';
+        } 
+        else if (platformEntry.platform === Platform.TWITTER) {
+          const account = await this.getAccount(post.userId, 'twitter');
+          this.logger.log(`🐦 Posting to Twitter...`);
+
+          const storagePaths = mediaList.map((m) => m.storagePath).filter(Boolean);
+
+          const result = await this.twitterService.postTweetWithUserToken(
+            contentText,
+            storagePaths as string[],
+            account.accessToken,
+          );
+          externalId = result.tweetId;
+        }
+
+        // Mark specific platform as published
         await this.prisma.postPlatform.update({
           where: { id: platformEntry.id },
-          data: { status: 'PUBLISHED', externalId: externalId },
+          data: { status: PostStatus.PUBLISHED, externalId: externalId, publishedAt: new Date() },
         });
 
-      } catch (error: any) { // ✅ Fixed catch variable type
+      } catch (error: any) {
         const detailedError = this.formatPlatformError(platformEntry.platform, error);
-    
-        this.logger.error(`❌ FAILURE DETECTED: ${detailedError}`);
+
+        this.logger.error(`❌ FAILURE DETECTED on ${platformEntry.platform}: ${detailedError}`);
 
         await this.prisma.postPlatform.update({
-            where: { id: platformEntry.id },
-            data: { status: 'FAILED', errorMessage: detailedError }, 
+          where: { id: platformEntry.id },
+          data: { 
+            status: PostStatus.FAILED, 
+            errorMessage: detailedError,
+            retryCount: platformEntry.retryCount + 1
+          },
         });
 
         hasFailures = true;
@@ -236,57 +279,59 @@ export class PostingProcessor {
     }
 
     // ---------------------------------------------------------
-    // 🧹 CLEANUP SECTION
+    // 🧹 CLEANUP & STATUS SECTION
     // ---------------------------------------------------------
 
     const updatedPost = await this.prisma.post.findUnique({
       where: { id: postId },
-      include: { 
-         platforms: true,
-         mediaItems: { include: { media: true } }
+      include: {
+        platforms: true,
+        mediaSlots: { include: { media: true } },
       },
     });
 
-    // ✅ FIX 4: Explicit null check for updatedPost
     if (!updatedPost) {
-        if (hasFailures) throw new Error('Some platforms failed to publish. Job will retry.');
-        return;
+      if (hasFailures) throw new Error('Some platforms failed to publish. Job will retry.');
+      return;
     }
 
-    const allSuccess = updatedPost.platforms.every(p => p.status === 'PUBLISHED');
-    const anyFailed = updatedPost.platforms.some(p => p.status === 'FAILED');
+    const allSuccess = updatedPost.platforms.every((p) => p.status === PostStatus.PUBLISHED);
+    const allFailed = updatedPost.platforms.every((p) => p.status === PostStatus.FAILED);
 
     await this.prisma.post.update({
       where: { id: postId },
-      data: { status: allSuccess ? 'PUBLISHED' : (anyFailed ? 'PARTIAL' : 'PUBLISHED') },
+      data: {
+        status: allSuccess
+          ? PostStatus.PUBLISHED
+          : allFailed
+          ? PostStatus.FAILED
+          : PostStatus.PARTIAL,
+      },
     });
 
-    // ✅ FIX 5: Cast to any[] to fix the 'length' and Iterator errors on 'never' type
-    const updatedMediaItems = (updatedPost as any).mediaItems || [];
-
-    if (allSuccess && updatedMediaItems.length > 0) {
+    // If fully successful, clean up the files in cloud storage
+    if (allSuccess && updatedPost.mediaSlots.length > 0) {
       this.logger.log(`✨ All platforms success. Deleting media files from Cloud...`);
-      
-      for (const item of updatedMediaItems) {
-          if (item.media?.storagePath) {
-              try {
-                  await this.storageService.deleteFile(item.media.storagePath);
-              } catch (err: any) { 
-                  // ✅ FIX 6: Added ': any' to 'err'
-                  this.logger.warn(`Failed to delete ${item.media.storagePath}: ${err.message}`);
-              }
+
+      for (const slot of updatedPost.mediaSlots) {
+        if (slot.media?.gcsPath) {
+          try {
+            await this.storageService.deleteFile(slot.media.gcsPath);
+          } catch (err: any) {
+            this.logger.warn(`Failed to delete ${slot.media.gcsPath}: ${err.message}`);
           }
+        }
       }
     }
 
     if (hasFailures) {
-        throw new Error('Some platforms failed to publish. Job will retry.');
+      throw new Error('Some platforms failed to publish. Job will retry.');
     }
   }
 
   private async getAccount(userId: number, provider: string) {
     const account = await this.prisma.socialAccount.findFirst({
-      where: { userId, provider },
+      where: { userId, provider: provider.toLowerCase() },
     });
     if (!account) throw new Error(`${provider} account not connected`);
     return account;
