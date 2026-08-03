@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { ConfigService } from '@nestjs/config';
- 
+
 @Injectable()
 export class StorageService {
   private storage: Storage;
   private bucket: string;
+  private readonly logger = new Logger(StorageService.name);
 
   constructor(private config: ConfigService) {
     this.storage = new Storage({
@@ -16,8 +17,11 @@ export class StorageService {
   }
 
   async getPresignedUrl(fileName: string, contentType: string, userId: number) {
-    const storagePath = `uploads/${userId}/${Date.now()}-${fileName}`;
-    const file = this.storage.bucket(this.bucket).file(storagePath);
+    // 1. Sanitize the filename to prevent signature errors with spaces/special chars
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const gcsPath = `uploads/${userId}/${Date.now()}-${sanitizedFileName}`;
+    
+    const file = this.storage.bucket(this.bucket).file(gcsPath);
 
     const [uploadUrl] = await file.getSignedUrl({
       version: 'v4',
@@ -27,41 +31,40 @@ export class StorageService {
     });
 
     return {
-      uploadUrl,    
-      publicUrl: `https://storage.googleapis.com/${this.bucket}/${storagePath}`, 
-      storagePath   
+      uploadUrl,
+      gcsPath // 2. Renamed to match your new Prisma schema terminology
+      // Removed publicUrl since the bucket is private and it would throw a 403 anyway
     };
   }
 
-  // ✅ ADD THIS METHOD for your Processor to work with Private Buckets
-  async getSignedReadUrl(storagePath: string, contentType?: string): Promise<string> {
-    const file = this.storage.bucket(this.bucket).file(storagePath);
+  async getSignedReadUrl(gcsPath: string, contentType?: string): Promise<string> {
+    const file = this.storage.bucket(this.bucket).file(gcsPath);
     
     // Check if file exists first to avoid 404 errors
     const [exists] = await file.exists();
     if (!exists) {
-        throw new Error(`File not found in storage: ${storagePath}`);
+        throw new Error(`File not found in storage: ${gcsPath}`);
     }
 
     const [url] = await file.getSignedUrl({
       version: 'v4',
       action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // Valid for 1 hour (enough for FB/IG to download)
+      expires: Date.now() + 60 * 60 * 1000, // Valid for 1 hour
       responseType: contentType,
     });
 
     return url;
   }
 
-  async deleteFile(storagePath: string) {
+  async deleteFile(gcsPath: string) {
     try {
-      const file = this.storage.bucket(this.bucket).file(storagePath);
+      const file = this.storage.bucket(this.bucket).file(gcsPath);
       await file.delete();
-      console.log(`🗑️ Deleted file from GCS: ${storagePath}`);
+      this.logger.log(`🗑️ Deleted file from GCS: ${gcsPath}`);
       return true;
-    } catch (error) {
-      // ✅ Perfect safety net. Logs the error but doesn't crash the app.
-      console.warn(`Failed to delete file ${storagePath}:`, error.message);
+    } catch (error: any) {
+      // Perfect safety net. Logs the error but doesn't crash the app.
+      this.logger.warn(`Failed to delete file ${gcsPath}: ${error.message}`);
       return false;
     }
   }

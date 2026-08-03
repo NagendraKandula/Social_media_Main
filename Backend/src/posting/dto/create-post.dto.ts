@@ -1,51 +1,41 @@
-// dto/create-post.dto.ts
-import { IsString, IsOptional, IsBoolean, IsDateString, IsArray, IsObject, IsEnum, ValidateNested, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsArray, IsEnum, ValidateNested, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ContentMetadata } from '../interfaces/content-metadata.interface';
-import { Platform, MediaType } from '@prisma/client'; // ✅ Import Prisma Enums
+import { Platform, PostStatus } from '@prisma/client'; 
 
-export class MediaItemDto {
-  @IsString()
-  mediaUrl!: string;
+export class PostMediaSlotDto {
+  @IsNumber()
+  mediaId!: number;
 
-  @IsString()
-  storagePath!: string;
+  @IsEnum(Platform)
+  platform!: Platform;
 
-  @IsString()
-  mimeType!: string;
-
-  @IsEnum(MediaType) // ✅ Use Prisma MediaType
-  mediaType!: MediaType;
+  @IsNumber()
+  position!: number;
 
   @IsNumber()
   @IsOptional()
-  size?: number;
+  editId?: number;
 }
 
 export class CreatePostDto {
   @IsString()
   @IsOptional()
-  content?: string;
+  primaryCaption?: string;
 
   @IsArray()
-  @IsOptional()
-  @ValidateNested({ each: true })
-  @Type(() => MediaItemDto)
-  mediaItems?: MediaItemDto[];
-
-  @IsArray()
-  @IsEnum(Platform, { each: true, message: 'Invalid platform provided' }) // ✅ Validate Platforms
-  platforms?: Platform[];
-
-  @IsBoolean()
-  @IsOptional()
-  isScheduled?: boolean;
+  @IsEnum(Platform, { each: true, message: 'Invalid platform provided' })
+  platforms!: Platform[];
 
   @IsDateString()
   @IsOptional()
   scheduledAt?: string;
 
+  @IsEnum(PostStatus)
   @IsOptional()
-  @IsObject()
-  contentMetadata?: ContentMetadata;
+  status?: PostStatus;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PostMediaSlotDto)
+  mediaSlots!: PostMediaSlotDto[];
 }

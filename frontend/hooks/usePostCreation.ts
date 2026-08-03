@@ -26,8 +26,15 @@ export const usePostCreation = () => {
       await axios.put(uploadUrl, file, {
         headers: { 'Content-Type': file.type }
       });
+      const mediaType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+      
+      const mediaRes = await apiClient.post('/posting/media/register', {
+        gcsPath: storagePath,  // Updated to match new Prisma schema
+        fileType: mediaType,   // Updated to match new Prisma schema
+      });
       setUploading(false);
-      return { publicUrl, storagePath };
+      return { 
+        id:mediaRes.data.id, publicUrl, gcpPath: storagePath };
     } catch (error) {
       setUploading(false);
       console.error("Upload failed", error);

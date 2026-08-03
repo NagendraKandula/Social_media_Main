@@ -7,174 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id                    Int             @id @default(autoincrement())
-  fullName              String
-  email                 String          @unique
-  password              String
-  createdAt             DateTime        @default(now())
-  otpExpiry             DateTime?
-  lastOtpSentAt         DateTime?
-  otpHash               String?
-  otpRequestCount       Int             @default(0)
-  otpRequestWindowStart DateTime?
-  media                 Media[]
-  posts                 Post[]
-  refreshTokens         RefreshToken[]
-  socialAccounts        SocialAccount[]
-}
-
-model RefreshToken {
-  id        Int      @id @default(autoincrement())
-  token     String   @unique
-  createdAt DateTime @default(now())
-  expiresAt DateTime
-  revoked   Boolean  @default(false)
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model SocialAccount {
-  id               Int       @id @default(autoincrement())
-  provider         String
-  providerId       String
-  accessToken      String
-  refreshToken     String?
-  expiresAt        DateTime?
-  platformUsername String?
-  platformName     String?
-  profilePic       String?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  userId           Int
-  user             User      @relation(fields: [userId], references: [id])
-
-  @@unique([provider, providerId])
-  @@unique([userId, provider])
-}
-
-model Post {
-  id              Int            @id @default(autoincrement())
-  userId          Int
-  content         String?
-  contentMetadata Json?
-  isScheduled     Boolean        @default(false)
-  scheduledAt     DateTime?
-  status          PostStatus     @default(DRAFT)
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  user            User           @relation(fields: [userId], references: [id])
-  mediaItems      PostMedia[]
-  platforms       PostPlatform[]
-}
-
-model PostMedia {
-  id       Int   @id @default(autoincrement())
-  postId   Int
-  mediaId  Int
-  position Int
-  media    Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-  post     Post  @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  @@unique([postId, mediaId])
-}
-
-model PostPlatform {
-  id Int @id @default(autoincrement())
-
-  postId Int
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  platform Platform
-
-  editId Int?
-  edit   MediaEdit? @relation(fields: [editId], references: [id])
-
-  status PostStatus @default(PENDING)
-
-  externalId   String?
-  errorMessage String?
-
-  retryCount  Int       @default(0)
-  publishedAt DateTime?
-}
-
-model Media {
-  id          Int         @id @default(autoincrement())
-  userId      Int
-  fileUrl     String
-  storagePath String
-  mimeType    String
-  type        MediaType
-  createdAt   DateTime    @default(now())
-  user        User        @relation(fields: [userId], references: [id])
-  posts       PostMedia[]
-  edits       MediaEdit[]
-}
-
-model MediaEdit {
-  id Int @id @default(autoincrement())
-
-  mediaId Int
-  media   Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-
-  preset String // "1:1", "4:5", "16:9", "CUSTOM"
-
-  cropX      Float
-  cropY      Float
-  cropWidth  Float
-  cropHeight Float
-
-  version Int @default(1)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  variants  MediaVariant[]
-  platforms PostPlatform[]
-
-  @@index([mediaId])
-}
-
-model MediaVariant {
-  id Int @id @default(autoincrement())
-
-  editId Int
-  edit   MediaEdit @relation(fields: [editId], references: [id], onDelete: Cascade)
-
-  storagePath String
-  fileUrl     String
-
-  status VariantStatus @default(PENDING)
-
-  version Int
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([editId, version])
-}
-
-enum PostStatus {
-  DRAFT
-  PENDING
-  SCHEDULED
-  PUBLISHED
-  FAILED
-  PARTIAL
-  DISPATCHING
-  QUEUED
-  PUBLISHING
-}
+/////////////////////////////////////////////////////
+// ENUMS
+/////////////////////////////////////////////////////
 
 enum MediaType {
   IMAGE
   VIDEO
-  REEL
-  STORY
+  DOCUMENT
 }
 
 enum MediaStatus {
+  UPLOADING
   UPLOADED
   DELETED
 }
@@ -190,9 +34,240 @@ enum Platform {
   TIKTOK
 }
 
+enum Placement {
+  FEED
+  STORY
+  REEL
+  SHORT
+  CAROUSEL
+}
+
 enum VariantStatus {
   PENDING
   RENDERING
   READY
   FAILED
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  PARTIAL
+  DISPATCHING
+  QUEUED
+  PUBLISHING
+}
+
+/////////////////////////////////////////////////////
+// AUTH & USER MODELS
+/////////////////////////////////////////////////////
+
+model User {
+  id                    Int             @id @default(autoincrement())
+  fullName              String
+  email                 String          @unique
+  password              String
+  createdAt             DateTime        @default(now())
+  otpExpiry             DateTime?
+  lastOtpSentAt         DateTime?
+  otpHash               String?
+  otpRequestCount       Int             @default(0)
+  otpRequestWindowStart DateTime?
+
+  media                 Media[]
+  posts                 Post[]
+  refreshTokens         RefreshToken[]
+  socialAccounts        SocialAccount[]
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SocialAccount {
+  id               Int       @id @default(autoincrement())
+  provider         String
+  providerId       String
+  accessToken      String
+  refreshToken     String?
+  expiresAt        DateTime?
+  platformUsername String?
+  platformName     String?
+  profilePic       String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  userId           Int
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@unique([userId, provider])
+}
+
+/////////////////////////////////////////////////////
+// ORIGINAL MEDIA
+/////////////////////////////////////////////////////
+
+model Media {
+  id           Int           @id @default(autoincrement())
+
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fileType     MediaType?
+  gcsPath      String?
+
+  width        Int?
+  height       Int?
+  durationMs   Int?
+
+  checksum     String?       @unique
+  status       MediaStatus   @default(UPLOADED)
+
+  // Caches Google Vision API crop hints & saliency detection
+  saliencyData Json?
+
+  uploadedAt   DateTime      @default(now())
+
+  edits        MediaEdit[]
+  slots        PostMediaSlot[]
+
+  @@index([userId])
+}
+
+/////////////////////////////////////////////////////
+// EDIT INSTRUCTIONS
+/////////////////////////////////////////////////////
+
+model MediaEdit {
+  id          Int           @id @default(autoincrement())
+
+  mediaId     Int
+  media       Media         @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  platform    Platform
+  placement   Placement
+
+  cropX       Float
+  cropY       Float
+  cropWidth   Float
+  cropHeight  Float
+
+  focalX      Float?
+  focalY      Float?
+
+  version     Int           @default(1)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  variants    MediaVariant[]
+  slots       PostMediaSlot[]
+
+  @@index([mediaId])
+  @@unique([mediaId, platform])
+}
+
+/////////////////////////////////////////////////////
+// RENDERED FILES
+/////////////////////////////////////////////////////
+
+model MediaVariant {
+  id          Int           @id @default(autoincrement())
+
+  editId      Int
+  edit        MediaEdit     @relation(fields: [editId], references: [id], onDelete: Cascade)
+
+  gcsPath     String
+  cdnUrl      String
+
+  width       Int
+  height      Int
+
+  editVersion Int
+
+  status      VariantStatus @default(PENDING)
+
+  renderedAt  DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([editId])
+  @@unique([editId, editVersion])
+}
+
+/////////////////////////////////////////////////////
+// POST
+/////////////////////////////////////////////////////
+
+model Post {
+  id             Int             @id @default(autoincrement())
+
+  userId         Int
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  primaryCaption String?
+  status         PostStatus      @default(DRAFT)
+
+  scheduledAt    DateTime?
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  mediaSlots     PostMediaSlot[]
+  platforms      PostPlatform[]
+}
+
+/////////////////////////////////////////////////////
+// POST MEDIA SLOT
+/////////////////////////////////////////////////////
+
+model PostMediaSlot {
+  id       Int        @id @default(autoincrement())
+
+  postId   Int
+  post     Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  mediaId  Int
+  media    Media      @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  editId   Int?
+  edit     MediaEdit? @relation(fields: [editId], references: [id], onDelete: SetNull)
+
+  platform Platform
+  position Int
+
+  @@unique([postId, platform, position])
+  @@index([mediaId])
+  @@index([editId])
+}
+
+/////////////////////////////////////////////////////
+// PLATFORM PUBLISH STATUS
+/////////////////////////////////////////////////////
+
+model PostPlatform {
+  id           Int        @id @default(autoincrement())
+
+  postId       Int
+  post         Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  platform     Platform
+  status       PostStatus @default(PENDING)
+
+  retryCount   Int        @default(0)
+  externalId   String?
+  errorMessage String?
+  publishedAt  DateTime?
+
+  @@unique([postId, platform])
 }
