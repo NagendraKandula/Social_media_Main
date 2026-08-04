@@ -141,6 +141,52 @@ export class PostingProcessor {
             
             externalId = result.postId || 'fb_id';
         }
+         else if (platformEntry.platform === Platform.INSTAGRAM) {
+            if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
+            const account = await this.getAccount(post.userId, 'instagram');
+            const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
+            const userPostType = instaMeta?.postType || 'post'; 
+            if (mediaList.length === 1) {
+    let apiMediaType: 'IMAGE' | 'VIDEO' | 'REELS' | 'STORIES';
+
+    if (userPostType === 'story') {
+        apiMediaType = 'STORIES';
+    } else if (userPostType === 'reel') {
+        apiMediaType = 'REELS';
+    } else {
+        // Normal feed post
+        apiMediaType =
+            mediaList[0].type === MediaType.VIDEO
+                ? 'VIDEO'
+                : 'IMAGE';
+    }
+
+    const result = await this.instagramBusinessService.publishContent(
+        account.providerId,
+        account.accessToken,
+        apiMediaType,
+        mediaList[0].url,
+        contentText,
+    );
+
+    externalId = result.id;
+}
+            
+            else {
+                 const carouselMedia = mediaList.map((m: any) => ({
+                    url: m.url,
+                    type: m.type // Explicitly carry the type down!
+                 }));
+                 const result = await this.instagramBusinessService.publishContent(
+                    account.providerId, 
+                    account.accessToken, 
+                    'CAROUSEL',   
+                    carouselMedia,         
+                    contentText
+                 );
+                 externalId = result.id || 'insta_carousel_id';
+            }
+        }
        else if (platformEntry.platform === Platform.LINKEDIN) {
           const account = await this.getAccount(post.userId, 'linkedin');
           const linkedInMedia = mediaList.length > 0
