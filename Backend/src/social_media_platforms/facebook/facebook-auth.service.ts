@@ -71,12 +71,7 @@ export class FacebookAuthService {
       const pages = (pagesResponse.data as { data: FacebookPage[] }).data;
 
 
-pages.forEach((page) => {
-  console.log({
-    id: page.id,
-    name: page.name,
-  });
-});
+
 
 const selectedPage = pages.find((p) => p.id === pageId);
 
