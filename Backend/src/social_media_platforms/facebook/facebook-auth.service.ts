@@ -69,22 +69,32 @@ export class FacebookAuthService {
       );
 
       const pages = (pagesResponse.data as { data: FacebookPage[] }).data;
-      if (!pages || pages.length === 0) {
-        throw new BadRequestException('No manageable Facebook pages found.');
-      }
 
-      const selectedPage = pages.find((p) => p.id === pageId);
+
+pages.forEach((page) => {
+  console.log({
+    id: page.id,
+    name: page.name,
+  });
+});
+
+const selectedPage = pages.find((p) => p.id === pageId);
+
       if (!selectedPage) {
         throw new BadRequestException(
           'Page not found or user does not have permission for this page.',
         );
       }
+     
 
       return selectedPage.access_token;
     } catch (error: any) {
-      throw new BadRequestException(
-        error.response?.data?.error?.message || 'Failed to authenticate page.',
-      );
+      console.error('Facebook Error');
+console.error(JSON.stringify(error.response?.data, null, 2));
+
+throw new BadRequestException(
+  error.response?.data?.error?.message || 'Failed to authenticate page.',
+);
     }
   }
 }

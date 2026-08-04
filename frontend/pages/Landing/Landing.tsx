@@ -63,8 +63,7 @@ const Landing: React.FC = () => {
 
   const [youtubeConnected, setYoutubeConnected] = useState(false);
   const [twitterConnected, setTwitterConnected] = useState(false);
-  const publishStatusSnapshot = useRef<Record<string, string>>({});
-  const publishStatusInitialized = useRef(false);
+  
 
   const getNotificationSnippet = (post: any) => {
     const plainText = String(post?.content || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -119,63 +118,7 @@ const Landing: React.FC = () => {
     localStorage.removeItem("chat_postlogin"); 
   }, []);
 
-  useEffect(() => {
-    const getPlatformStatusKey = (postId: number, platform: string) => `${postId}-${platform}`;
-    const wasScheduledPost = (post: any) => Boolean(post.scheduledAt);
-
-    const pollPublishedPosts = async () => {
-      try {
-        const response = await axios.get("/posting/scheduled?offset=0");
-        const nextSnapshot: Record<string, string> = {};
-
-        response.data.forEach((post: any) => {
-          const platformStatuses = Array.isArray(post.platformStatuses)
-            ? post.platformStatuses
-            : [];
-
-          platformStatuses.forEach((platformStatus: any) => {
-            const platform = String(platformStatus.platform || "").toLowerCase();
-            const status = String(platformStatus.status || "").toUpperCase();
-            if (!platform) return;
-
-            const key = getPlatformStatusKey(post.id, platform);
-            const previousStatus = publishStatusSnapshot.current[key];
-            nextSnapshot[key] = status;
-
-            if (
-              status === "PUBLISHED" &&
-              wasScheduledPost(post) &&
-              (!publishStatusInitialized.current || previousStatus !== "PUBLISHED")
-            ) {
-              const platformName = platformLabels[platform] || platform;
-              addNotification({
-                type: "success",
-                title: `${platformName} post published`,
-                message: getNotificationSnippet(post),
-                details: [
-                  { label: "Post ID", value: String(post.id) },
-                  { label: "Channel", value: platformName },
-                  { label: "Media", value: `${post.mediaItems?.length || 0} file${(post.mediaItems?.length || 0) === 1 ? "" : "s"}` },
-                  { label: "Published", value: new Date().toLocaleString() },
-                ],
-                dedupeKey: `published-${key}`,
-              });
-            }
-          });
-        });
-
-        publishStatusSnapshot.current = nextSnapshot;
-        publishStatusInitialized.current = true;
-      } catch (error) {
-        console.error("Failed to check published posts", error);
-      }
-    };
-
-    pollPublishedPosts();
-    const interval = window.setInterval(pollPublishedPosts, 30000);
-    return () => window.clearInterval(interval);
-  }, []);
-
+  
   /* ================= TAB CONTENT ================= */
 
   const renderTabContent = () => {

@@ -18,7 +18,6 @@ export const usePostCreation = () => {
           contentType: file.type 
         }
       });
-      console.log("Presigned Response:", data);
       // ✅ FIX: Correctly extract `storagePath` from the backend response
       const { uploadUrl, storagePath } = data;
 

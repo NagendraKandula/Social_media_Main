@@ -63,6 +63,9 @@ export class PostingController {
     try {
       const userId = req.user.id || req.user.userId;
       const weekOffset = parseInt(offset, 10) || 0;
+      console.log('===== Scheduled API Called =====');
+         console.log('User:', req.user.id);
+        console.log('Offset:', offset);
       return await this.postingService.getScheduledPosts(userId, weekOffset);
     } catch (error: any) {
       this.logger.error(`Get Scheduled Error: ${error.message}`);

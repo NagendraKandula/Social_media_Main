@@ -44,7 +44,8 @@ export class PostingService {
         primaryCaption, 
         mediaSlots = [], 
         platforms = [], 
-        scheduledAt 
+        scheduledAt ,
+        contentMetadata,
       } = dto;
 
       const normalizedPlatforms: Platform[] = platforms.map(
@@ -92,6 +93,7 @@ export class PostingService {
           primaryCaption,
           scheduledAt: isScheduled ? new Date(scheduledAt) : null,
           status: initialStatus,
+          contentMetadata: contentMetadata || undefined, // Store contentMetadata if provided
           platforms: {
             create: normalizedPlatforms.map((p) => ({ 
               platform: p, 
