@@ -130,6 +130,7 @@ model Media {
   width        Int?
   height       Int?
   durationMs   Int?
+  fileSizeBytes Int?
 
   checksum     String?       @unique
   status       MediaStatus   @default(UPLOADED)
