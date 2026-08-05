@@ -1,0 +1,43 @@
+.options {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  border: 0;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #252535;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.option input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: #4f4cbe;
+  cursor: pointer;
+}
+
+.option:has(input:focus-visible) {
+  border-radius: 4px;
+  outline: 3px solid rgba(125, 113, 242, 0.2);
+  outline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .options {
+    justify-content: flex-start;
+    gap: 18px;
+    overflow-x: auto;
+  }
+}

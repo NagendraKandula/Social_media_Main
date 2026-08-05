@@ -1,7 +1,9 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, ChartNoAxesColumnIncreasing, Crop, X } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
+import Dragdrop from "./Dragdrop";
+import Toolbar from "./Toolbar";
 import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
@@ -11,6 +13,17 @@ import {
   getCropOutputFormat,
   getNewImageIndices,
 } from "../utils/cropValidation.mjs";
+import {
+  getImageFilter,
+  getImageTransform,
+  sharpenPixelData,
+} from "../utils/imageEditEffects.mjs";
+import {
+  createCropBox,
+  getCropPixels,
+  moveCropBox,
+  resizeCropBox,
+} from "../utils/cropGeometry.mjs";
 
 const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -22,8 +35,42 @@ type CropSession = {
   originalFiles: any[];
   remainingIndices: number[];
 };
+type CropBox = { x: number; y: number; width: number; height: number };
+type CropHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
+type CropInteraction = {
+  mode: "move" | "resize";
+  handle?: CropHandle;
+  startClientX: number;
+  startClientY: number;
+  startBox: CropBox;
+};
+
+const createDefaultImageEffects = () => ({
+  rotation: 0,
+  mirror: false,
+  flip: false,
+  blur: false,
+  sharpen: false,
+  enhance: false,
+  grayscale: false,
+  invert: false,
+});
 
 const CROP_RATIOS = [
+  {
+    label: "Portrait 3:4",
+    sizeLabel: "3:4",
+    value: 3 / 4,
+    outputWidth: 1080,
+    outputHeight: 1440,
+  },
+  {
+    label: "Portrait 4:5",
+    sizeLabel: "4:5",
+    value: 4 / 5,
+    outputWidth: 1080,
+    outputHeight: 1350,
+  },
   {
     label: "Square",
     sizeLabel: "1:1",
@@ -33,10 +80,17 @@ const CROP_RATIOS = [
   },
   {
     label: "Landscape",
-    sizeLabel: "1.91:1",
-    value: 1200 / 627,
-    outputWidth: 1200,
-    outputHeight: 627,
+    sizeLabel: "1080:566",
+    value: 1080 / 566,
+    outputWidth: 1080,
+    outputHeight: 566,
+  },
+  {
+    label: "Custom",
+    sizeLabel: "Custom",
+    value: null,
+    outputWidth: null,
+    outputHeight: null,
   },
 ];
 
@@ -60,15 +114,11 @@ export interface ContentEditorProps {
   validation: ValidationMap;
   isReadOnly?: boolean; 
   validateFilesForSelectedChannels?: (nextFiles: any[]) => string[] | Promise<string[]>;
+  getImageFitWarnings?: (newFiles: File[]) => string[] | Promise<string[]>;
   selectedChannels?: string[];
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
-  activeChannelLabel?: string;
-  activeChannelIndex?: number;
-  totalChannels?: number;
-  onPreviousChannel?: () => void;
-  onNextChannel?: () => void;
 }
 
 export default function ContentEditor({
@@ -79,15 +129,11 @@ export default function ContentEditor({
   effectiveRules,
   isReadOnly = false, 
   validateFilesForSelectedChannels,
+  getImageFitWarnings,
   selectedChannels = [],
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
-  activeChannelLabel,
-  activeChannelIndex = 0,
-  totalChannels = 0,
-  onPreviousChannel,
-  onNextChannel,
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
@@ -97,18 +143,16 @@ export default function ContentEditor({
   });
   const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
   const [cropRatio, setCropRatio] = useState(CROP_RATIOS[0]);
-  const [cropZoom, setCropZoom] = useState(1);
-  const [cropX, setCropX] = useState(50);
-  const [cropY, setCropY] = useState(50);
-  const [isDraggingCrop, setIsDraggingCrop] = useState(false);
-  const [isDraggingMedia, setIsDraggingMedia] = useState(false);
+  const [cropBox, setCropBox] = useState<CropBox>({ x: 12.5, y: 0, width: 75, height: 100 });
+  const [cropImageDimensions, setCropImageDimensions] = useState({ width: 0, height: 0 });
+  const [imageEffects, setImageEffects] = useState(createDefaultImageEffects);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const cropPreviewRef = useRef<HTMLDivElement>(null);
+  const cropInteractionRef = useRef<CropInteraction | null>(null);
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
       ...recommendation,
@@ -169,6 +213,16 @@ export default function ContentEditor({
     if (selectedFiles.length === 0) return;
     setMediaError(null);
 
+    const fitWarnings = getImageFitWarnings
+      ? await getImageFitWarnings(selectedFiles)
+      : [];
+
+    if (fitWarnings.length > 0) {
+      alert(
+        `Image fit warning:\n\n${fitWarnings.join("\n\n")}\n\nThe image will still be added.`
+      );
+    }
+
     const nextFiles = [...files, ...selectedFiles];
     const validationErrors = validateFilesForSelectedChannels
       ? await validateFilesForSelectedChannels(nextFiles)
@@ -205,18 +259,6 @@ export default function ContentEditor({
     }
 
     onFilesChange(nextFiles);
-  };
-
-  const handleMediaSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    event.target.value = "";
-    await addMediaFiles(selectedFiles);
-  };
-
-  const handleMediaDrop = async (event: React.DragEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    setIsDraggingMedia(false);
-    await addMediaFiles(Array.from(event.dataTransfer.files || []));
   };
 
   /* ---------- Rich Text ---------- */
@@ -272,14 +314,26 @@ export default function ContentEditor({
   const openCrop = (index: number) => {
     setCropTargetIndex(index);
     setCropRatio(CROP_RATIOS[0]);
-    setCropZoom(1);
-    setCropX(50);
-    setCropY(50);
+    setCropImageDimensions({ width: 0, height: 0 });
+    setImageEffects(createDefaultImageEffects());
+  };
+
+  const toggleImageEffect = (
+    effect: "mirror" | "flip" | "blur" | "sharpen" | "enhance" | "grayscale" | "invert"
+  ) => {
+    setImageEffects((current) => ({ ...current, [effect]: !current[effect] }));
+  };
+
+  const rotateImage = () => {
+    setImageEffects((current) => ({
+      ...current,
+      rotation: (current.rotation + 45) % 360,
+    }));
   };
 
   const closeCrop = () => {
     setCropTargetIndex(null);
-    setIsDraggingCrop(false);
+    cropInteractionRef.current = null;
   };
 
   const cancelCrop = () => {
@@ -293,27 +347,75 @@ export default function ContentEditor({
 
   const selectCropRatio = (ratio: typeof CROP_RATIOS[number]) => {
     setCropRatio(ratio);
-    setCropZoom(1);
-    setCropX(50);
-    setCropY(50);
+    if (ratio.value && cropImageDimensions.width && cropImageDimensions.height) {
+      setCropBox(
+        createCropBox(
+          cropImageDimensions.width,
+          cropImageDimensions.height,
+          ratio.value
+        )
+      );
+    }
   };
 
-  const adjustCropZoom = (amount: number) => {
-    setCropZoom((currentZoom) =>
-      Number(Math.min(3, Math.max(1, currentZoom + amount)).toFixed(2))
+  const getCropPointer = (event: React.PointerEvent<HTMLElement>) => {
+    const preview = cropPreviewRef.current;
+    if (!preview) return null;
+
+    const rect = preview.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * 100,
+      y: ((event.clientY - rect.top) / rect.height) * 100,
+      rect,
+    };
+  };
+
+  const startCropInteraction = (
+    event: React.PointerEvent<HTMLElement>,
+    mode: "move" | "resize",
+    handle?: CropHandle
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    cropInteractionRef.current = {
+      mode,
+      handle,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startBox: cropBox,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const updateCropFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+    const interaction = cropInteractionRef.current;
+    const pointer = getCropPointer(event);
+    if (!interaction || !pointer) return;
+
+    if (interaction.mode === "move") {
+      const deltaX = ((event.clientX - interaction.startClientX) / pointer.rect.width) * 100;
+      const deltaY = ((event.clientY - interaction.startClientY) / pointer.rect.height) * 100;
+      setCropBox(moveCropBox(interaction.startBox, deltaX, deltaY));
+      return;
+    }
+
+    setCropBox(
+      resizeCropBox(
+        interaction.startBox,
+        interaction.handle,
+        pointer.x,
+        pointer.y,
+        cropImageDimensions.width / cropImageDimensions.height,
+        cropRatio.value
+      )
     );
   };
 
-  const updateCropFocusFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-    const preview = cropPreviewRef.current;
-    if (!preview) return;
-
-    const rect = preview.getBoundingClientRect();
-    const nextX = ((event.clientX - rect.left) / rect.width) * 100;
-    const nextY = ((event.clientY - rect.top) / rect.height) * 100;
-
-    setCropX(Math.min(100, Math.max(0, Math.round(nextX))));
-    setCropY(Math.min(100, Math.max(0, Math.round(nextY))));
+  const stopCropInteraction = (event: React.PointerEvent<HTMLElement>) => {
+    cropInteractionRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   };
 
   const applyCrop = async () => {
@@ -329,8 +431,13 @@ export default function ContentEditor({
     const url = URL.createObjectURL(file);
 
     image.onload = () => {
-      const outputWidth = cropRatio.outputWidth;
-      const outputHeight = cropRatio.outputHeight;
+      const sourceCrop = getCropPixels(
+        cropBox,
+        image.naturalWidth,
+        image.naturalHeight
+      );
+      const outputWidth = cropRatio.outputWidth || sourceCrop.width;
+      const outputHeight = cropRatio.outputHeight || sourceCrop.height;
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
 
@@ -343,36 +450,31 @@ export default function ContentEditor({
       canvas.width = outputWidth;
       canvas.height = outputHeight;
 
-      const sourceRatio = image.naturalWidth / image.naturalHeight;
-      const targetRatio = outputWidth / outputHeight;
-      let sourceWidth = image.naturalWidth;
-      let sourceHeight = image.naturalHeight;
-
-      if (sourceRatio > targetRatio) {
-        sourceWidth = image.naturalHeight * targetRatio;
-      } else {
-        sourceHeight = image.naturalWidth / targetRatio;
-      }
-
-      sourceWidth /= cropZoom;
-      sourceHeight /= cropZoom;
-
-      const maxX = Math.max(0, image.naturalWidth - sourceWidth);
-      const maxY = Math.max(0, image.naturalHeight - sourceHeight);
-      const sourceX = (cropX / 100) * maxX;
-      const sourceY = (cropY / 100) * maxY;
-
+      context.save();
+      context.translate(outputWidth / 2, outputHeight / 2);
+      context.rotate((imageEffects.rotation * Math.PI) / 180);
+      context.scale(imageEffects.mirror ? -1 : 1, imageEffects.flip ? -1 : 1);
+      context.filter = getImageFilter({ ...imageEffects, sharpen: false });
       context.drawImage(
         image,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
+        sourceCrop.x,
+        sourceCrop.y,
+        sourceCrop.width,
+        sourceCrop.height,
+        -outputWidth / 2,
+        -outputHeight / 2,
         outputWidth,
         outputHeight
       );
+      context.restore();
+
+      if (imageEffects.sharpen) {
+        const imageData = context.getImageData(0, 0, outputWidth, outputHeight);
+        imageData.data.set(
+          sharpenPixelData(imageData.data, outputWidth, outputHeight)
+        );
+        context.putImageData(imageData, 0, 0);
+      }
 
       const outputFormat = getCropOutputFormat(file.type);
 
@@ -473,69 +575,30 @@ export default function ContentEditor({
       className={`${styles.editorCard} ${size === "publish" ? styles.publishEditorCard : ""}`}
       style={{ opacity: isReadOnly ? 0.8 : 1 }}
     >
-      {/* Toolbar */}
-      <div className={styles.toolbar} style={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.5 : 1 }}>
-        <div className={styles.toolbarLeft}>
-          <button type="button" className={activeFormats.bold ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("bold")} disabled={isReadOnly} aria-label="Bold" title="Bold"><Bold size={18} strokeWidth={2.4} /></button>
-          <button type="button" className={activeFormats.italic ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("italic")} disabled={isReadOnly} aria-label="Italic" title="Italic"><Italic size={18} strokeWidth={2.4} /></button>
-          <button type="button" className={activeFormats.underline ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("underline")} disabled={isReadOnly} aria-label="Underline" title="Underline"><Underline size={18} strokeWidth={2.4} /></button>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertLink} disabled={isReadOnly} aria-label="Add link" title="Add link"><LinkIcon size={18} strokeWidth={2.4} /></button>
-          <button type="button" onClick={() => insertText("#")} disabled={isReadOnly} aria-label="Add hashtag" title="Add hashtag">#</button>
-          <button type="button" onClick={() => insertText("@")} disabled={isReadOnly} aria-label="Add mention" title="Add mention">@</button>
-          <button type="button" onClick={() => setShowEmojiPicker(v => !v)} disabled={isReadOnly} aria-label="Add emoji" title="Add emoji">
-            <Smile size={18} strokeWidth={2.4} />
-          </button>
-        </div>
-        {activeChannelLabel && (
-          <div className={styles.channelNavigator} aria-label="Channel content editor">
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onPreviousChannel}
-              disabled={isReadOnly || !onPreviousChannel || totalChannels <= 1}
-              aria-label="Previous channel content"
-              title="Previous channel"
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <span className={styles.channelContentLabel}>
-              {activeChannelLabel} content
-              {totalChannels > 1 && (
-                <small>{activeChannelIndex + 1} / {totalChannels}</small>
-              )}
-            </span>
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onNextChannel}
-              disabled={isReadOnly || !onNextChannel || totalChannels <= 1}
-              aria-label="Next channel content"
-              title="Next channel"
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          </div>
-        )}
-        <div className={styles.toolbarMeta}>
-          <span className={`${styles.charCount} ${overLimit ? styles.overLimit : ""}`}>
-            {charCount}{maxLength ? ` / ${maxLength}` : ""} chars
-          </span>
-          {onOpenAIAssistant && (
-            <button
-              type="button"
-              className={styles.aiAssistantButton}
-              onClick={onOpenAIAssistant}
-              disabled={isReadOnly}
-              aria-label="Open AI Assistant"
-              title="Open AI Assistant"
-            >
-              <Sparkles size={16} aria-hidden="true" />
-              <PenLine size={15} aria-hidden="true" />
-              <span>AI</span>
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Editor */}
+      <div
+        className={styles.editor}
+        contentEditable={!isReadOnly}
+        ref={editorRef}
+        onInput={handleInput}
+        suppressContentEditableWarning
+        data-placeholder={isReadOnly ? "" : "Write your post..."}
+        style={{ cursor: isReadOnly ? 'default' : 'text', background: isReadOnly ? '#fafafa' : '#fff' }}
+      />
+
+      <Toolbar
+        activeFormats={activeFormats}
+        charCount={charCount}
+        maxLength={maxLength}
+        overLimit={Boolean(overLimit)}
+        showCharacterCount={true}
+        isReadOnly={isReadOnly}
+        onApplyCommand={applyCommand}
+        onInsertLink={insertLink}
+        onInsertText={insertText}
+        onToggleEmojiPicker={() => setShowEmojiPicker((visible) => !visible)}
+        onOpenAIAssistant={onOpenAIAssistant}
+      />
 
       {showEmojiPicker && !isReadOnly && (
         <div className={styles.emojiPopover}>
@@ -548,17 +611,6 @@ export default function ContentEditor({
         </div>
       )}
 
-      {/* Editor */}
-      <div
-        className={styles.editor}
-        contentEditable={!isReadOnly}
-        ref={editorRef}
-        onInput={handleInput}
-        suppressContentEditableWarning
-        data-placeholder={isReadOnly ? "" : "Write your post..."}
-        style={{ cursor: isReadOnly ? 'default' : 'text', background: isReadOnly ? '#fafafa' : '#fff' }}
-      />
-
       {cropTargetPreview?.isImage && cropTargetPreview.url && (
         <div className={styles.cropOverlay}>
           <div
@@ -570,9 +622,14 @@ export default function ContentEditor({
             <div className={styles.cropHeader}>
               <div>
                 <h3 id="crop-dialog-title">
-                  {cropSession ? "Crop to upload" : "Crop Image"}
+                  {cropSession ? "Crop to upload" : "Edit Image"}
                 </h3>
-                <p>{cropRatio.label} · {cropRatio.outputWidth}x{cropRatio.outputHeight}</p>
+                <p>
+                  {cropRatio.label}
+                  {cropRatio.outputWidth && cropRatio.outputHeight
+                    ? ` · ${cropRatio.outputWidth}x${cropRatio.outputHeight}`
+                    : " · Drag the handles to choose a custom crop"}
+                </p>
               </div>
               <button type="button" onClick={cancelCrop} aria-label="Close crop">
                 ×
@@ -583,35 +640,71 @@ export default function ContentEditor({
               <div
                 ref={cropPreviewRef}
                 className={styles.cropPreview}
-                style={{ aspectRatio: `${cropRatio.outputWidth} / ${cropRatio.outputHeight}` }}
-                onPointerDown={(event) => {
-                  setIsDraggingCrop(true);
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  updateCropFocusFromPointer(event);
+                style={{
+                  aspectRatio: cropImageDimensions.width && cropImageDimensions.height
+                    ? `${cropImageDimensions.width} / ${cropImageDimensions.height}`
+                    : "1 / 1",
+                  width: cropImageDimensions.width && cropImageDimensions.height
+                    ? `min(100%, 760px, ${(62 * cropImageDimensions.width) / cropImageDimensions.height}vh)`
+                    : "min(100%, 620px)",
                 }}
-                onPointerMove={(event) => {
-                  if (isDraggingCrop) updateCropFocusFromPointer(event);
-                }}
-                onPointerUp={(event) => {
-                  setIsDraggingCrop(false);
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }}
-                onPointerCancel={() => setIsDraggingCrop(false)}
               >
                 <img
                   src={cropTargetPreview.url}
                   alt="Crop preview"
+                  onLoad={(event) => {
+                    const dimensions = {
+                      width: event.currentTarget.naturalWidth,
+                      height: event.currentTarget.naturalHeight,
+                    };
+                    setCropImageDimensions(dimensions);
+                    if (cropRatio.value) {
+                      setCropBox(
+                        createCropBox(
+                          dimensions.width,
+                          dimensions.height,
+                          cropRatio.value
+                        )
+                      );
+                    }
+                  }}
                   style={{
-                    transform: `scale(${cropZoom})`,
-                    objectPosition: `${cropX}% ${cropY}%`,
+                    transform: getImageTransform({
+                      zoom: 1,
+                      rotation: imageEffects.rotation,
+                      mirror: imageEffects.mirror,
+                      flip: imageEffects.flip,
+                    }),
+                    filter: getImageFilter(imageEffects),
                   }}
                 />
-                <div className={styles.cropGrid} aria-hidden="true" />
                 <div
-                  className={styles.cropFocusMarker}
-                  style={{ left: `${cropX}%`, top: `${cropY}%` }}
-                  aria-hidden="true"
-                />
+                  className={styles.cropSelection}
+                  style={{
+                    left: `${cropBox.x}%`,
+                    top: `${cropBox.y}%`,
+                    width: `${cropBox.width}%`,
+                    height: `${cropBox.height}%`,
+                  }}
+                  onPointerDown={(event) => startCropInteraction(event, "move")}
+                  onPointerMove={updateCropFromPointer}
+                  onPointerUp={stopCropInteraction}
+                  onPointerCancel={stopCropInteraction}
+                >
+                  <div className={styles.cropGrid} aria-hidden="true" />
+                  {(["n", "ne", "e", "se", "s", "sw", "w", "nw"] as CropHandle[]).map((handle) => (
+                    <button
+                      key={handle}
+                      type="button"
+                      className={`${styles.cropHandle} ${styles[`cropHandle${handle.toUpperCase()}`]}`}
+                      aria-label={`Resize crop ${handle}`}
+                      onPointerDown={(event) => startCropInteraction(event, "resize", handle)}
+                      onPointerMove={updateCropFromPointer}
+                      onPointerUp={stopCropInteraction}
+                      onPointerCancel={stopCropInteraction}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -627,26 +720,36 @@ export default function ContentEditor({
                       onClick={() => selectCropRatio(ratio)}
                     >
                       <span>{ratio.sizeLabel}</span>
-                      <strong>{ratio.label}</strong>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className={styles.cropToolGroup}>
-                <span>
-                  Zoom <strong>{cropZoom.toFixed(2)}x</strong>
-                </span>
-                <div className={styles.zoomControls}>
-                  <button type="button" onClick={() => adjustCropZoom(-0.1)}>
-                    -
+              <div className={styles.imageEffectsGroup}>
+                <span>Image adjustments</span>
+                <div className={styles.imageEffectsGrid}>
+                  <button type="button" onClick={rotateImage}>
+                    Rotate <strong>{imageEffects.rotation}°</strong>
                   </button>
-                  <div className={styles.zoomMeter}>
-                    <span style={{ width: `${((cropZoom - 1) / 2) * 100}%` }} />
-                  </div>
-                  <button type="button" onClick={() => adjustCropZoom(0.1)}>
-                    +
-                  </button>
+                  {([
+                    ["mirror", "Mirror"],
+                    ["flip", "Flip"],
+                    ["blur", "Blur"],
+                    ["sharpen", "Sharpen"],
+                    ["enhance", "Enhance"],
+                    ["grayscale", "Grayscale"],
+                    ["invert", "Invert"],
+                  ] as const).map(([effect, label]) => (
+                    <button
+                      key={effect}
+                      type="button"
+                      className={imageEffects[effect] ? styles.imageEffectActive : ""}
+                      onClick={() => toggleImageEffect(effect)}
+                      aria-pressed={imageEffects[effect]}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -657,7 +760,7 @@ export default function ContentEditor({
                 Cancel
               </button>
               <button type="button" onClick={applyCrop}>
-                Apply crop
+                Apply
               </button>
             </div>
           </div>
@@ -668,33 +771,7 @@ export default function ContentEditor({
       <div className={styles.footerInfo}>
         <div className={styles.mediaFooterContent}>
           {!isReadOnly && (
-            <>
-            <button
-              type="button"
-              className={`${styles.uploadBox} ${isDraggingMedia ? styles.uploadBoxDragging : ""}`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setIsDraggingMedia(true);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={() => setIsDraggingMedia(false)}
-              onDrop={handleMediaDrop}
-            >
-              <ImagePlus size={34} aria-hidden="true" />
-              <span>
-                Drag &amp; drop or
-                <strong>select a file</strong>
-              </span>
-            </button>
-            <input
-              type="file"
-              multiple
-              hidden
-              ref={fileInputRef}
-              onChange={handleMediaSelection}
-            />
-            </>
+            <Dragdrop onFilesSelected={addMediaFiles} />
           )}
 
           {filePreviews.length > 0 && (
