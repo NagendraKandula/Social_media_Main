@@ -123,80 +123,78 @@ export class PostingProcessor {
           );
         }
         if (platformEntry.platform === Platform.FACEBOOK) {
-          if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
-          
-          const account = await this.getAccount(post.userId, 'facebook');
-          const pageId = account.providerId; 
-          const facebookPostType = 'feed'; // Defaulting to feed since contentMetadata is gone
+            if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
+            const pageId = (post as any).contentMetadata?.platformOverrides?.facebook?.pageId;
+            if (!pageId) throw new Error('Facebook Page ID missing');
+            const facebookPostType = (post as any).contentMetadata?.platformOverrides?.facebook?.postType || 'feed';
 
-          const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m) => m.url);
+            const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
 
-          const result = await this.facebookService.postToFacebook(
-            post.userId,
-            pageId,
-            contentText,
-            urlsParam,
-            mediaList[0].type as any,
-            facebookPostType,
-          );
+            const result = await this.facebookService.postToFacebook(
+                post.userId, 
+                pageId, 
+                contentText, 
+                urlsParam, 
+                mediaList[0].type as any,
+                facebookPostType,
+            );
+            
+            externalId = result.postId || 'fb_id';
+        }
+         else if (platformEntry.platform === Platform.INSTAGRAM) {
+            if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
+            const account = await this.getAccount(post.userId, 'instagram');
+            const instaMeta = (post.contentMetadata as any)?.platformOverrides?.instagram;
+            const userPostType = instaMeta?.postType || 'post'; 
+            if (mediaList.length === 1) {
+    let apiMediaType: 'IMAGE' | 'VIDEO' | 'REELS' | 'STORIES';
 
-          externalId = result.postId || 'fb_id';
-        } 
-        else if (platformEntry.platform === Platform.INSTAGRAM) {
-          if (mediaList.length === 0) throw new Error('Media URL is required for Instagram');
-          const account = await this.getAccount(post.userId, 'instagram');
+    if (userPostType === 'story') {
+        apiMediaType = 'STORIES';
+    } else if (userPostType === 'reel') {
+        apiMediaType = 'REELS';
+    } else {
+        // Normal feed post
+        apiMediaType =
+            mediaList[0].type === MediaType.VIDEO
+                ? 'VIDEO'
+                : 'IMAGE';
+    }
 
-          if (mediaList.length === 1) {
-            let apiMediaType: 'IMAGE' | 'REELS' | 'STORIES' = 'IMAGE';
+    const result = await this.instagramBusinessService.publishContent(
+        account.providerId,
+        account.accessToken,
+        apiMediaType,
+        mediaList[0].url,
+        contentText,
+    );
 
-            // Determine if reel or story using the new Placement enum and MediaType
-            if (mediaList[0].placement === Placement.STORY) {
-              apiMediaType = 'STORIES';
-            } else if (mediaList[0].placement === Placement.REEL) {
-              apiMediaType = 'REELS';
-            } else if (mediaList[0].type === MediaType.VIDEO) {
-              apiMediaType = 'REELS';
+    externalId = result.id;
+}
+            
+            else {
+                 const carouselMedia = mediaList.map((m: any) => ({
+                    url: m.url,
+                    type: m.type // Explicitly carry the type down!
+                 }));
+                 const result = await this.instagramBusinessService.publishContent(
+                    account.providerId, 
+                    account.accessToken, 
+                    'CAROUSEL',   
+                    carouselMedia,         
+                    contentText
+                 );
+                 externalId = result.id || 'insta_carousel_id';
             }
-
-            const result = await this.instagramBusinessService.publishContent(
-              account.providerId,
-              account.accessToken,
-              apiMediaType,
-              mediaList[0].url,
-              contentText,
-            );
-            externalId = result.id;
-          } else {
-            const carouselMedia = mediaList.map((m) => ({
-              url: m.url,
-              type: m.type,
-            }));
-            const result = await this.instagramBusinessService.publishContent(
-              account.providerId,
-              account.accessToken,
-              'CAROUSEL',
-              carouselMedia,
-              contentText,
-            );
-            externalId = result.id || 'insta_carousel_id';
-          }
-        } 
-        else if (platformEntry.platform === Platform.LINKEDIN) {
-          this.logger.log("STEP 1 - Got LinkedIn account");
+        }
+       else if (platformEntry.platform === Platform.LINKEDIN) {
           const account = await this.getAccount(post.userId, 'linkedin');
-            this.logger.log("STEP 2 - Account loaded");
-
-            this.logger.log(JSON.stringify(mediaList, null, 2));
-
-            this.logger.log("STEP 3 - Calling LinkedIn Service");
-          // ✅ FIXED: Explicitly casting as 'IMAGE' | 'VIDEO' to resolve TS Error 2345
           const linkedInMedia = mediaList.length > 0
             ? mediaList.map((m) => ({ 
                 url: m.url, 
                 type: (m.type === MediaType.VIDEO ? 'VIDEO' : 'IMAGE') as 'IMAGE' | 'VIDEO' 
               }))
             : undefined;
-          console.log("STEP 4 - Media prepared for LinkedIn:", JSON.stringify(linkedInMedia, null, 2));
           const result = await this.linkedinService.postToLinkedIn(
             account.accessToken,
             account.providerId,

@@ -216,6 +216,7 @@ model Post {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   primaryCaption String?
+  contentMetadata Json? 
   status         PostStatus      @default(DRAFT)
 
   scheduledAt    DateTime?

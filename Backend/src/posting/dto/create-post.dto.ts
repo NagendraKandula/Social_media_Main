@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsArray, IsEnum, ValidateNested, IsNumber } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsArray, IsEnum, ValidateNested, IsNumber, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Platform, PostStatus } from '@prisma/client'; 
 
@@ -38,4 +38,8 @@ export class CreatePostDto {
   @ValidateNested({ each: true })
   @Type(() => PostMediaSlotDto)
   mediaSlots!: PostMediaSlotDto[];
+  
+  @IsOptional()
+  @IsObject()
+  contentMetadata?: Record<string, any>;
 }
