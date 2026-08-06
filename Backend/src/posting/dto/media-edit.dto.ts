@@ -1,5 +1,9 @@
 import { Platform, Placement } from '@prisma/client';
-import { IsEnum, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
 
 export class MediaEditDto {
   @IsEnum(Platform)

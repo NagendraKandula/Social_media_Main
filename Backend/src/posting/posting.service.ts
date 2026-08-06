@@ -11,7 +11,7 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { StorageService } from '../storage/storage.service';
-import { PostStatus, Platform, MediaType, MediaStatus } from '@prisma/client';
+import { PostStatus, Platform, MediaType, MediaStatus,Placement } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import { MediaEditDto } from './dto/media-edit.dto';
 
@@ -132,21 +132,50 @@ export class PostingService {
           editId: number | null;
 }[] = [];
 
-        for (const slot of validMediaSlots) {
-          let editId: number | null = null;
+       for (const slot of validMediaSlots) {
+          let editData: MediaEditDto;
 
-          // Process the nested edit data if it exists
+          // 1. Check if the frontend sent crop data
           if (slot.edit) {
-            const editRecord = await this.saveMediaEdit(tx, slot.mediaId, slot.edit);
-            editId = editRecord.id;
+            editData = slot.edit;
+          } else {
+            // 2. If no edit data, fetch media and generate defaults
+            const media = await tx.media.findUnique({
+              where: {
+                id: slot.mediaId,
+              },
+            });
+
+            if (!media) {
+              throw new BadRequestException(`Media ID ${slot.mediaId} not found`);
+            }
+
+            editData = {
+              platform: slot.platform as Platform,
+              placement: Placement.FEED, // default
+              cropX: 0,
+              cropY: 0,
+              cropWidth: media.width || 1080,   // Fallback baseline
+              cropHeight: media.height || 1080, // Fallback baseline
+              rotation: 0,
+              // focalX and focalY are completely omitted to satisfy 'number | undefined'
+            };
           }
+
+          // 3. Save the edit record safely
+          const editRecord = await this.saveMediaEdit(
+            tx,
+            slot.mediaId,
+            editData,
+          );
 
           processedSlots.push({
             mediaId: slot.mediaId,
-            platform: slot.platform,
+            platform: slot.platform as Platform,
             position: slot.position,
-            editId,
+            editId: editRecord.id,
           });
+        
         }
 
         return tx.post.create({
