@@ -796,42 +796,14 @@ export default function Publish() {
       }
 
       // ✅ 3. Construct the new payload matching CreatePostDto
-      // ✅ 3. Construct the content metadata from the frontend's platformState
-      const contentMetadata: Record<string, any> = {
-        platformOverrides: {}
-      };
-
-      // If Facebook is selected, grab the Page ID from the dropdown state
-      if (selectedChannels.has('facebook')) {
-        contentMetadata.platformOverrides.facebook = {
-          pageId: platformState.facebookPageId,
-          postType: platformState.facebookPostType || 'feed',
-        };
-      }
-
-      if (selectedChannels.has('instagram')) {
-        contentMetadata.platformOverrides.instagram = {
-          postType: platformState.instagramPostType || 'post',
-        };
-      }
-
-      if (selectedChannels.has('youtube')) {
-        contentMetadata.platformOverrides.youtube = {
-          type: platformState.youtubeType || 'video',
-          title: platformState.youtubeTitle,
-        };
-      }
-
-      // ✅ 4. Construct the new payload and INCLUDE the contentMetadata
       const payload = {
-        primaryCaption: content,
+        primaryCaption: content, // Map the UI's content variable to the new DB field name
         platforms: selectedChannelList.map(channel => channel.toUpperCase()),
         status: isScheduled ? 'SCHEDULED' : 'PENDING',
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         mediaSlots: mediaSlots,
-        contentMetadata: contentMetadata, // <--- THIS IS THE MISSING PIECE
       };
-//console.log(`[Frontend] 🚀 Sending Post Payload to Backend:`, JSON.stringify(payload, null, 2));
+console.log(`[Frontend] 🚀 Sending Post Payload to Backend:`, JSON.stringify(payload, null, 2));
       // Send to backend
       const createdPost = await createPost(payload);
 

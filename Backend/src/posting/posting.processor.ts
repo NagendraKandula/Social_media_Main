@@ -11,7 +11,7 @@ import { ThreadsService } from '../social_media_platforms/threads/threads.servic
 import { TwitterService } from '../social_media_platforms/twitter/twitter.service';
 import { Platform, PostStatus, MediaType, Placement, VariantStatus } from '@prisma/client';
 
-@Processor('social-posting')
+@Processor('posting-queue')
 export class PostingProcessor {
   private readonly logger = new Logger(PostingProcessor.name);
 
@@ -61,7 +61,13 @@ export class PostingProcessor {
           include: {
             media: true,
             edit: {
-              include: { variants: true }
+              include: { 
+                variants: {
+                   where: {
+                   status: VariantStatus.READY,
+                      },
+                 },
+              }
             }
           },
           orderBy: { position: 'asc' },

@@ -15,8 +15,11 @@ import { InstagramBusinessModule } from '../social_media_platforms/instagram-bus
 @Module({
   imports: [
     PrismaModule,
-    BullModule.registerQueue({
-      name: 'social-posting',
+    BullModule.registerQueue(
+       {
+    name: 'render-queue',
+  },{
+      name: 'posting-queue',
     }),
     FacebookModule,
     InstagramBusinessModule,

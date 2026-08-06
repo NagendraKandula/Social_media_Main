@@ -8,7 +8,7 @@ import { Queue } from 'bull';
 export class SchedulerService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('social-posting') private readonly postingQueue: Queue,
+    @InjectQueue('render-queue') private readonly renderQueue: Queue,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -27,10 +27,14 @@ export class SchedulerService {
       console.log(`⏰ Scheduled time hit for Post #${post.id}. Moving to Queue.`);
 
       // 2. Add to Queue
-      await this.postingQueue.add('publish-post', { postId: post.id }, {
-          attempts: 3,
-          backoff: 5000, // Wait 5s before retry
-      });
+      await this.renderQueue.add(
+  'process-media',
+  { postId: post.id },
+  {
+    attempts: 3,
+    backoff: 5000,
+  },
+);
 
       // 3. Mark as PUBLISHING so we don't pick it up again next minute
       await this.prisma.post.update({

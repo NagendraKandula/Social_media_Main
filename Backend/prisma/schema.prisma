@@ -163,7 +163,7 @@ model MediaEdit {
   cropY       Float
   cropWidth   Float
   cropHeight  Float
-
+  rotation Float @default(0)
   focalX      Float?
   focalY      Float?
 
@@ -176,7 +176,7 @@ model MediaEdit {
   slots       PostMediaSlot[]
 
   @@index([mediaId])
-  @@unique([mediaId, platform])
+  @@unique([mediaId, platform,placement])
 }
 
 /////////////////////////////////////////////////////
