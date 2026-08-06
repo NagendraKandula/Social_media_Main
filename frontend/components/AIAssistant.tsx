@@ -33,6 +33,18 @@ export default function AIAssistant({
   const [instruction, setInstruction] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const instructionInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const resizeInstructionInput = (element: HTMLTextAreaElement) => {
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    if (!instruction && instructionInputRef.current) {
+      instructionInputRef.current.style.height = 'auto';
+    }
+  }, [instruction]);
 
   const mediaSignature = useMemo(() => {
     return files
@@ -251,19 +263,24 @@ const handleAnalyze = useCallback(async () => {
             Need changes? Ask the AI to adjust the tone, length, or rewrite specific platforms.
           </p>
           <div className={styles.chatInputRow}>
-            <input
-              type="text"
+            <textarea
+              ref={instructionInputRef}
+              rows={3}
               placeholder="e.g., Make the Twitter post punchier..."
               value={instruction}
-              onChange={(e) => setInstruction(e.target.value)}
+              onChange={(e) => {
+                setInstruction(e.target.value);
+                resizeInstructionInput(e.currentTarget);
+              }}
               className={styles.chatInput}
               disabled={isChatLoading}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
                   handleChat();
                 }
               }}
+              aria-label="Refine with AI instruction"
             />
             <button
               onClick={handleChat}

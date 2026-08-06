@@ -11,7 +11,8 @@
 
 .publishEditorCard {
   display: flex;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
   border: 0;
@@ -19,41 +20,18 @@
   overflow: visible;
 }
 
-.publishEditorCard .channelNavigator {
-  position: static;
-}
-
-.publishEditorCard .channelNavButton {
-  position: absolute;
-  top: 46%;
-  z-index: 4;
-  width: 44px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 4px 16px rgba(23, 23, 43, 0.08);
-  transform: translateY(-50%);
-}
-
-.publishEditorCard .channelNavButton:first-child {
-  left: 4px;
-}
-
-.publishEditorCard .channelNavButton:last-child {
-  right: 4px;
-}
-
-.publishEditorCard .channelNavButton:hover:not(:disabled) {
-  transform: translateY(-50%) scale(1.04);
-}
-
 .publishEditorCard .toolbar {
+  border-top: 1px solid #e9e9f3;
   border-bottom: 0;
-  padding: 6px 0;
+  padding: 10px 0 6px;
 }
 
 .publishEditorCard .editor {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding-top: 10px;
   padding-right: 0;
   padding-left: 0;
@@ -99,10 +77,6 @@
   font-weight: 700;
   transition: color 0.16s ease, background-color 0.16s ease,
     border-color 0.16s ease, transform 0.16s ease;
-}
-
-.toolbarLeft button:first-child {
-  justify-content: flex-start;
 }
 
 .toolbarLeft button:hover {
@@ -244,13 +218,7 @@
 }
 
 .publishEditorCard .editor {
-  min-height: clamp(220px, 27vh, 270px);
-}
-
-@media (max-width: 1180px) {
-  .publishEditorCard .editor {
-    min-height: clamp(200px, 25vh, 250px);
-  }
+  min-height: 0;
 }
 
 /* Placeholder */
@@ -273,8 +241,8 @@
 
 .mediaItem {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 78px;
+  height: 78px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #d1d5db;
@@ -355,7 +323,7 @@
 }
 
 .cropModal {
-  width: min(860px, 100%);
+  width: min(1100px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
   border: 1px solid rgba(79, 76, 190, 0.12);
@@ -408,36 +376,45 @@
 .cropStage {
   display: flex;
   justify-content: center;
-  padding: 28px;
-  background: linear-gradient(160deg, #fffefa 0%, rgba(247, 243, 126, 0.14) 100%);
+  padding: 28px clamp(20px, 6vw, 80px);
+  background: #f5f5f5;
 }
 
 .cropPreview {
-  width: min(100%, 520px);
-  max-height: min(56vh, 560px);
+  width: min(100%, 760px);
+  max-height: min(62vh, 660px);
   margin: 0 auto;
   overflow: hidden;
-  border: 3px solid #ffffff;
-  border-radius: 14px;
-  background: #111827;
-  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.22);
+  border: 0;
+  border-radius: 0;
+  background: #e9e5e8;
+  box-shadow: none;
   position: relative;
-  cursor: grab;
   touch-action: none;
   user-select: none;
-}
-
-.cropPreview:active {
-  cursor: grabbing;
 }
 
 .cropPreview img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: fill;
   transform-origin: center;
   display: block;
   pointer-events: none;
+}
+
+.cropSelection {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 2px solid #111111;
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.58);
+  touch-action: none;
+}
+
+.cropSelection:active {
+  cursor: grabbing;
 }
 
 .cropGrid {
@@ -450,6 +427,85 @@
     linear-gradient(to bottom, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.72) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.72) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
     linear-gradient(to bottom, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.72) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.72) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
 }
+
+.cropHandle {
+  position: absolute;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cropHandle::after {
+  position: absolute;
+  content: "";
+  background: #111111;
+}
+
+.cropHandleN,
+.cropHandleS {
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.cropHandleN { top: -13px; }
+.cropHandleS { bottom: -13px; }
+.cropHandleN::after,
+.cropHandleS::after {
+  left: 3px;
+  right: 3px;
+  top: 10px;
+  height: 4px;
+}
+
+.cropHandleE,
+.cropHandleW {
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.cropHandleE { right: -13px; }
+.cropHandleW { left: -13px; }
+.cropHandleE::after,
+.cropHandleW::after {
+  top: 3px;
+  bottom: 3px;
+  left: 10px;
+  width: 4px;
+}
+
+.cropHandleNE,
+.cropHandleNW { top: -13px; }
+.cropHandleSE,
+.cropHandleSW { bottom: -13px; }
+.cropHandleNE,
+.cropHandleSE { right: -13px; }
+.cropHandleNW,
+.cropHandleSW { left: -13px; }
+.cropHandleNE,
+.cropHandleSW { cursor: nesw-resize; }
+.cropHandleNW,
+.cropHandleSE { cursor: nwse-resize; }
+
+.cropHandleNE::after,
+.cropHandleNW::after,
+.cropHandleSE::after,
+.cropHandleSW::after {
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border-color: #111111;
+  border-style: solid;
+}
+
+.cropHandleNW::after { right: 0; bottom: 0; border-width: 4px 0 0 4px; }
+.cropHandleNE::after { left: 0; bottom: 0; border-width: 4px 4px 0 0; }
+.cropHandleSW::after { right: 0; top: 0; border-width: 0 0 4px 4px; }
+.cropHandleSE::after { left: 0; top: 0; border-width: 0 4px 4px 0; }
 
 .cropFocusMarker {
   position: absolute;
@@ -494,17 +550,17 @@
 
 .recommendationGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .recommendationGrid button {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
   column-gap: 10px;
-  min-height: 58px;
-  padding: 11px 12px;
+  min-height: 44px;
+  padding: 8px 10px;
   border: 1px solid rgba(79, 76, 190, 0.16);
   border-radius: 12px;
   background: #ffffff;
@@ -520,7 +576,7 @@
 }
 
 .recommendationGrid button > span {
-  min-width: 48px;
+  min-width: 0;
   padding: 5px 7px;
   border-radius: 9px;
   background: rgba(125, 113, 242, 0.09);
@@ -545,6 +601,48 @@
 .cropToolGroup {
   display: grid;
   gap: 8px;
+}
+
+.imageEffectsGroup {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.imageEffectsGroup > span {
+  color: #17172b;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.imageEffectsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.imageEffectsGrid button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid rgba(79, 76, 190, 0.16);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #17172b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.imageEffectsGrid button:hover,
+.imageEffectsGrid .imageEffectActive {
+  border-color: #4f4cbe;
+  background: rgba(125, 113, 242, 0.1);
+  color: #4f4cbe;
+}
+
+.imageEffectsGrid button strong {
+  margin-left: 3px;
+  color: inherit;
 }
 
 .zoomControls {
@@ -648,7 +746,11 @@
   }
 
   .recommendationGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .imageEffectsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cropActions {
@@ -684,17 +786,19 @@
 /* Upload */
 .uploadBox {
   display: flex;
-  margin-top: 8px;
-  width: 150px;
-  min-height: 120px;
-  flex: 0 0 120px;
+  box-sizing: border-box;
+  margin-top: 0;
+  width: 96px;
+  height: 96px;
+  min-height: 96px;
+  flex: 0 0 96px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 3px;
   border: 1.5px dashed #9ca3af;
-  padding: 11px 9px;
-  border-radius: 10px;
+  padding: 5px 4px;
+  border-radius: 8px;
   cursor: pointer;
   font: inherit;
   color: #5f606b;
@@ -705,17 +809,17 @@
 }
 
 .uploadBox svg {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   color: #62636d;
 }
 
 .uploadBox span {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 12px;
-  line-height: 1.35;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.25;
 }
 
 .uploadBox strong {

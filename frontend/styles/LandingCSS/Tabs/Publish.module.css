@@ -10,6 +10,7 @@
   --publish-muted: #6f7085;
   --publish-line: #e9e9f3;
   --publish-soft: rgba(125, 113, 242, 0.07);
+  --ai-refine-bottom-space: 0px;
   min-height: 100%;
   color: var(--publish-ink);
   width: 100%;
@@ -94,8 +95,8 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  gap: 18px;
-  padding: 8px var(--workspace-gutter) var(--workspace-gutter);
+  gap: 8px;
+  padding: 12px var(--workspace-gutter) var(--workspace-gutter);
 }
 
 .previewPane {
@@ -143,7 +144,24 @@
   display: flex;
   flex: 1 1 auto;
   min-height: clamp(220px, 28vh, 260px);
-  overflow-y: auto;
+  overflow: hidden;
+}
+
+.composerControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  flex: 0 0 auto;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.inlinePlatformSlot {
+  grid-column: 2;
+  justify-self: end;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .platformSlot {
@@ -294,7 +312,6 @@
   gap: 12px;
   min-height: 44px;
   padding: 0 2px 14px;
-  border-bottom: 1px solid var(--publish-line);
   flex-shrink: 0;
 }
 
@@ -317,6 +334,32 @@
 
 .rightHeaderActionGroup {
   flex: 0 0 auto;
+}
+
+.previewHeaderIconBtn {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(79, 76, 190, 0.18);
+  border-radius: 9px;
+  background: #ffffff;
+  color: var(--publish-primary);
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.previewHeaderIconBtn:hover {
+  border-color: rgba(79, 76, 190, 0.38);
+  background: rgba(125, 113, 242, 0.08);
+  transform: translateY(-1px);
+}
+
+.previewHeaderIconBtn:focus-visible {
+  outline: 3px solid rgba(79, 76, 190, 0.2);
+  outline-offset: 2px;
 }
 
 .rightHeader span {
@@ -420,6 +463,55 @@
 .rightPanel::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(79, 76, 190, 0.28);
+}
+
+.previewModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 3vw, 40px);
+  background: rgba(19, 20, 39, 0.62);
+  backdrop-filter: blur(5px);
+}
+
+.previewModal {
+  display: flex;
+  width: min(1120px, 100%);
+  height: min(860px, calc(100vh - 32px));
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(125, 113, 242, 0.2);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(12, 14, 35, 0.28);
+}
+
+.previewModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--publish-line);
+}
+
+.previewModalHeader h2 {
+  margin: 0;
+  color: var(--publish-ink);
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+.previewModalBody {
+  flex: 1;
+  min-height: 0;
+  padding: 20px;
+  overflow: hidden;
+  background: linear-gradient(160deg, rgba(125, 113, 242, 0.045), rgba(247, 243, 126, 0.06));
 }
 
 .previewPlaceholder {
@@ -860,6 +952,19 @@
 
   .primaryBtn {
     grid-column: 1 / -1;
+  }
+
+  .composerControls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inlinePlatformSlot {
+    grid-column: auto;
+    justify-self: stretch;
+    min-width: 0;
+    max-width: none;
   }
 
   .secondaryBtn,
