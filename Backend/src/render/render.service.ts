@@ -83,10 +83,13 @@ export class RenderService {
     //----------------------------------------
     // 3. Smart Metadata Resolution
     //----------------------------------------
-    let originalWidth = firstSlot.media.width;
-    let originalHeight = firstSlot.media.height;
+    let resolvedWidth: number;
+    let resolvedHeight: number;
 
-    if (!originalWidth || !originalHeight) {
+    if (firstSlot.media.width && firstSlot.media.height) {
+      resolvedWidth = firstSlot.media.width;
+      resolvedHeight = firstSlot.media.height;
+    } else {
       this.logger.log(`⚠️ Dimensions missing in DB. Analyzing via Sharp...`);
       const metadata = await sharp(originalBuffer).metadata();
 
@@ -94,8 +97,8 @@ export class RenderService {
         throw new Error(`Unable to determine image dimensions for Post #${postId}`);
       }
 
-      originalWidth = metadata.width;
-      originalHeight = metadata.height;
+      resolvedWidth = metadata.width;
+      resolvedHeight = metadata.height;
     }
 
     // Rely on native generated types (no 'as any')
@@ -129,8 +132,8 @@ export class RenderService {
       const decision = this.renderHelper.needsRendering(
         platform,
         mappedPlacement,
-        originalWidth,
-        originalHeight,
+        resolvedWidth,
+        resolvedHeight,
         fileSizeBytes,
       );
 
@@ -152,8 +155,8 @@ export class RenderService {
       `);
 
       let finalGcsPath = media.gcsPath!;
-      let finalWidth = originalWidth;
-      let finalHeight = originalHeight;
+      let finalWidth: number = resolvedWidth;
+      let finalHeight: number = resolvedHeight;
       let finalMimeType = originalMimeType;
 
       //----------------------------------------

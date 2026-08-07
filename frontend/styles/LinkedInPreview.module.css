@@ -80,18 +80,8 @@
 
 .mediaFrame {
   width: 100%;
-  height: 300px;
   background: #eef2f7;
   overflow: hidden;
-}
-
-.mediaFrame :global(img),
-.mediaFrame :global(video) {
-  width: 100% !important;
-  height: 100% !important;
-  aspect-ratio: auto !important;
-  object-fit: cover !important;
-  display: block;
 }
 
 

@@ -1,6 +1,7 @@
 // components/DynamicPreview.tsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import styles from "../styles/DynamicPreview.module.css";
 import { MediaItem } from "../types";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
@@ -12,12 +13,15 @@ const InstagramPreview = dynamic(() => import("./preview/InstagramPreview"));
 const LinkedInPreview = dynamic(() => import("./preview/LinkedInPreview"));
 const ThreadsPreview = dynamic(() => import("./preview/ThreadsPreview"));
 const YouTubePreview = dynamic(() => import("./preview/YouTubePreview"));
+const PREVIEWS_PER_PAGE = 3;
 
 interface DynamicPreviewProps {
+  horizontal?: boolean;
   selectedPlatforms: string[];
   content: string;
   channelContents?: Partial<Record<string, string>>;
   mediaFiles: any[];
+  mediaFilesByPlatform?: Partial<Record<string, any[]>>;
   facebookPostType?: "feed" | "reel" | "story";
   instagramPostType?: "post" | "reel" | "story";
   youtubeType?: "video" | "shorts";
@@ -82,29 +86,44 @@ const getMediaType = (file: any): "image" | "video" => {
   return "image";
 };
 
+const toMediaPreviews = (files: any[]): MediaItem[] =>
+  files
+    .map((file, index) => ({
+      id: file?.id || `file-${index}-${file?.name || "media"}`,
+      url: getMediaUrl(file),
+      type: getMediaType(file),
+      name: file?.name || file?.fileName || "Uploaded media",
+      size: file?.size,
+      source: file,
+    }))
+    .filter((preview) => Boolean(preview.url));
+
 export default function DynamicPreview({
+  horizontal = false,
   selectedPlatforms,
   content,
   channelContents = {},
   mediaFiles,
+  mediaFilesByPlatform = {},
   facebookPostType = "feed",
   instagramPostType = "post",
   youtubeType = "video",
   accounts = {},
   facebookPage,
 }: DynamicPreviewProps) {
-  const mediaPreviews: MediaItem[] = useMemo(() => {
-    return mediaFiles
-      .map((file, index) => ({
-        id: file?.id || `file-${index}-${file?.name || "media"}`,
-        url: getMediaUrl(file),
-        type: getMediaType(file),
-        name: file?.name || file?.fileName || "Uploaded media",
-        size: file?.size,
-        source: file,
-      }))
-      .filter((preview) => Boolean(preview.url));
+  const [previewPage, setPreviewPage] = useState(0);
+  const mediaPreviews = useMemo(() => {
+    return toMediaPreviews(mediaFiles);
   }, [mediaFiles]);
+
+  const platformMediaPreviews = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(mediaFilesByPlatform).map(([platform, files]) => [
+        platform,
+        toMediaPreviews(files || []),
+      ])
+    );
+  }, [mediaFilesByPlatform]);
 
   const hasContent =
     content.trim() !== "" ||
@@ -113,6 +132,7 @@ export default function DynamicPreview({
 
   const renderPlatformPreview = (platform: string) => {
     const platformContent = channelContents[platform] ?? content;
+    const previewFiles = platformMediaPreviews[platform] || mediaPreviews;
     const account =
       platform === "facebook" && facebookPage?.name
         ? { ...accounts[platform], ...facebookPage }
@@ -123,36 +143,36 @@ export default function DynamicPreview({
         return (
           <FacebookPreview
             content={platformContent}
-            files={mediaPreviews}
+            files={previewFiles}
             account={account}
             postType={facebookPostType}
           />
         );
 
       case "twitter":
-        return <TwitterPreview content={platformContent} files={mediaPreviews} />;
+        return <TwitterPreview content={platformContent} files={previewFiles} />;
 
       case "instagram":
         return (
           <InstagramPreview
             content={platformContent}
-            files={mediaPreviews}
+            files={previewFiles}
             postType={instagramPostType}
             account={account}
           />
         );
 
       case "linkedin":
-        return <LinkedInPreview content={platformContent} files={mediaPreviews} account={account} />;
+        return <LinkedInPreview content={platformContent} files={previewFiles} account={account} />;
 
       case "threads":
-        return <ThreadsPreview content={platformContent} files={mediaPreviews} account={account} />;
+        return <ThreadsPreview content={platformContent} files={previewFiles} account={account} />;
 
       case "youtube":
         return (
           <YouTubePreview
             description={platformContent}
-            files={mediaPreviews}
+            files={previewFiles}
             account={account}
             postType={youtubeType}
           />
@@ -166,16 +186,56 @@ export default function DynamicPreview({
   const previewPlatforms = selectedPlatforms.filter((platform) =>
     ["facebook", "twitter", "instagram", "linkedin", "threads", "youtube"].includes(platform)
   );
+  const previewPageCount = Math.max(1, Math.ceil(previewPlatforms.length / PREVIEWS_PER_PAGE));
+  const visiblePlatforms = horizontal
+    ? previewPlatforms.slice(
+        previewPage * PREVIEWS_PER_PAGE,
+        (previewPage + 1) * PREVIEWS_PER_PAGE
+      )
+    : previewPlatforms;
+
+  useEffect(() => {
+    setPreviewPage((currentPage) => Math.min(currentPage, previewPageCount - 1));
+  }, [previewPageCount]);
 
   return (
     <div className={styles.previewContainer}>
       {hasContent && previewPlatforms.length > 0 ? (
-        <div className={styles.previewScroll}>
-          {previewPlatforms.map((platform) => (
-            <section key={platform} className={styles.previewItem}>
-              {renderPlatformPreview(platform)}
-            </section>
-          ))}
+        <div className={`${styles.previewGallery} ${horizontal ? styles.previewGalleryHorizontal : ""}`}>
+          {horizontal && previewPlatforms.length > PREVIEWS_PER_PAGE && (
+            <button
+              type="button"
+              className={`${styles.previewNavigationButton} ${styles.previewNavigationPrevious}`}
+              onClick={() => setPreviewPage((page) => Math.max(0, page - 1))}
+              disabled={previewPage === 0}
+              aria-label="Previous post previews"
+            >
+              <ChevronLeft size={22} aria-hidden="true" />
+            </button>
+          )}
+          <div
+            className={`${styles.previewScroll} ${horizontal ? styles.previewScrollHorizontal : ""}`}
+            style={horizontal
+              ? { gridTemplateColumns: `repeat(${visiblePlatforms.length}, minmax(0, 1fr))` }
+              : undefined}
+          >
+            {visiblePlatforms.map((platform) => (
+              <section key={platform} className={styles.previewItem}>
+                {renderPlatformPreview(platform)}
+              </section>
+            ))}
+          </div>
+          {horizontal && previewPlatforms.length > PREVIEWS_PER_PAGE && (
+            <button
+              type="button"
+              className={`${styles.previewNavigationButton} ${styles.previewNavigationNext}`}
+              onClick={() => setPreviewPage((page) => Math.min(previewPageCount - 1, page + 1))}
+              disabled={previewPage >= previewPageCount - 1}
+              aria-label="Next post previews"
+            >
+              <ChevronRight size={22} aria-hidden="true" />
+            </button>
+          )}
         </div>
       ) : (
         <div className={styles.welcomeMessage}>

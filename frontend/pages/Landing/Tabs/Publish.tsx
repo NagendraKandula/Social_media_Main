@@ -28,6 +28,9 @@ import {
 import type {
   ChannelContentMap,
   FacebookPage,
+  ImageEditDestination,
+  MediaEditDraft,
+  MediaEditMap,
   ReviewMode,
   SocialAccount,
 } from '../../../features/publish/types';
@@ -36,6 +39,12 @@ import {
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
 import { getSelectedImageFitWarnings } from '../../../features/publish/imageFitAnalysis.mjs';
+import {
+  getImageEditDestinations,
+  getMediaEditKey,
+  getPlatformPlacement,
+  readImageDimensions,
+} from '../../../features/publish/mediaEdits.mjs';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -63,6 +72,8 @@ export default function Publish() {
   const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
   const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [mediaEdits, setMediaEdits] = useState<MediaEditMap>({});
+  const [mediaEditPreviews, setMediaEditPreviews] = useState<Record<string, File>>({});
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
   const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | null>('ai');
@@ -155,6 +166,10 @@ export default function Publish() {
   const selectedChannelList = useMemo(
     () => Array.from(selectedChannels),
     [selectedChannels]
+  );
+  const cropDestinations = useMemo(
+    () => getImageEditDestinations(selectedChannelList, platformState) as ImageEditDestination[],
+    [selectedChannelList, platformState]
   );
 
   useEffect(() => {
@@ -295,7 +310,11 @@ export default function Publish() {
   );
 
   const getCurrentInstagramValidationErrors = () =>
-    getInstagramValidationErrors(files, selectedChannels, platformState);
+    getInstagramValidationErrors(
+      getFilesWithMediaEdits(files, 'instagram'),
+      selectedChannels,
+      platformState
+    );
 
   const alertInstagramValidationErrors = (errors: string[]) => {
     alert(`Instagram media does not match the required specs:\n\n${errors.join('\n')}`);
@@ -337,8 +356,48 @@ export default function Publish() {
     return { status: 'PENDING', platforms: [] };
   };
 
+  const getFilesWithMediaEdits = (sourceFiles: File[], platform: Channel) => {
+    const placement = getPlatformPlacement(platform, platformState);
+    return sourceFiles.map((file) => {
+      const key = getMediaEditKey(file, platform, placement);
+      return mediaEditPreviews[key] || file;
+    });
+  };
+
+  const getSavedMediaEdit = (file: File, destination: ImageEditDestination) =>
+    mediaEdits[getMediaEditKey(file, destination.platform, destination.placement)];
+
   const validateCurrentFiles = (nextFiles: File[]) =>
-    validateFilesForSelectedChannels(nextFiles, selectedChannels, platformState);
+    validateFilesForSelectedChannels(
+      selectedChannels.has('instagram')
+        ? getFilesWithMediaEdits(nextFiles, 'instagram')
+        : nextFiles,
+      selectedChannels,
+      platformState
+    );
+
+  const handleMediaEditApply = (
+    file: File,
+    crop: Omit<MediaEditDraft, 'platform' | 'placement'>,
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => {
+    setMediaEdits((current) => {
+      const next = { ...current };
+      next[getMediaEditKey(file, destination.platform, destination.placement)] = {
+        ...crop,
+        platform: destination.platform.toUpperCase(),
+        placement: destination.placement,
+      } as MediaEditDraft;
+      return next;
+    });
+
+    setMediaEditPreviews((current) => {
+      const next = { ...current };
+      next[getMediaEditKey(file, destination.platform, destination.placement)] = renderedPreview;
+      return next;
+    });
+  };
 
   const getCurrentImageFitWarnings = (newFiles: File[]) =>
     getSelectedImageFitWarnings(newFiles, selectedChannels, platformState);
@@ -412,6 +471,14 @@ export default function Publish() {
         uploadedMediaItems = await uploadMultipleMedia(files);
       }
 
+      const mediaDimensions = await Promise.all(
+        files.map((file) =>
+          file.type.startsWith('image/')
+            ? readImageDimensions(file)
+            : Promise.resolve(null)
+        )
+      );
+
       // ✅ 2. Generate the explicit media slots required by the new schema
       // We create a slot for EVERY piece of media on EVERY selected platform
       const mediaSlots: any[] = [];
@@ -419,10 +486,27 @@ export default function Publish() {
       if (uploadedMediaItems.length > 0) {
         selectedChannelList.forEach((platform) => {
           uploadedMediaItems.forEach((media, index) => {
+            const placement = getPlatformPlacement(platform, platformState);
+            const editKey = getMediaEditKey(files[index], platform, placement);
+            const savedEdit = mediaEdits[editKey];
+            const dimensions = mediaDimensions[index];
             mediaSlots.push({
               mediaId: media.id, // Comes from your updated usePostCreation hook
               platform: platform.toUpperCase(),
               position: index,
+              ...(files[index].type.startsWith('image/') && dimensions
+                ? {
+                    edit: savedEdit || {
+                      platform: platform.toUpperCase(),
+                      placement,
+                      cropX: 0,
+                      cropY: 0,
+                      cropWidth: dimensions.width,
+                      cropHeight: dimensions.height,
+                      rotation: 0,
+                    },
+                  }
+                : {}),
             });
           });
         });
@@ -674,9 +758,13 @@ export default function Publish() {
               onFilesChange={setFiles}
               effectiveRules={effectiveRules}
               validation={{}}
-              selectedChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+              selectedChannels={selectedChannelList}
+              cropDestinations={cropDestinations}
+              getSavedMediaEdit={getSavedMediaEdit}
               validateFilesForSelectedChannels={validateCurrentFiles}
               getImageFitWarnings={getCurrentImageFitWarnings}
+              onMediaEditApply={handleMediaEditApply}
+              onOpenAIAssistant={() => setActiveSidePanel('ai')}
               size="publish"
               aiRecommendations={aiRecommendations}
             />
@@ -726,6 +814,12 @@ export default function Publish() {
                 content={content}
                 channelContents={channelContents}
                 mediaFiles={files}
+                mediaFilesByPlatform={Object.fromEntries(
+                  selectedChannelList.map((platform) => [
+                    platform,
+                    getFilesWithMediaEdits(files, platform),
+                  ])
+                )}
                 facebookPostType={platformState.facebookPostType}
                 instagramPostType={platformState.instagramPostType}
                 youtubeType={platformState.youtubeType}
@@ -778,10 +872,17 @@ export default function Publish() {
             </header>
             <div className={styles.previewModalBody}>
               <LazyDynamicPreview
+                horizontal
                 selectedPlatforms={selectedChannelList}
                 content={content}
                 channelContents={channelContents}
                 mediaFiles={files}
+                mediaFilesByPlatform={Object.fromEntries(
+                  selectedChannelList.map((platform) => [
+                    platform,
+                    getFilesWithMediaEdits(files, platform),
+                  ])
+                )}
                 facebookPostType={platformState.facebookPostType}
                 instagramPostType={platformState.instagramPostType}
                 youtubeType={platformState.youtubeType}

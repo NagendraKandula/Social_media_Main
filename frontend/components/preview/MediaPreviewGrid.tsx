@@ -83,11 +83,9 @@ export default function MediaPreviewGrid({
         background: variant === "youtube" ? "#000" : "#f1f5f9",
         width: "100%",
         height:
-          variant === "instagram" ||
           variant === "instagram-story" ||
           variant === "instagram-reel" ||
           variant === "facebook-reel" ||
-          variant === "linkedin" ||
           variant === "youtube"
             ? "100%"
             : "auto",
@@ -96,6 +94,13 @@ export default function MediaPreviewGrid({
       {visibleFiles.map((item, index) => {
         const src = item.url as string;
         const shouldShowOverflow = showOverflowCount && hiddenCount > 0 && index === visibleFiles.length - 1;
+        const preserveSingleImageAspect =
+          visibleFiles.length === 1 &&
+          item.type === "image" &&
+          variant !== "instagram-story" &&
+          variant !== "instagram-reel" &&
+          variant !== "facebook-reel" &&
+          variant !== "youtube";
 
         return (
           <div
@@ -104,7 +109,9 @@ export default function MediaPreviewGrid({
               position: "relative",
               width: "100%",
               aspectRatio:
-                variant === "youtube"
+                preserveSingleImageAspect
+                  ? "auto"
+                  : variant === "youtube"
                   ? "16 / 9"
                   : variant === "instagram-story" || variant === "instagram-reel" || variant === "facebook-reel"
                     ? "9 / 16"
@@ -119,10 +126,10 @@ export default function MediaPreviewGrid({
                 muted
                 playsInline
                 onError={(event) => tryNextUrl(event, item)}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
+                    style={{
+                      width: "100%",
+                      height: preserveSingleImageAspect ? "auto" : "100%",
+                      objectFit: preserveSingleImageAspect ? "contain" : "cover",
                   background: "#000",
                   display: "block",
                 }}
@@ -132,10 +139,10 @@ export default function MediaPreviewGrid({
                 src={src}
                 alt={item.name || "Uploaded media preview"}
                 onError={(event) => tryNextUrl(event, item)}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
+                    style={{
+                      width: "100%",
+                      height: preserveSingleImageAspect ? "auto" : "100%",
+                      objectFit: preserveSingleImageAspect ? "contain" : "cover",
                   background: "#f1f5f9",
                   display: "block",
                 }}

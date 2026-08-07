@@ -45,3 +45,13 @@ test('the publish toolbar sits below its divider', async () => {
   assert.match(editorStyles, /\.publishEditorCard \.toolbar\s*\{[\s\S]*?border-top:\s*1px/);
   assert.match(editorStyles, /\.publishEditorCard \.toolbar\s*\{[\s\S]*?border-bottom:\s*0/);
 });
+
+test('Ask AI appears immediately left of the character count', async () => {
+  const toolbarSource = await readFile(toolbarPath, 'utf8');
+
+  assert.match(
+    toolbarSource,
+    /onOpenAIAssistant\s*&&[\s\S]*?<Sparkles[\s\S]*?<span>Ask AI<\/span>[\s\S]*?showCharacterCount/
+  );
+  assert.doesNotMatch(toolbarSource, /<PenLine/);
+});

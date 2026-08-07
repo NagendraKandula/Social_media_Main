@@ -8,7 +8,20 @@
   flex-direction: column;
 }
 
+.previewGallery {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.previewGalleryHorizontal {
+  padding: 0 42px;
+}
+
 .previewScroll {
+  width: 100%;
   min-height: 0;
   flex: 1;
   overflow-y: auto;
@@ -19,6 +32,14 @@
   gap: 28px;
 }
 
+.previewScrollHorizontal {
+  display: grid;
+  overflow: hidden;
+  padding: 4px 0 12px;
+  align-items: stretch;
+  gap: 16px;
+}
+
 .previewItem {
   width: 100%;
   display: flex;
@@ -26,9 +47,58 @@
   align-items: flex-start;
 }
 
+.previewScrollHorizontal .previewItem {
+  width: auto;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79, 76, 190, 0.24) transparent;
+}
+
 .previewItem > :global(*) {
   width: fit-content;
   max-width: 100%;
+}
+
+.previewScrollHorizontal .previewItem::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(79, 76, 190, 0.28);
+}
+
+.previewNavigationButton {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(79, 76, 190, 0.24);
+  border-radius: 50%;
+  background: #ffffff;
+  color: #4f4cbe;
+  box-shadow: 0 6px 18px rgba(31, 31, 64, 0.14);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.previewNavigationButton:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.previewNavigationPrevious {
+  left: 0;
+}
+
+.previewNavigationNext {
+  right: 0;
+}
+
+.previewScrollHorizontal .previewItem::-webkit-scrollbar {
+  width: 6px;
 }
 
 .welcomeMessage,

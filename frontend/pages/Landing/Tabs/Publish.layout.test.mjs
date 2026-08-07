@@ -57,3 +57,10 @@ test("does not draw a divider below the post preview header", () => {
   const rightHeader = publishStyles.match(/\.rightHeader\s*\{([\s\S]*?)\}/)?.[1] ?? "";
   assert.doesNotMatch(rightHeader, /border-bottom/);
 });
+
+test("connects the editor Ask AI action to the AI side panel", () => {
+  assert.match(
+    publishSource,
+    /<LazyContentEditor[\s\S]*?onOpenAIAssistant=\{\(\) => setActiveSidePanel\('ai'\)\}/
+  );
+});

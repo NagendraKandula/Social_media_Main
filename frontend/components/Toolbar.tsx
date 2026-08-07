@@ -3,7 +3,6 @@ import {
   Bold,
   Italic,
   Link as LinkIcon,
-  PenLine,
   Smile,
   Sparkles,
   Underline,
@@ -60,16 +59,15 @@ export default function Toolbar({
       </div>
 
       {(showCharacterCount || onOpenAIAssistant) && <div className={styles.toolbarMeta}>
+        {onOpenAIAssistant && (
+          <button type="button" className={styles.aiAssistantButton} onClick={onOpenAIAssistant} disabled={isReadOnly} aria-label="Ask AI" title="Ask AI">
+            <Sparkles size={18} aria-hidden="true" />
+            <span>Ask AI</span>
+          </button>
+        )}
         {showCharacterCount && <span className={`${styles.charCount} ${overLimit ? styles.overLimit : ""}`}>
           {charCount}{maxLength ? ` / ${maxLength}` : ""} chars
         </span>}
-        {onOpenAIAssistant && (
-          <button type="button" className={styles.aiAssistantButton} onClick={onOpenAIAssistant} disabled={isReadOnly} aria-label="Open AI Assistant" title="Open AI Assistant">
-            <Sparkles size={16} aria-hidden="true" />
-            <PenLine size={15} aria-hidden="true" />
-            <span>AI</span>
-          </button>
-        )}
       </div>}
     </div>
   );
