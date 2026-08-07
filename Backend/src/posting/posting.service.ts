@@ -11,7 +11,9 @@ import { UpdatePostDto } from './dto/update-post.dto';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { StorageService } from '../storage/storage.service';
-import { PostStatus, Platform, MediaType, MediaStatus } from '@prisma/client';
+import { PostStatus, Platform, MediaType, MediaStatus,Placement } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { MediaEditDto } from './dto/media-edit.dto';
 
 const THREADS_MAX_TEXT_LENGTH = 500;
 
@@ -21,10 +23,10 @@ export class PostingService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue('social-posting') private readonly postingQueue: Queue,
+    @InjectQueue('render-queue') private readonly renderQueue: Queue,
     private readonly storageService: StorageService,
   ) {}
-
+ 
   // Added this helper so your frontend hook can register media!
  // MUST BE INSIDE PostingService
   async registerMedia(userId: number, gcsPath: string, fileType: MediaType) {
@@ -37,14 +39,50 @@ export class PostingService {
       }
     });
   }
-
+  private async saveMediaEdit(
+    tx: Prisma.TransactionClient,
+    mediaId: number,
+    edit: MediaEditDto, // Ensure you import MediaEditDto
+  ) {
+    return tx.mediaEdit.upsert({
+      where: {
+        mediaId_platform_placement: {
+          mediaId,
+          platform: edit.platform,
+          placement: edit.placement,
+        },
+      },
+      update: {
+        cropX: edit.cropX,
+        cropY: edit.cropY,
+        cropWidth: edit.cropWidth,
+        cropHeight: edit.cropHeight,
+        rotation: edit.rotation,
+        focalX: edit.focalX,
+        focalY: edit.focalY,
+        version: { increment: 1 },
+      },
+      create: {
+        mediaId,
+        platform: edit.platform,
+        placement: edit.placement,
+        cropX: edit.cropX,
+        cropY: edit.cropY,
+        cropWidth: edit.cropWidth,
+        cropHeight: edit.cropHeight,
+        rotation: edit.rotation,
+        focalX: edit.focalX,
+        focalY: edit.focalY,
+      },
+    });
+  }
   async createPost(userId: number, dto: CreatePostDto) {
     try {
       const { 
         primaryCaption, 
         mediaSlots = [], 
         platforms = [], 
-        scheduledAt ,
+        scheduledAt,
         contentMetadata,
       } = dto;
 
@@ -52,7 +90,6 @@ export class PostingService {
         (p) => (typeof p === 'string' ? p.toUpperCase() : p) as Platform,
       );
 
-      // Filter out invalid slots just in case the frontend sent undefined IDs
       const validMediaSlots = mediaSlots.filter(s => s.mediaId != null);
 
       if (validMediaSlots.length > 0) {
@@ -74,7 +111,6 @@ export class PostingService {
             if (media.fileType === MediaType.IMAGE) imageCount++;
           });
 
-          // Basic validation checks
           if (platform === Platform.THREADS && (primaryCaption || '').length > THREADS_MAX_TEXT_LENGTH) {
             throw new BadRequestException('Threads text posts are limited to 500 characters.');
           }
@@ -87,39 +123,92 @@ export class PostingService {
       const isScheduled = !!scheduledAt;
       const initialStatus = isScheduled ? PostStatus.SCHEDULED : PostStatus.PENDING;
 
-      const post = await this.prisma.post.create({
-        data: {
-          userId,
-          primaryCaption,
-          scheduledAt: isScheduled ? new Date(scheduledAt) : null,
-          status: initialStatus,
-          contentMetadata: contentMetadata || undefined, // Store contentMetadata if provided
-          platforms: {
-            create: normalizedPlatforms.map((p) => ({ 
-              platform: p, 
-              status: PostStatus.PENDING 
-            })),
-          },
-          mediaSlots: {
-            create: validMediaSlots.map((slot) => ({
-              mediaId: slot.mediaId,
-              platform: slot.platform,
-              position: slot.position,
-              editId: slot.editId || null
-            }))
+      // ATOMIC TRANSACTION: Edits -> Post -> Platforms -> Slots
+      const post = await this.prisma.$transaction(async (tx) => {
+       const processedSlots: {
+           mediaId: number;
+          platform: Platform;
+           position: number;
+          editId: number | null;
+}[] = [];
+
+       for (const slot of validMediaSlots) {
+          let editData: MediaEditDto;
+
+          // 1. Check if the frontend sent crop data
+          if (slot.edit) {
+            editData = slot.edit;
+          } else {
+            // 2. If no edit data, fetch media and generate defaults
+            const media = await tx.media.findUnique({
+              where: {
+                id: slot.mediaId,
+              },
+            });
+
+            if (!media) {
+              throw new BadRequestException(`Media ID ${slot.mediaId} not found`);
+            }
+
+            editData = {
+              platform: slot.platform as Platform,
+              placement: Placement.FEED, // default
+              cropX: 0,
+              cropY: 0,
+              cropWidth: media.width || 1080,   // Fallback baseline
+              cropHeight: media.height || 1080, // Fallback baseline
+              rotation: 0,
+              // focalX and focalY are completely omitted to satisfy 'number | undefined'
+            };
           }
-        },
-        include: { platforms: true },
+
+          // 3. Save the edit record safely
+          const editRecord = await this.saveMediaEdit(
+            tx,
+            slot.mediaId,
+            editData,
+          );
+
+          processedSlots.push({
+            mediaId: slot.mediaId,
+            platform: slot.platform as Platform,
+            position: slot.position,
+            editId: editRecord.id,
+          });
+        
+        }
+
+        return tx.post.create({
+          data: {
+            userId,
+            primaryCaption,
+            scheduledAt: isScheduled ? new Date(scheduledAt) : null,
+            status: initialStatus,
+            contentMetadata: contentMetadata || undefined,
+            platforms: {
+              create: normalizedPlatforms.map((p) => ({ 
+                platform: p, 
+                status: PostStatus.PENDING 
+              })),
+            },
+            mediaSlots: {
+              create: processedSlots,
+            },
+          },
+          include: { platforms: true },
+        });
       });
 
       if (!isScheduled) {
-        await this.postingQueue.add('publish-post', { postId: post.id });
+        await this.renderQueue.add('process-media', { 
+          postId: post.id 
+        });
       }
 
       return post;
     } catch (error: any) {
       this.logger.error(`Failed to create post: ${error.message}`, error.stack);
-      throw error; // Will return the 500 or 400 back to the frontend
+      throw error; 
     }
   }
 

@@ -130,6 +130,7 @@ model Media {
   width        Int?
   height       Int?
   durationMs   Int?
+  fileSizeBytes Int?
 
   checksum     String?       @unique
   status       MediaStatus   @default(UPLOADED)
@@ -162,7 +163,7 @@ model MediaEdit {
   cropY       Float
   cropWidth   Float
   cropHeight  Float
-
+  rotation Float @default(0)
   focalX      Float?
   focalY      Float?
 
@@ -175,7 +176,7 @@ model MediaEdit {
   slots       PostMediaSlot[]
 
   @@index([mediaId])
-  @@unique([mediaId, platform])
+  @@unique([mediaId, platform,placement])
 }
 
 /////////////////////////////////////////////////////
