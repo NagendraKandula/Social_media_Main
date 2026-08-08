@@ -104,9 +104,9 @@ export class PostingProcessor {
             
             // Use gcsPath from new Media schema
             const targetPath = readyVariant?.gcsPath || slot.media.gcsPath;
-            let signedUrl = readyVariant?.cdnUrl || '';
+            let signedUrl = '';
 
-            if (!signedUrl && targetPath) {
+            if (targetPath) {
               try {
                 signedUrl = await this.storageService.getSignedReadUrl(targetPath, 'application/octet-stream');
               } catch (e: any) {

@@ -3,6 +3,14 @@ import { Platform } from '@prisma/client';
 import { PLATFORM_IMAGE_RULES } from './config/platformrules';
 import { RenderDecision } from './render.types';
 
+type RenderEdit = {
+  cropX: number;
+  cropY: number;
+  cropWidth: number;
+  cropHeight: number;
+  rotation: number;
+};
+
 @Injectable()
 export class RenderHelper {
   
@@ -15,8 +23,25 @@ export class RenderHelper {
     postType: 'feed' | 'story', 
     originalWidth: number, 
     originalHeight: number, 
-    fileSizeBytes: number
+    fileSizeBytes: number,
+    edit?: RenderEdit,
   ): RenderDecision {
+    const hasUserEdit = Boolean(
+      edit &&
+        (Math.abs(edit.cropX) > 0.5 ||
+          Math.abs(edit.cropY) > 0.5 ||
+          Math.abs(edit.cropWidth - originalWidth) > 0.5 ||
+          Math.abs(edit.cropHeight - originalHeight) > 0.5 ||
+          Math.abs(edit.rotation % 360) > 0.5),
+    );
+
+    if (hasUserEdit) {
+      return {
+        needsRendering: true,
+        reason: 'User crop or rotation must be rendered',
+      };
+    }
+
     const rules = PLATFORM_IMAGE_RULES[platform]?.[postType];
     
     if (!rules) {

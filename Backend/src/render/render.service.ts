@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { RenderHelper } from './render.helper';
 import { PLATFORM_IMAGE_RULES } from './config/platformrules';
-import { Placement, Platform } from '@prisma/client';
+import { MediaType, Placement } from '@prisma/client';
 import sharp from 'sharp';
 // Change these two lines at the top of render.service.ts:
 
@@ -42,19 +42,15 @@ export class RenderService {
     this.logger.log(`⚙️ Starting render pipeline for Post #${postId}`);
 
     const result: RenderResult = { variants: 0, reused: 0, generated: 0 };
-
-    //----------------------------------------
-    // 1. Load Post & Deep Relations
-    //----------------------------------------
     const post = await this.prisma.post.findUnique({
       where: { id: postId },
       include: {
-        platforms: true,
         mediaSlots: {
           include: {
             media: true,
             edit: true,
           },
+          orderBy: { position: 'asc' },
         },
       },
     });
@@ -63,155 +59,129 @@ export class RenderService {
       throw new Error(`Post ${postId} not found`);
     }
 
-    const slotMap = new Map(post.mediaSlots.map((slot) => [slot.platform, slot]));
+    const mediaCache = new Map<
+      number,
+      { buffer: Buffer; width: number; height: number; fileSizeBytes: number }
+    >();
 
-    const firstSlot = post.mediaSlots[0];
-    if (!firstSlot || !firstSlot.media) {
-      throw new Error(`Media not found for Post ${postId}`);
-    }
-
-    //----------------------------------------
-    // 2. Validate GCS Path & Download ONCE
-    //----------------------------------------
-    if (!firstSlot.media.gcsPath) {
-      throw new Error(`Original media path missing for Post #${postId}`);
-    }
-
-    this.logger.log(`📥 Downloading original media from GCS: ${firstSlot.media.gcsPath}`);
-    const originalBuffer = await this.storageService.downloadFile(firstSlot.media.gcsPath);
-
-    //----------------------------------------
-    // 3. Smart Metadata Resolution
-    //----------------------------------------
-    let resolvedWidth: number;
-    let resolvedHeight: number;
-
-    if (firstSlot.media.width && firstSlot.media.height) {
-      resolvedWidth = firstSlot.media.width;
-      resolvedHeight = firstSlot.media.height;
-    } else {
-      this.logger.log(`⚠️ Dimensions missing in DB. Analyzing via Sharp...`);
-      const metadata = await sharp(originalBuffer).metadata();
-
-      if (!metadata.width || !metadata.height) {
-        throw new Error(`Unable to determine image dimensions for Post #${postId}`);
+    const loadOriginal = async (media: (typeof post.mediaSlots)[number]['media']) => {
+      const cached = mediaCache.get(media.id);
+      if (cached) return cached;
+      if (!media.gcsPath) {
+        throw new Error(`Original media path missing for Media #${media.id}`);
       }
 
-      resolvedWidth = metadata.width;
-      resolvedHeight = metadata.height;
-    }
+      this.logger.log(`📥 Downloading original media from GCS: ${media.gcsPath}`);
+      const buffer = await this.storageService.downloadFile(media.gcsPath);
+      let width = media.width;
+      let height = media.height;
 
-    // Rely on native generated types (no 'as any')
-    const fileSizeBytes = firstSlot.media.fileSizeBytes || originalBuffer.length;
-    // Assuming you added 'mimeType' to your Prisma Media model and ran 'npx prisma generate'
-    const originalMimeType =  'image/jpeg';
+      if (!width || !height) {
+        const metadata = await sharp(buffer).metadata();
+        if (!metadata.width || !metadata.height) {
+          throw new Error(`Unable to determine image dimensions for Media #${media.id}`);
+        }
+        width = metadata.width;
+        height = metadata.height;
+      }
 
-    // Type the array safely based on the return type of the Prisma upsert function
+      const loaded = {
+        buffer,
+        width,
+        height,
+        fileSizeBytes: media.fileSizeBytes || buffer.length,
+      };
+      mediaCache.set(media.id, loaded);
+      return loaded;
+    };
+
     const dbOperations: ReturnType<typeof this.prisma.mediaVariant.upsert>[] = [];
 
-    //----------------------------------------
-    // 4. Loop Platforms
-    //----------------------------------------
-    for (const postPlatform of post.platforms) {
-      const platform = postPlatform.platform;
-      const slot = slotMap.get(platform);
-
-      if (!slot || !slot.media || !slot.edit) {
-        this.logger.warn(`⚠️ Incomplete media/edit instructions for ${platform}. Skipping.`);
+    for (const slot of post.mediaSlots) {
+      if (!slot.media || !slot.edit) {
+        this.logger.warn(
+          `⚠️ Incomplete media/edit instructions for ${slot.platform} position ${slot.position}. Skipping.`,
+        );
         continue;
       }
 
       result.variants++;
       const media = slot.media;
       const edit = slot.edit;
-      const mappedPlacement = this.mapPlacement(edit.placement);
 
-      //----------------------------------------
-      // 5. Helper Decision
-      //----------------------------------------
+      if (media.fileType !== MediaType.IMAGE) {
+        result.reused++;
+        continue;
+      }
+
+      const original = await loadOriginal(media);
+      const mappedPlacement = this.mapPlacement(edit.placement);
       const decision = this.renderHelper.needsRendering(
-        platform,
+        slot.platform,
         mappedPlacement,
-        resolvedWidth,
-        resolvedHeight,
-        fileSizeBytes,
+        original.width,
+        original.height,
+        original.fileSizeBytes,
+        edit,
       );
 
-      // Structured Logging
-      this.logger.log(`
-      ----------------------------------------
-      Post        : ${postId}
-      Platform    : ${platform}
-      Placement   : ${mappedPlacement}
-      MediaId     : ${media.id}
-      EditId      : ${edit.id}
-
-      Need Sharp  : ${decision.needsRendering ? 'YES' : 'NO'}
-
-      Reason
-      -------
-      ${decision.reason}
-      ----------------------------------------
-      `);
+      this.logger.log(
+        `Post #${postId} | ${slot.platform} | position ${slot.position} | render: ${decision.needsRendering} | ${decision.reason}`,
+      );
 
       let finalGcsPath = media.gcsPath!;
-      let finalWidth: number = resolvedWidth;
-      let finalHeight: number = resolvedHeight;
-      let finalMimeType = originalMimeType;
+      let finalWidth = original.width;
+      let finalHeight = original.height;
 
-      //----------------------------------------
-      // 6. Process if Not Compatible
-      //----------------------------------------
       if (decision.needsRendering) {
         result.generated++;
-        const targetRules = PLATFORM_IMAGE_RULES[platform][mappedPlacement].recommended;
-        let sharpInstance = sharp(originalBuffer);
+        const targetRules =
+          PLATFORM_IMAGE_RULES[slot.platform]?.[mappedPlacement]?.recommended;
+        const cropWidth = Math.round(edit.cropWidth);
+        const cropHeight = Math.round(edit.cropHeight);
+        let sharpInstance = sharp(original.buffer).extract({
+          left: Math.round(edit.cropX),
+          top: Math.round(edit.cropY),
+          width: cropWidth,
+          height: cropHeight,
+        });
 
-        if (edit.cropWidth && edit.cropHeight && edit.cropX != null && edit.cropY != null) {
-          sharpInstance = sharpInstance.extract({
-            left: Math.round(edit.cropX),
-            top: Math.round(edit.cropY),
-            width: Math.round(edit.cropWidth),
-            height: Math.round(edit.cropHeight),
-          });
+        if (edit.rotation) {
+          sharpInstance = sharpInstance.rotate(edit.rotation);
         }
 
-        const processedBuffer = await sharpInstance
-          .resize({
+        if (targetRules) {
+          sharpInstance = sharpInstance.resize({
             width: targetRules.width,
             height: targetRules.height,
             fit: 'cover',
             position: 'center',
-          })
+          });
+        }
+
+        const processed = await sharpInstance
           .toFormat('jpeg', { quality: 90 })
-          .toBuffer();
+          .toBuffer({ resolveWithObject: true });
+        finalWidth = processed.info.width;
+        finalHeight = processed.info.height;
+        const fileName =
+          `variants/post-${postId}/${slot.platform.toLowerCase()}-${slot.position}-media-${media.id}-v${edit.version}.jpg`;
 
-        finalWidth = targetRules.width;
-        finalHeight = targetRules.height;
-        finalMimeType = 'image/jpeg';
-
-        // Clean folder structure: variants/post-10/instagram-v1.jpg
-        const fileName = `variants/post-${postId}/${platform.toLowerCase()}-v${edit.version}.jpg`;
-        
         finalGcsPath = await this.storageService.uploadFile(
-          processedBuffer,
+          processed.data,
           fileName,
-          finalMimeType,
+          'image/jpeg',
         );
       } else {
         result.reused++;
       }
 
-      //----------------------------------------
-      // 7. Prepare MediaVariant Upsert
-      //----------------------------------------
       const variantData = {
         gcsPath: finalGcsPath,
-        cdnUrl: finalGcsPath,
+        cdnUrl: '',
         width: finalWidth,
         height: finalHeight,
         status: 'READY' as const,
-        // mimeType: finalMimeType, // Uncomment when added to MediaVariant schema
       };
 
       dbOperations.push(
@@ -232,12 +202,8 @@ export class RenderService {
       );
     }
 
-    //----------------------------------------
-    // 8. Execute Database Transaction
-    //----------------------------------------
     if (dbOperations.length > 0) {
       await this.prisma.$transaction(dbOperations);
-      this.logger.log(`💾 Successfully committed ${dbOperations.length} variants to database.`);
     }
 
     return result;

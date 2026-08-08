@@ -31,14 +31,20 @@ export class PostingController {
   @UseGuards(JwtAuthGuard)
   async registerMedia(
     @Request() req, 
-    @Body() body: { gcsPath: string; fileType: MediaType }
+    @Body() body: {
+      gcsPath: string;
+      fileType: MediaType;
+      width?: number;
+      height?: number;
+      fileSizeBytes?: number;
+    }
   ) {
     try {
       // 🔍 ADD THIS LOG
       this.logger.log(`[API] 📥 Registering new media from Frontend. GCP Path: ${body.gcsPath}`);
       
       const userId = req.user.id || req.user.userId;
-      return await this.postingService.registerMedia(userId, body.gcsPath, body.fileType);
+      return await this.postingService.registerMedia(userId, body);
     } catch (error:any) {
       this.logger.error(`Media Register Error: ${error.message}`);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);

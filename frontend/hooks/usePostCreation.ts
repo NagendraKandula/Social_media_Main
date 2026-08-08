@@ -3,6 +3,27 @@ import { useState } from 'react';
 import apiClient from '../lib/axios'; // Your configured axios
 import axios from 'axios'; // Standard axios for Google upload
 
+const readOriginalImageMetadata = (file: File) => {
+  if (!file.type.startsWith('image/')) {
+    return Promise.resolve<{ width?: number; height?: number }>({});
+  }
+
+  return new Promise<{ width: number; height: number }>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve({ width: image.naturalWidth, height: image.naturalHeight });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error(`Could not read image dimensions for ${file.name}.`));
+    };
+    image.src = url;
+  });
+};
+
 export const usePostCreation = () => {
   const [uploading, setUploading] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -11,6 +32,8 @@ export const usePostCreation = () => {
   const uploadMedia = async (file: File) => {
     setUploading(true);
     try {
+      const metadata: { width?: number; height?: number } =
+        await readOriginalImageMetadata(file).catch(() => ({}));
       // A. Get Signed URL from Backend
       const { data } = await apiClient.get('/posting/presigned-url', {
         params: { 
@@ -31,7 +54,10 @@ export const usePostCreation = () => {
       
       const mediaRes = await apiClient.post('/posting/media/register', {
         gcsPath: storagePath,  // ✅ FIX: Map the backend's storagePath to the DB's gcsPath
-        fileType: mediaType,   
+        fileType: mediaType,
+        width: metadata.width,
+        height: metadata.height,
+        fileSizeBytes: file.size,
       });
 
       console.log(`[Frontend] ☁️ Successfully uploaded to GCP! Path: ${storagePath} | DB Media ID: ${mediaRes.data.id}`);

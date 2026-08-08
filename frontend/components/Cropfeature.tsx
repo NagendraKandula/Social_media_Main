@@ -427,6 +427,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
           destination: ImageEditDestination | null;
           sourceCrop: ReturnType<typeof getCropPixels>;
           croppedFile: File;
+          rotation: number;
         }>((resolve, reject) => {
           const sourceCrop = getCropPixels(box, image.naturalWidth, image.naturalHeight);
           const outputWidth = ratio.outputWidth || sourceCrop.width;
@@ -469,6 +470,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
             resolve({
               destination,
               sourceCrop,
+              rotation: effects.rotation,
               croppedFile: new File(
                 [blob],
                 file.name.replace(
@@ -492,7 +494,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
         const storesBackendEdit = Boolean(onMediaEditApply);
         const commitCrop = () => {
           if (storesBackendEdit && onMediaEditApply) {
-            renderedTargets.forEach(({ destination, sourceCrop, croppedFile }) => {
+            renderedTargets.forEach(({ destination, sourceCrop, croppedFile, rotation }) => {
               if (!destination) return;
               onMediaEditApply(
                 file,
@@ -501,7 +503,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
                   cropY: sourceCrop.y,
                   cropWidth: sourceCrop.width,
                   cropHeight: sourceCrop.height,
-                  rotation: 0,
+                  rotation,
                 },
                 croppedFile,
                 destination
