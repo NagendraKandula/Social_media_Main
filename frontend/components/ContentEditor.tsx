@@ -9,6 +9,8 @@ import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
+import { getImageFitTargets, analyzeImageFit } from '../features/publish/imageFitAnalysis.mjs';
+import { getImageDimensions } from '../features/publish/mediaValidation';
 import {
   areDimensionOnlyErrors,
   getNewImageIndices,
@@ -60,6 +62,7 @@ export interface ContentEditorProps {
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
+  platformState?: Record<string, any>; 
 }
 
 export default function ContentEditor({
@@ -78,6 +81,7 @@ export default function ContentEditor({
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
+  platformState = {},
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
@@ -90,6 +94,66 @@ export default function ContentEditor({
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const cropFeatureRef = useRef<CropfeatureHandle>(null);
+  const [imageFitIssues, setImageFitIssues] = useState<Record<number, any[]>>({});
+  
+  // Tracks file indices that have been successfully cropped to clear warnings instantly
+  const [croppedIndices, setCroppedIndices] = useState<Set<number>>(new Set());
+
+  const handleInternalMediaEditApply = (
+    file: File,
+    edit: {
+      cropX: number;
+      cropY: number;
+      cropWidth: number;
+      cropHeight: number;
+      rotation: number;
+    },
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => {
+    const index = files.findIndex(f => f === file || (f instanceof File && f.name === file.name));
+    if (index !== -1) {
+      setCroppedIndices(prev => new Set(prev).add(index));
+    }
+
+    if (onMediaEditApply) {
+      onMediaEditApply(file, edit, renderedPreview, destination);
+    }
+  };
+
+  useEffect(() => {
+    const checkImageFits = async () => {
+      const channelSet = new Set(selectedChannels);
+      const targets = getImageFitTargets(channelSet, platformState);
+      const newFitIssues: Record<number, any[]> = {};
+
+      for (let i = 0; i < files.length; i++) {
+        if (croppedIndices.has(i)) continue;
+
+        const file = files[i];
+        if (file instanceof File && file.type.startsWith('image/')) {
+          try {
+            const dimensions = await getImageDimensions(file);
+            const issues = analyzeImageFit(dimensions, targets);
+            
+            if (issues.length > 0) {
+              newFitIssues[i] = issues;
+            }
+          } catch (error) {
+            console.error("Could not read dimensions for", file.name);
+          }
+        }
+      }
+      setImageFitIssues(newFitIssues);
+    };
+
+    if (files.length > 0 && selectedChannels.length > 0) {
+      checkImageFits();
+    } else {
+      setImageFitIssues({});
+    }
+  }, [files, selectedChannels, platformState, croppedIndices]);
+
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
       ...recommendation,
@@ -150,15 +214,6 @@ export default function ContentEditor({
     if (selectedFiles.length === 0) return;
     setMediaError(null);
 
-    const fitWarnings = getImageFitWarnings
-      ? await getImageFitWarnings(selectedFiles)
-      : [];
-
-    if (fitWarnings.length > 0) {
-      alert(
-        `Image fit warning:\n\n${fitWarnings.join("\n\n")}\n\nThe image will still be added.`
-      );
-    }
 
     const nextFiles = [...files, ...selectedFiles];
     const validationErrors = validateFilesForSelectedChannels
@@ -318,7 +373,7 @@ export default function ContentEditor({
         cropDestinations={cropDestinations}
         getSavedMediaEdit={getSavedMediaEdit}
         validateFilesForSelectedChannels={validateFilesForSelectedChannels}
-        onMediaEditApply={onMediaEditApply}
+        onMediaEditApply={handleInternalMediaEditApply}
       />
 
       {/* Footer */}
@@ -330,43 +385,79 @@ export default function ContentEditor({
 
           {filePreviews.length > 0 && (
             <div className={styles.mediaGrid}>
-              {filePreviews.map((preview, index) => (
-                <div key={index} className={styles.mediaItem}>
-                  {preview.isImage ? (
-                    <img src={preview.url} alt="Uploaded media preview" />
-                  ) : (
-                    <video
-                      src={preview.url}
-                      controls
-                      className={styles.mediaVideo}
-                    />
-                  )}
+              {filePreviews.map((preview, index) => {
+                const issues = imageFitIssues[index];
+                const needsCropping = issues && issues.length > 0;
 
-                  {!isReadOnly && (
-                    <>
-                          {preview.isImage && preview.file instanceof File && (!onMediaEditApply || cropDestinations.length > 0) && (
+                return (
+                  <div key={index} className={styles.mediaItem}>
+                    {preview.isImage ? (
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                        <img src={preview.url} alt="Uploaded media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {needsCropping && (
+                          <div className={styles.cropWarningOverlay} style={{
+                            position: 'absolute',
+                            top: '4px',
+                            left: '4px',
+                            right: '4px',
+                            backgroundColor: 'rgba(220, 38, 38, 0.9)',
+                            color: 'white',
+                            padding: '4px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            zIndex: 10
+                          }}>
+                            <AlertTriangle size={12} />
+                            <span>Crop required</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <video
+                        src={preview.url}
+                        controls
+                        className={styles.mediaVideo}
+                      />
+                    )}
+
+                    {!isReadOnly && (
+                      <>
+                        {preview.isImage && preview.file instanceof File && (!onMediaEditApply || cropDestinations.length > 0) && (
+                          <button
+                            type="button"
+                            className={styles.cropButton}
+                            style={needsCropping ? { backgroundColor: '#dc2626', color: 'white', borderColor: '#b91c1c', animation: 'pulse 2s infinite' } : {}}
+                            onClick={() => cropFeatureRef.current?.open(index)}
+                            aria-label="Crop image"
+                            title="Crop image"
+                          >
+                            <Crop size={12} />
+                            {needsCropping && <span style={{ marginLeft: '4px', fontSize: '11px' }}>Fix</span>}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          className={styles.cropButton}
-                          onClick={() => cropFeatureRef.current?.open(index)}
-                          aria-label="Crop image"
-                          title="Crop image"
+                          className={styles.removeButton}
+                          onClick={() => {
+                            setCroppedIndices(prev => {
+                              const next = new Set(prev);
+                              next.delete(index);
+                              return next;
+                            });
+                            onFilesChange(files.filter((_, fileIndex) => fileIndex !== index));
+                          }}
+                          aria-label="Remove media"
                         >
-                          <Crop size={12} />
+                          ×
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.removeButton}
-                        onClick={() => onFilesChange(files.filter((_, fileIndex) => fileIndex !== index))}
-                        aria-label="Remove media"
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

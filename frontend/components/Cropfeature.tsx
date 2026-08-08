@@ -84,13 +84,102 @@ type ImageEffects = ReturnType<typeof createDefaultImageEffects>;
 type EditSnapshot = { cropBox: CropBox; effects: ImageEffects; ratio: CropRatio };
 type EditHistory = { past: EditSnapshot[]; future: EditSnapshot[] };
 
-const CROP_RATIOS: CropRatio[] = [
-  { label: "Portrait 3:4", sizeLabel: "3:4", value: 3 / 4, outputWidth: 1080, outputHeight: 1440 },
-  { label: "Portrait 4:5", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1080, outputHeight: 1350 },
-  { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 },
-  { label: "Landscape", sizeLabel: "1080:566", value: 1080 / 566, outputWidth: 1080, outputHeight: 566 },
-  { label: "Custom", sizeLabel: "Custom", value: null, outputWidth: null, outputHeight: null },
-];
+// ----------------------------------------------------------------------
+// 🌟 NEW: Dynamic Ratios (3 per platform + placement)
+// ----------------------------------------------------------------------
+const PLATFORM_CROP_OPTIONS: Record<string, Record<string, CropRatio[]>> = {
+  facebook: {
+    FEED: [
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1200, outputHeight: 1500 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1200, outputHeight: 1200 },
+      { label: "Landscape", sizeLabel: "1.91:1", value: 1200 / 630, outputWidth: 1200, outputHeight: 630 },
+    ],
+    STORY: [
+      { label: "Story", sizeLabel: "9:16", value: 9 / 16, outputWidth: 1080, outputHeight: 1920 },
+    ]
+  },
+  instagram: {
+    FEED: [
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1080, outputHeight: 1350 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 },
+      { label: "Landscape", sizeLabel: "1.91:1", value: 1080 / 566, outputWidth: 1080, outputHeight: 566 },
+    ],
+    STORY: [
+      { label: "Story", sizeLabel: "9:16", value: 9 / 16, outputWidth: 1080, outputHeight: 1920 },
+    ]
+  },
+  instagram_business: {
+    FEED: [
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1080, outputHeight: 1350 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 },
+      { label: "Landscape", sizeLabel: "1.91:1", value: 1080 / 566, outputWidth: 1080, outputHeight: 566 },
+    ],
+    STORY: [
+      { label: "Story", sizeLabel: "9:16", value: 9 / 16, outputWidth: 1080, outputHeight: 1920 },
+    ]
+  },
+  linkedin: {
+    FEED: [
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1200, outputHeight: 1200 },
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1200, outputHeight: 1500 },
+      { label: "Landscape", sizeLabel: "1.91:1", value: 1200 / 627, outputWidth: 1200, outputHeight: 627 },
+    ]
+  },
+  twitter: {
+    FEED: [
+      { label: "Landscape", sizeLabel: "16:9", value: 16 / 9, outputWidth: 1600, outputHeight: 900 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1200, outputHeight: 1200 },
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1200, outputHeight: 1500 },
+    ]
+  },
+  threads: {
+    FEED: [
+      { label: "Portrait", sizeLabel: "4:5", value: 4 / 5, outputWidth: 1080, outputHeight: 1350 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 },
+      { label: "Landscape", sizeLabel: "16:9", value: 16 / 9, outputWidth: 1920, outputHeight: 1080 },
+    ]
+  },
+  pinterest: {
+    FEED: [
+      { label: "Standard Pin", sizeLabel: "2:3", value: 2 / 3, outputWidth: 1000, outputHeight: 1500 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1000, outputHeight: 1000 },
+      { label: "Long Pin", sizeLabel: "1:2.1", value: 1 / 2.1, outputWidth: 1000, outputHeight: 2100 },
+    ]
+  },
+  youtube: {
+    FEED: [
+      { label: "Landscape", sizeLabel: "16:9", value: 16 / 9, outputWidth: 1920, outputHeight: 1080 },
+      { label: "Standard", sizeLabel: "4:3", value: 4 / 3, outputWidth: 1440, outputHeight: 1080 },
+      { label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 },
+    ],
+    SHORT: [
+      { label: "Short", sizeLabel: "9:16", value: 9 / 16, outputWidth: 1080, outputHeight: 1920 },
+    ]
+  }
+};
+
+// ----------------------------------------------------------------------
+// 🌟 NEW: Max Dimensions Helper (For Custom Fit Logic)
+// ----------------------------------------------------------------------
+const getMaxDimensions = (platform?: string) => {
+  switch(platform) {
+      case 'instagram':
+      case 'instagram_business':
+      case 'threads':
+          return { maxWidth: 1440, maxHeight: 1800 }; 
+      case 'facebook':
+          return { maxWidth: 2048, maxHeight: 2048 };
+      case 'linkedin':
+      case 'twitter':
+          return { maxWidth: 4096, maxHeight: 4096 };
+      case 'pinterest':
+          return { maxWidth: 1000, maxHeight: 2100 };
+      case 'youtube':
+          return { maxWidth: 3840, maxHeight: 2160 };
+      default:
+          return { maxWidth: 2048, maxHeight: 2048 };
+  }
+};
 
 const savedEditToCropBox = (
   edit: MediaEditDraft,
@@ -103,9 +192,10 @@ const savedEditToCropBox = (
   height: (edit.cropHeight / imageHeight) * 100,
 });
 
-const cropRatioFromSavedEdit = (edit: MediaEditDraft): CropRatio => {
+const cropRatioFromSavedEdit = (edit: MediaEditDraft, platform: string, placement: string): CropRatio => {
   const value = edit.cropWidth / edit.cropHeight;
-  return CROP_RATIOS.find((ratio) => ratio.value && Math.abs(ratio.value - value) < 0.002) || CROP_RATIOS[4];
+  const ratios = (PLATFORM_CROP_OPTIONS[platform] || PLATFORM_CROP_OPTIONS['instagram'])[placement] || PLATFORM_CROP_OPTIONS['instagram']['FEED'];
+  return ratios.find((ratio) => ratio.value && Math.abs(ratio.value - value) < 0.002) || { label: "Custom Max Fit", sizeLabel: "Custom", value: null, outputWidth: null, outputHeight: null };
 };
 
 const getDestinationKey = (destination: ImageEditDestination) =>
@@ -132,8 +222,9 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
 ) {
   const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
   const [cropSession, setCropSession] = useState<CropSession | null>(null);
-  const [cropRatio, setCropRatio] = useState(CROP_RATIOS[0]);
-  const [cropBox, setCropBox] = useState<CropBox>({ x: 12.5, y: 0, width: 75, height: 100 });
+  // Default fallback ratio
+  const [cropRatio, setCropRatio] = useState<CropRatio>({ label: "Square", sizeLabel: "1:1", value: 1, outputWidth: 1080, outputHeight: 1080 });
+  const [cropBox, setCropBox] = useState({ x: 12.5, y: 0, width: 75, height: 100 });
   const [activeCropDestination, setActiveCropDestination] = useState<ImageEditDestination | null>(null);
   const [destinationCropBoxes, setDestinationCropBoxes] = useState<Record<string, CropBox>>({});
   const [destinationCropRatios, setDestinationCropRatios] = useState<Record<string, CropRatio>>({});
@@ -142,7 +233,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
   const [confirmedCropDestinations, setConfirmedCropDestinations] = useState<Record<string, boolean>>({});
   const [cropImageDimensions, setCropImageDimensions] = useState({ width: 0, height: 0 });
   const [imageEffects, setImageEffects] = useState(createDefaultImageEffects);
-  const cropPreviewRef = useRef<HTMLSpanElement>(null);
+  const cropPreviewRef = useRef<HTMLElement | null>(null);
   const cropInteractionRef = useRef<CropInteraction | null>(null);
 
   const initializeCrop = (index: number) => {
@@ -163,7 +254,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
           )
         : {}
     );
-    setCropRatio(firstDestination ? getDestinationRatio(firstDestination) : CROP_RATIOS[0]);
+    setCropRatio(firstDestination ? getDestinationRatio(firstDestination) : PLATFORM_CROP_OPTIONS.instagram.FEED[0]);
     setCropImageDimensions({ width: 0, height: 0 });
     setImageEffects(createDefaultImageEffects());
   };
@@ -205,7 +296,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
     const sourceFile = cropTargetIndex !== null ? files[cropTargetIndex] : null;
     const savedEdit = sourceFile instanceof File ? getSavedMediaEdit?.(sourceFile, destination) : undefined;
     const nextRatio = destinationCropRatios[key] ||
-      (savedEdit ? cropRatioFromSavedEdit(savedEdit) : getDestinationRatio(destination));
+      (savedEdit ? cropRatioFromSavedEdit(savedEdit, destination.platform, destination.placement) : getDestinationRatio(destination));
     const savedBox = destinationCropBoxes[key];
     setActiveCropDestination(destination);
     setCropRatio(nextRatio);
@@ -319,6 +410,9 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
     });
   };
 
+  // ----------------------------------------------------------------------
+  // 🌟 NEW: Dynamic Ratio Application & Max Bounds
+  // ----------------------------------------------------------------------
   const selectCropRatio = (ratio: CropRatio) => {
     recordActiveEdit();
     setCropRatio(ratio);
@@ -327,13 +421,37 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
       setDestinationCropRatios((current) => ({ ...current, [key]: ratio }));
       setConfirmedCropDestinations((current) => ({ ...current, [key]: false }));
     }
-    if (ratio.value && cropImageDimensions.width && cropImageDimensions.height) {
-      setCropBox(createCropBox(cropImageDimensions.width, cropImageDimensions.height, ratio.value));
+    
+    if (cropImageDimensions.width && cropImageDimensions.height) {
+      if (ratio.value !== null) {
+        // Standard Fixed Aspect Ratio
+        setCropBox(createCropBox(cropImageDimensions.width, cropImageDimensions.height, ratio.value));
+      } else {
+        // Custom Max Fit Logic
+        const platform = activeCropDestination?.platform;
+        const { maxWidth, maxHeight } = getMaxDimensions(platform);
+
+        // If the image is smaller than platform max, select the full image
+        if (cropImageDimensions.width <= maxWidth && cropImageDimensions.height <= maxHeight) {
+          setCropBox({ x: 0, y: 0, width: 100, height: 100 });
+        } else {
+          // If the image exceeds limits, constrain the box to max bounds
+          const boxWidthPercent = Math.min(100, (maxWidth / cropImageDimensions.width) * 100);
+          const boxHeightPercent = Math.min(100, (maxHeight / cropImageDimensions.height) * 100);
+
+          setCropBox({
+            x: (100 - boxWidthPercent) / 2, // Center the box
+            y: (100 - boxHeightPercent) / 2, // Center the box
+            width: boxWidthPercent,
+            height: boxHeightPercent
+          });
+        }
+      }
     }
   };
 
   const startCropInteraction = (
-    event: React.PointerEvent<HTMLElement>,
+    event: React.PointerEvent,
     mode: "move" | "resize",
     handle?: CropHandle
   ) => {
@@ -350,7 +468,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const updateCropFromPointer = (event: React.PointerEvent<HTMLElement>) => {
+  const updateCropFromPointer = (event: React.PointerEvent) => {
     const interaction = cropInteractionRef.current;
     const preview = cropPreviewRef.current;
     if (!interaction || !preview) return;
@@ -377,7 +495,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
     );
   };
 
-  const stopCropInteraction = (event: React.PointerEvent<HTMLElement>) => {
+  const stopCropInteraction = (event: React.PointerEvent) => {
     cropInteractionRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -484,49 +602,66 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
       try {
         const renderedTargets = await Promise.all(renderTargets.map(renderTarget));
         URL.revokeObjectURL(url);
-        const activeResult = renderedTargets.find(
-          ({ destination }) => destination && currentDestinationKey === getDestinationKey(destination)
-        ) || renderedTargets[0];
-        const nextFiles = [...files];
-        nextFiles[cropTargetIndex] = activeResult.croppedFile;
+        
+        // ----------------------------------------------------------------------
+        // 🌟 NEW: Prevents overwriting original files during Backend flow
+        // ----------------------------------------------------------------------
         const storesBackendEdit = Boolean(onMediaEditApply);
+
         const commitCrop = () => {
           if (storesBackendEdit && onMediaEditApply) {
             renderedTargets.forEach(({ destination, sourceCrop, croppedFile }) => {
               if (!destination) return;
               onMediaEditApply(
-                file,
+                file, // 1. ORIGINAL FILE
                 {
-                  cropX: sourceCrop.x,
+                  cropX: sourceCrop.x, // 2. MATH
                   cropY: sourceCrop.y,
                   cropWidth: sourceCrop.width,
                   cropHeight: sourceCrop.height,
                   rotation: 0,
                 },
-                croppedFile,
+                croppedFile, // 3. PREVIEW CANVAS
                 destination
               );
             });
           } else {
+            // Fallback for standalone frontend editing (Not used in Publish flow)
+            const activeResult = renderedTargets.find(
+              ({ destination }) => destination && currentDestinationKey === getDestinationKey(destination)
+            ) || renderedTargets[0];
+            const nextFiles = [...files];
+            nextFiles[cropTargetIndex] = activeResult.croppedFile;
             onFilesChange(nextFiles);
           }
         };
 
         if (cropSession && validateFilesForSelectedChannels) {
-          const validationErrors = await validateFilesForSelectedChannels(nextFiles);
+          const filesToValidate = storesBackendEdit 
+            ? renderedTargets.map(rt => rt.croppedFile) 
+            : (() => { 
+                const arr = [...files]; 
+                arr[cropTargetIndex] = renderedTargets[0].croppedFile; 
+                return arr; 
+              })();
+
+          const validationErrors = await validateFilesForSelectedChannels(filesToValidate);
           const remainingIndices = cropSession.remainingIndices.filter((index) => index !== cropTargetIndex);
+          
           if (validationErrors.length === 0) {
             commitCrop();
             setCropSession(null);
             closeCrop();
             return;
           }
+          
           if (areDimensionOnlyErrors(validationErrors) && remainingIndices.length > 0) {
             commitCrop();
             setCropSession({ ...cropSession, remainingIndices });
             initializeCrop(remainingIndices[0]);
             return;
           }
+          
           if (!storesBackendEdit) onFilesChange(cropSession.originalFiles);
           setCropSession(null);
           closeCrop();
@@ -554,20 +689,35 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
   const cropTargetUrl = cropFile ? getStableObjectUrl(cropFile) : "";
   if (cropTargetIndex === null || !cropTargetUrl) return null;
 
+  // Calculate dynamic ratios before render
+  const activePlatform = activeCropDestination?.platform || 'instagram';
+  const activePlacement = activeCropDestination?.placement || 'FEED';
+  const currentRatios = (PLATFORM_CROP_OPTIONS[activePlatform] || PLATFORM_CROP_OPTIONS['instagram'])[activePlacement] || PLATFORM_CROP_OPTIONS['instagram']['FEED'];
+
+  const customRatio: CropRatio = {
+    label: "Custom Max Fit",
+    sizeLabel: "Custom",
+    value: null,
+    outputWidth: null,
+    outputHeight: null
+  };
+
+  const activeRatios = [...currentRatios, customRatio];
+
   return (
     <div className={styles.cropOverlay}>
-      <div className={styles.cropModal} role="dialog" aria-modal="true" aria-labelledby="crop-dialog-title">
+      <div className={styles.cropModal}>
         <div className={styles.cropHeader}>
-          <div>
-            <h3 id="crop-dialog-title">{cropSession ? "Crop to upload" : "Edit Image"}</h3>
-            <p>
-              {cropRatio.label}
-              {cropRatio.outputWidth && cropRatio.outputHeight
-                ? ` · ${cropRatio.outputWidth}x${cropRatio.outputHeight}`
-                : " · Drag the handles to choose a custom crop"}
-            </p>
+          <h3>{cropSession ? "Crop to upload" : "Edit Image"}</h3>
+          <div className={styles.cropHeaderInfo}>
+            <strong>{cropRatio.label}</strong>
+            {cropRatio.outputWidth && cropRatio.outputHeight
+              ? ` · ${cropRatio.outputWidth}x${cropRatio.outputHeight}`
+              : " · Fit to platform maximum constraints"}
           </div>
-          <button type="button" onClick={cancelCrop} aria-label="Close crop">×</button>
+          <button type="button" onClick={cancelCrop} aria-label="Close">
+            ×
+          </button>
         </div>
 
         {cropDestinations.length > 0 && (
@@ -638,7 +788,7 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
                             ? savedEditToCropBox(savedEdit, dimensions.width, dimensions.height)
                             : createCropBox(dimensions.width, dimensions.height, destination.ratio);
                           const hydratedRatio = savedEdit
-                            ? cropRatioFromSavedEdit(savedEdit)
+                            ? cropRatioFromSavedEdit(savedEdit, destination.platform, destination.placement)
                             : getDestinationRatio(destination);
                           if (!destinationCropBoxes[key]) {
                             setDestinationCropBoxes((current) => ({ ...current, [key]: hydratedBox }));
@@ -733,7 +883,8 @@ const Cropfeature = forwardRef<CropfeatureHandle, CropfeatureProps>(function Cro
           <div className={styles.cropRecommendations}>
             <span>Crop ratio</span>
             <div className={styles.recommendationGrid}>
-              {CROP_RATIOS.map((ratio) => (
+              {/* 🌟 NEW: Dynamic Ratio Button Mapping */}
+              {activeRatios.map((ratio) => (
                 <button
                   key={ratio.label}
                   type="button"
