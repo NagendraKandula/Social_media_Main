@@ -4,26 +4,16 @@ import { AlertTriangle, BadgeCheck, ChartNoAxesColumnIncreasing, Crop, X } from 
 import styles from "../styles/ContentEditor.module.css";
 import Dragdrop from "./Dragdrop";
 import Toolbar from "./Toolbar";
+import Cropfeature, { CropfeatureHandle } from "./Cropfeature";
 import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
 import {
   areDimensionOnlyErrors,
-  getCropOutputFormat,
   getNewImageIndices,
 } from "../utils/cropValidation.mjs";
-import {
-  getImageFilter,
-  getImageTransform,
-  sharpenPixelData,
-} from "../utils/imageEditEffects.mjs";
-import {
-  createCropBox,
-  getCropPixels,
-  moveCropBox,
-  resizeCropBox,
-} from "../utils/cropGeometry.mjs";
+import type { ImageEditDestination, MediaEditDraft } from "../features/publish/types";
 
 const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -31,69 +21,6 @@ const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
 });
 
 type ValidationMap = Record<string, string[]>;
-type CropSession = {
-  originalFiles: any[];
-  remainingIndices: number[];
-};
-type CropBox = { x: number; y: number; width: number; height: number };
-type CropHandle = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
-type CropInteraction = {
-  mode: "move" | "resize";
-  handle?: CropHandle;
-  startClientX: number;
-  startClientY: number;
-  startBox: CropBox;
-};
-
-const createDefaultImageEffects = () => ({
-  rotation: 0,
-  mirror: false,
-  flip: false,
-  blur: false,
-  sharpen: false,
-  enhance: false,
-  grayscale: false,
-  invert: false,
-});
-
-const CROP_RATIOS = [
-  {
-    label: "Portrait 3:4",
-    sizeLabel: "3:4",
-    value: 3 / 4,
-    outputWidth: 1080,
-    outputHeight: 1440,
-  },
-  {
-    label: "Portrait 4:5",
-    sizeLabel: "4:5",
-    value: 4 / 5,
-    outputWidth: 1080,
-    outputHeight: 1350,
-  },
-  {
-    label: "Square",
-    sizeLabel: "1:1",
-    value: 1,
-    outputWidth: 1080,
-    outputHeight: 1080,
-  },
-  {
-    label: "Landscape",
-    sizeLabel: "1080:566",
-    value: 1080 / 566,
-    outputWidth: 1080,
-    outputHeight: 566,
-  },
-  {
-    label: "Custom",
-    sizeLabel: "Custom",
-    value: null,
-    outputWidth: null,
-    outputHeight: null,
-  },
-];
-
 const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
   facebook: "Facebook",
   instagram: "Instagram",
@@ -115,7 +42,21 @@ export interface ContentEditorProps {
   isReadOnly?: boolean; 
   validateFilesForSelectedChannels?: (nextFiles: any[]) => string[] | Promise<string[]>;
   getImageFitWarnings?: (newFiles: File[]) => string[] | Promise<string[]>;
+  onMediaEditApply?: (
+    file: File,
+    edit: {
+      cropX: number;
+      cropY: number;
+      cropWidth: number;
+      cropHeight: number;
+      rotation: number;
+    },
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => void;
   selectedChannels?: string[];
+  cropDestinations?: ImageEditDestination[];
+  getSavedMediaEdit?: (file: File, destination: ImageEditDestination) => MediaEditDraft | undefined;
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
@@ -130,7 +71,10 @@ export default function ContentEditor({
   isReadOnly = false, 
   validateFilesForSelectedChannels,
   getImageFitWarnings,
+  onMediaEditApply,
   selectedChannels = [],
+  cropDestinations = [],
+  getSavedMediaEdit,
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
@@ -141,18 +85,11 @@ export default function ContentEditor({
     italic: false,
     underline: false,
   });
-  const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
-  const [cropRatio, setCropRatio] = useState(CROP_RATIOS[0]);
-  const [cropBox, setCropBox] = useState<CropBox>({ x: 12.5, y: 0, width: 75, height: 100 });
-  const [cropImageDimensions, setCropImageDimensions] = useState({ width: 0, height: 0 });
-  const [imageEffects, setImageEffects] = useState(createDefaultImageEffects);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
-  const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const cropPreviewRef = useRef<HTMLDivElement>(null);
-  const cropInteractionRef = useRef<CropInteraction | null>(null);
+  const cropFeatureRef = useRef<CropfeatureHandle>(null);
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
       ...recommendation,
@@ -237,11 +174,10 @@ export default function ContentEditor({
       ) {
         setMediaError(null);
         onFilesChange(nextFiles);
-        setCropSession({
+        cropFeatureRef.current?.open(pendingImageIndices[0], {
           originalFiles: [...files],
           remainingIndices: pendingImageIndices,
         });
-        openCrop(pendingImageIndices[0]);
         return;
       }
 
@@ -307,242 +243,6 @@ export default function ContentEditor({
       };
     });
   }, [files]);
-
-  const cropTargetPreview =
-    cropTargetIndex !== null ? filePreviews[cropTargetIndex] : undefined;
-
-  const openCrop = (index: number) => {
-    setCropTargetIndex(index);
-    setCropRatio(CROP_RATIOS[0]);
-    setCropImageDimensions({ width: 0, height: 0 });
-    setImageEffects(createDefaultImageEffects());
-  };
-
-  const toggleImageEffect = (
-    effect: "mirror" | "flip" | "blur" | "sharpen" | "enhance" | "grayscale" | "invert"
-  ) => {
-    setImageEffects((current) => ({ ...current, [effect]: !current[effect] }));
-  };
-
-  const rotateImage = () => {
-    setImageEffects((current) => ({
-      ...current,
-      rotation: (current.rotation + 45) % 360,
-    }));
-  };
-
-  const closeCrop = () => {
-    setCropTargetIndex(null);
-    cropInteractionRef.current = null;
-  };
-
-  const cancelCrop = () => {
-    if (cropSession) {
-      onFilesChange(cropSession.originalFiles);
-      setCropSession(null);
-    }
-
-    closeCrop();
-  };
-
-  const selectCropRatio = (ratio: typeof CROP_RATIOS[number]) => {
-    setCropRatio(ratio);
-    if (ratio.value && cropImageDimensions.width && cropImageDimensions.height) {
-      setCropBox(
-        createCropBox(
-          cropImageDimensions.width,
-          cropImageDimensions.height,
-          ratio.value
-        )
-      );
-    }
-  };
-
-  const getCropPointer = (event: React.PointerEvent<HTMLElement>) => {
-    const preview = cropPreviewRef.current;
-    if (!preview) return null;
-
-    const rect = preview.getBoundingClientRect();
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * 100,
-      y: ((event.clientY - rect.top) / rect.height) * 100,
-      rect,
-    };
-  };
-
-  const startCropInteraction = (
-    event: React.PointerEvent<HTMLElement>,
-    mode: "move" | "resize",
-    handle?: CropHandle
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    cropInteractionRef.current = {
-      mode,
-      handle,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      startBox: cropBox,
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const updateCropFromPointer = (event: React.PointerEvent<HTMLElement>) => {
-    const interaction = cropInteractionRef.current;
-    const pointer = getCropPointer(event);
-    if (!interaction || !pointer) return;
-
-    if (interaction.mode === "move") {
-      const deltaX = ((event.clientX - interaction.startClientX) / pointer.rect.width) * 100;
-      const deltaY = ((event.clientY - interaction.startClientY) / pointer.rect.height) * 100;
-      setCropBox(moveCropBox(interaction.startBox, deltaX, deltaY));
-      return;
-    }
-
-    setCropBox(
-      resizeCropBox(
-        interaction.startBox,
-        interaction.handle,
-        pointer.x,
-        pointer.y,
-        cropImageDimensions.width / cropImageDimensions.height,
-        cropRatio.value
-      )
-    );
-  };
-
-  const stopCropInteraction = (event: React.PointerEvent<HTMLElement>) => {
-    cropInteractionRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  };
-
-  const applyCrop = async () => {
-    if (cropTargetIndex === null) return;
-
-    const file = files[cropTargetIndex];
-    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
-      closeCrop();
-      return;
-    }
-
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const sourceCrop = getCropPixels(
-        cropBox,
-        image.naturalWidth,
-        image.naturalHeight
-      );
-      const outputWidth = cropRatio.outputWidth || sourceCrop.width;
-      const outputHeight = cropRatio.outputHeight || sourceCrop.height;
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        URL.revokeObjectURL(url);
-        closeCrop();
-        return;
-      }
-
-      canvas.width = outputWidth;
-      canvas.height = outputHeight;
-
-      context.save();
-      context.translate(outputWidth / 2, outputHeight / 2);
-      context.rotate((imageEffects.rotation * Math.PI) / 180);
-      context.scale(imageEffects.mirror ? -1 : 1, imageEffects.flip ? -1 : 1);
-      context.filter = getImageFilter({ ...imageEffects, sharpen: false });
-      context.drawImage(
-        image,
-        sourceCrop.x,
-        sourceCrop.y,
-        sourceCrop.width,
-        sourceCrop.height,
-        -outputWidth / 2,
-        -outputHeight / 2,
-        outputWidth,
-        outputHeight
-      );
-      context.restore();
-
-      if (imageEffects.sharpen) {
-        const imageData = context.getImageData(0, 0, outputWidth, outputHeight);
-        imageData.data.set(
-          sharpenPixelData(imageData.data, outputWidth, outputHeight)
-        );
-        context.putImageData(imageData, 0, 0);
-      }
-
-      const outputFormat = getCropOutputFormat(file.type);
-
-      canvas.toBlob(async (blob) => {
-        URL.revokeObjectURL(url);
-        if (!blob) {
-          alert("Could not crop this image.");
-          return;
-        }
-
-        const croppedFile = new File(
-          [blob],
-          file.name.replace(/\.[^.]+$/, `-${cropRatio.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${outputFormat.extension}`),
-          { type: outputFormat.mimeType }
-        );
-
-        const nextFiles = [...files];
-        nextFiles[cropTargetIndex] = croppedFile;
-
-        if (cropSession && validateFilesForSelectedChannels) {
-          const validationErrors =
-            await validateFilesForSelectedChannels(nextFiles);
-          const remainingIndices = cropSession.remainingIndices.filter(
-            (index) => index !== cropTargetIndex
-          );
-
-          if (validationErrors.length === 0) {
-            onFilesChange(nextFiles);
-            setCropSession(null);
-            closeCrop();
-            return;
-          }
-
-          if (
-            areDimensionOnlyErrors(validationErrors) &&
-            remainingIndices.length > 0
-          ) {
-            onFilesChange(nextFiles);
-            setCropSession({
-              ...cropSession,
-              remainingIndices,
-            });
-            openCrop(remainingIndices[0]);
-            return;
-          }
-
-          onFilesChange(cropSession.originalFiles);
-          setCropSession(null);
-          closeCrop();
-          alert(
-            `This media still cannot be uploaded:\n\n${validationErrors.join('\n')}`
-          );
-          return;
-        }
-
-        onFilesChange(nextFiles);
-        closeCrop();
-      }, outputFormat.mimeType, outputFormat.quality);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      alert("Could not crop this image.");
-      closeCrop();
-    };
-
-    image.src = url;
-  };
 
   /* ---------- Counts ---------- */
   const charCount = getPlainTextLength();
@@ -611,161 +311,15 @@ export default function ContentEditor({
         </div>
       )}
 
-      {cropTargetPreview?.isImage && cropTargetPreview.url && (
-        <div className={styles.cropOverlay}>
-          <div
-            className={styles.cropModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crop-dialog-title"
-          >
-            <div className={styles.cropHeader}>
-              <div>
-                <h3 id="crop-dialog-title">
-                  {cropSession ? "Crop to upload" : "Edit Image"}
-                </h3>
-                <p>
-                  {cropRatio.label}
-                  {cropRatio.outputWidth && cropRatio.outputHeight
-                    ? ` · ${cropRatio.outputWidth}x${cropRatio.outputHeight}`
-                    : " · Drag the handles to choose a custom crop"}
-                </p>
-              </div>
-              <button type="button" onClick={cancelCrop} aria-label="Close crop">
-                ×
-              </button>
-            </div>
-
-            <div className={styles.cropStage}>
-              <div
-                ref={cropPreviewRef}
-                className={styles.cropPreview}
-                style={{
-                  aspectRatio: cropImageDimensions.width && cropImageDimensions.height
-                    ? `${cropImageDimensions.width} / ${cropImageDimensions.height}`
-                    : "1 / 1",
-                  width: cropImageDimensions.width && cropImageDimensions.height
-                    ? `min(100%, 760px, ${(62 * cropImageDimensions.width) / cropImageDimensions.height}vh)`
-                    : "min(100%, 620px)",
-                }}
-              >
-                <img
-                  src={cropTargetPreview.url}
-                  alt="Crop preview"
-                  onLoad={(event) => {
-                    const dimensions = {
-                      width: event.currentTarget.naturalWidth,
-                      height: event.currentTarget.naturalHeight,
-                    };
-                    setCropImageDimensions(dimensions);
-                    if (cropRatio.value) {
-                      setCropBox(
-                        createCropBox(
-                          dimensions.width,
-                          dimensions.height,
-                          cropRatio.value
-                        )
-                      );
-                    }
-                  }}
-                  style={{
-                    transform: getImageTransform({
-                      zoom: 1,
-                      rotation: imageEffects.rotation,
-                      mirror: imageEffects.mirror,
-                      flip: imageEffects.flip,
-                    }),
-                    filter: getImageFilter(imageEffects),
-                  }}
-                />
-                <div
-                  className={styles.cropSelection}
-                  style={{
-                    left: `${cropBox.x}%`,
-                    top: `${cropBox.y}%`,
-                    width: `${cropBox.width}%`,
-                    height: `${cropBox.height}%`,
-                  }}
-                  onPointerDown={(event) => startCropInteraction(event, "move")}
-                  onPointerMove={updateCropFromPointer}
-                  onPointerUp={stopCropInteraction}
-                  onPointerCancel={stopCropInteraction}
-                >
-                  <div className={styles.cropGrid} aria-hidden="true" />
-                  {(["n", "ne", "e", "se", "s", "sw", "w", "nw"] as CropHandle[]).map((handle) => (
-                    <button
-                      key={handle}
-                      type="button"
-                      className={`${styles.cropHandle} ${styles[`cropHandle${handle.toUpperCase()}`]}`}
-                      aria-label={`Resize crop ${handle}`}
-                      onPointerDown={(event) => startCropInteraction(event, "resize", handle)}
-                      onPointerMove={updateCropFromPointer}
-                      onPointerUp={stopCropInteraction}
-                      onPointerCancel={stopCropInteraction}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.cropControls}>
-              <div className={styles.cropRecommendations}>
-                <span>Crop ratio</span>
-                <div className={styles.recommendationGrid}>
-                  {CROP_RATIOS.map((ratio) => (
-                    <button
-                      key={ratio.label}
-                      type="button"
-                      className={cropRatio.label === ratio.label ? styles.selectedRecommendation : ""}
-                      onClick={() => selectCropRatio(ratio)}
-                    >
-                      <span>{ratio.sizeLabel}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.imageEffectsGroup}>
-                <span>Image adjustments</span>
-                <div className={styles.imageEffectsGrid}>
-                  <button type="button" onClick={rotateImage}>
-                    Rotate <strong>{imageEffects.rotation}°</strong>
-                  </button>
-                  {([
-                    ["mirror", "Mirror"],
-                    ["flip", "Flip"],
-                    ["blur", "Blur"],
-                    ["sharpen", "Sharpen"],
-                    ["enhance", "Enhance"],
-                    ["grayscale", "Grayscale"],
-                    ["invert", "Invert"],
-                  ] as const).map(([effect, label]) => (
-                    <button
-                      key={effect}
-                      type="button"
-                      className={imageEffects[effect] ? styles.imageEffectActive : ""}
-                      onClick={() => toggleImageEffect(effect)}
-                      aria-pressed={imageEffects[effect]}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-
-            <div className={styles.cropActions}>
-              <button type="button" onClick={cancelCrop}>
-                Cancel
-              </button>
-              <button type="button" onClick={applyCrop}>
-                Apply
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Cropfeature
+        ref={cropFeatureRef}
+        files={files}
+        onFilesChange={onFilesChange}
+        cropDestinations={cropDestinations}
+        getSavedMediaEdit={getSavedMediaEdit}
+        validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+        onMediaEditApply={onMediaEditApply}
+      />
 
       {/* Footer */}
       <div className={styles.footerInfo}>
@@ -790,11 +344,11 @@ export default function ContentEditor({
 
                   {!isReadOnly && (
                     <>
-                      {preview.isImage && preview.file instanceof File && (
+                          {preview.isImage && preview.file instanceof File && (!onMediaEditApply || cropDestinations.length > 0) && (
                         <button
                           type="button"
                           className={styles.cropButton}
-                          onClick={() => openCrop(index)}
+                          onClick={() => cropFeatureRef.current?.open(index)}
                           aria-label="Crop image"
                           title="Crop image"
                         >
