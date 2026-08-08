@@ -30,7 +30,15 @@ export class PostingService {
   // Added this helper so your frontend hook can register media!
  // MUST BE INSIDE PostingService
   async registerMedia(userId: number, gcsPath: string, fileType: MediaType) {
-    return this.prisma.media.create({
+    this.logger.log(
+    `🔵 [REGISTER-MEDIA:1] Service entered | userId=${userId} | gcsPath=${gcsPath} | fileType=${fileType}`,
+  );
+
+  this.logger.log(
+    `🔵 [REGISTER-MEDIA:2] About to execute prisma.media.create()`,
+  );
+  try{
+    const media = await this.prisma.media.create({
       data: {
         userId,
         gcsPath,
@@ -38,13 +46,36 @@ export class PostingService {
         status: 'UPLOADED', // From MediaStatus enum
       }
     });
+       this.logger.log(
+      `🟢 [REGISTER-MEDIA:3] Prisma media.create() completed | mediaId=${media.id}`,
+    );
+
+    this.logger.log(
+      `🟢 [REGISTER-MEDIA:4] Returning media response`,
+    );
+
+    return media;
+  }
+  catch (error: any) {
+    this.logger.error(
+      `🔴 [REGISTER-MEDIA:ERROR] ${error.message}`,
+      error.stack,
+    );
+
+    throw error;
+  }
   }
   private async saveMediaEdit(
-    tx: Prisma.TransactionClient,
-    mediaId: number,
-    edit: MediaEditDto, // Ensure you import MediaEditDto
-  ) {
-    return tx.mediaEdit.upsert({
+  tx: Prisma.TransactionClient,
+  mediaId: number,
+  edit: MediaEditDto,
+) {
+  this.logger.log(
+    `🟡 [MEDIA-EDIT:1] upsert started | mediaId=${mediaId} | platform=${edit.platform} | placement=${edit.placement}`,
+  );
+
+  try {
+    const result = await tx.mediaEdit.upsert({
       where: {
         mediaId_platform_placement: {
           mediaId,
@@ -75,8 +106,24 @@ export class PostingService {
         focalY: edit.focalY,
       },
     });
+
+    this.logger.log(
+      `🟢 [MEDIA-EDIT:2] upsert completed | editId=${result.id}`,
+    );
+
+    return result;
+  } catch (error: any) {
+    this.logger.error(
+      `🔴 [MEDIA-EDIT:ERROR] ${error.message}`,
+      error.stack,
+    );
+    throw error;
   }
+}
   async createPost(userId: number, dto: CreatePostDto) {
+    this.logger.log(
+    `🚀 [CREATE-POST:1] Service entered | userId=${userId}`,
+  );
     try {
       const { 
         primaryCaption, 
@@ -85,18 +132,41 @@ export class PostingService {
         scheduledAt,
         contentMetadata,
       } = dto;
+       this.logger.log(
+      `🚀 [CREATE-POST:2] DTO received`,
+    );
 
+    this.logger.log(
+      `Platforms: ${JSON.stringify(platforms)}`,
+    );
+
+    this.logger.log(
+      `MediaSlots: ${JSON.stringify(mediaSlots)}`,
+    );
+
+    this.logger.log(
+      `ScheduledAt: ${scheduledAt}`,
+    );
       const normalizedPlatforms: Platform[] = platforms.map(
         (p) => (typeof p === 'string' ? p.toUpperCase() : p) as Platform,
       );
 
       const validMediaSlots = mediaSlots.filter(s => s.mediaId != null);
+      this.logger.log(
+  `🚀 [CREATE-POST:3] Valid media slots=${validMediaSlots.length}`,
+);
 
       if (validMediaSlots.length > 0) {
         const mediaIds = [...new Set(validMediaSlots.map(s => s.mediaId))];
+        this.logger.log(
+  `➡️ [CREATE-POST:4] Before media.findMany()`,
+);
         const mediaRecords = await this.prisma.media.findMany({
           where: { id: { in: mediaIds }, userId },
         });
+        this.logger.log(
+  `🟢 [CREATE-POST:5] media.findMany() completed | count=${mediaRecords.length}`,
+);
         const mediaMap = new Map(mediaRecords.map(m => [m.id, m]));
 
         for (const platform of normalizedPlatforms) {
@@ -124,88 +194,162 @@ export class PostingService {
       const initialStatus = isScheduled ? PostStatus.SCHEDULED : PostStatus.PENDING;
 
       // ATOMIC TRANSACTION: Edits -> Post -> Platforms -> Slots
+      this.logger.log(
+  `➡️ [CREATE-POST:6] Starting Prisma transaction`,
+);
+
       const post = await this.prisma.$transaction(async (tx) => {
-       const processedSlots: {
-           mediaId: number;
-          platform: Platform;
-           position: number;
-          editId: number | null;
-}[] = [];
 
-       for (const slot of validMediaSlots) {
-          let editData: MediaEditDto;
+  this.logger.log(
+    `🟣 [TRANSACTION:1] Transaction started`,
+  );
 
-          // 1. Check if the frontend sent crop data
-          if (slot.edit) {
-            editData = slot.edit;
-          } else {
-            // 2. If no edit data, fetch media and generate defaults
-            const media = await tx.media.findUnique({
-              where: {
-                id: slot.mediaId,
-              },
-            });
+  const processedSlots: {
+    mediaId: number;
+    platform: Platform;
+    position: number;
+    editId: number | null;
+  }[] = [];
 
-            if (!media) {
-              throw new BadRequestException(`Media ID ${slot.mediaId} not found`);
-            }
+  for (const slot of validMediaSlots) {
 
-            editData = {
-              platform: slot.platform as Platform,
-              placement: Placement.FEED, // default
-              cropX: 0,
-              cropY: 0,
-              cropWidth: media.width || 1080,   // Fallback baseline
-              cropHeight: media.height || 1080, // Fallback baseline
-              rotation: 0,
-              // focalX and focalY are completely omitted to satisfy 'number | undefined'
-            };
-          }
+    this.logger.log(
+      `🟣 [TRANSACTION:2] Processing mediaSlot | mediaId=${slot.mediaId} | platform=${slot.platform} | position=${slot.position}`,
+    );
 
-          // 3. Save the edit record safely
-          const editRecord = await this.saveMediaEdit(
-            tx,
-            slot.mediaId,
-            editData,
-          );
+    let editData: MediaEditDto;
 
-          processedSlots.push({
-            mediaId: slot.mediaId,
-            platform: slot.platform as Platform,
-            position: slot.position,
-            editId: editRecord.id,
-          });
-        
-        }
+    if (slot.edit) {
 
-        return tx.post.create({
-          data: {
-            userId,
-            primaryCaption,
-            scheduledAt: isScheduled ? new Date(scheduledAt) : null,
-            status: initialStatus,
-            contentMetadata: contentMetadata || undefined,
-            platforms: {
-              create: normalizedPlatforms.map((p) => ({ 
-                platform: p, 
-                status: PostStatus.PENDING 
-              })),
-            },
-            mediaSlots: {
-              create: processedSlots,
-            },
-          },
-          include: { platforms: true },
-        });
+      this.logger.log(
+        `🟢 [TRANSACTION:3] Frontend edit data received`,
+      );
+
+      editData = slot.edit;
+
+    } else {
+
+      this.logger.log(
+        `➡️ [TRANSACTION:3] No edit data | Fetching media`,
+      );
+
+      const media = await tx.media.findUnique({
+        where: {
+          id: slot.mediaId,
+        },
       });
 
-      if (!isScheduled) {
-        await this.renderQueue.add('process-media', { 
-          postId: post.id 
-        });
+      this.logger.log(
+        `🟢 [TRANSACTION:4] tx.media.findUnique() completed | mediaId=${slot.mediaId}`,
+      );
+
+      if (!media) {
+        throw new BadRequestException(
+          `Media ID ${slot.mediaId} not found`,
+        );
       }
 
-      return post;
+      editData = {
+        platform: slot.platform as Platform,
+        placement: Placement.FEED,
+        cropX: 0,
+        cropY: 0,
+        cropWidth: media.width || 1080,
+        cropHeight: media.height || 1080,
+        rotation: 0,
+      };
+    }
+
+    this.logger.log(
+      `➡️ [TRANSACTION:5] Before saveMediaEdit() | mediaId=${slot.mediaId}`,
+    );
+
+    const editRecord = await this.saveMediaEdit(
+      tx,
+      slot.mediaId,
+      editData,
+    );
+
+    this.logger.log(
+      `🟢 [TRANSACTION:6] saveMediaEdit() completed | editId=${editRecord.id}`,
+    );
+
+    processedSlots.push({
+      mediaId: slot.mediaId,
+      platform: slot.platform as Platform,
+      position: slot.position,
+      editId: editRecord.id,
+    });
+
+    this.logger.log(
+      `🟢 [TRANSACTION:7] processedSlots.push() completed | count=${processedSlots.length}`,
+    );
+  }
+
+  // IMPORTANT: outside the loop
+  this.logger.log(
+    `➡️ [TRANSACTION:8] About to execute tx.post.create() | slots=${processedSlots.length} | platforms=${normalizedPlatforms.length}`,
+  );
+
+  const createdPost = await tx.post.create({
+    data: {
+      userId,
+      primaryCaption,
+      scheduledAt: isScheduled
+        ? new Date(scheduledAt)
+        : null,
+      status: initialStatus,
+      contentMetadata: contentMetadata || undefined,
+
+      platforms: {
+        create: normalizedPlatforms.map((p) => ({
+          platform: p,
+          status: PostStatus.PENDING,
+        })),
+      },
+
+      mediaSlots: {
+        create: processedSlots,
+      },
+    },
+
+    include: {
+      platforms: true,
+    },
+  });
+
+  this.logger.log(
+    `🟢 [TRANSACTION:9] tx.post.create() completed | postId=${createdPost.id}`,
+  );
+
+  return createdPost;
+});
+this.logger.log(
+  `🟢 [CREATE-POST:7] Transaction completed | postId=${post.id}`,
+);
+
+if (!isScheduled) {
+  this.logger.log(
+    `➡️ [CREATE-POST:8] Adding job to render-queue | postId=${post.id}`,
+  );
+
+  const job = await this.renderQueue.add(
+    'process-media',
+    {
+      postId: post.id,
+    },
+  );
+
+  this.logger.log(
+    `🟢 [CREATE-POST:9] render-queue job added | jobId=${job.id}`,
+  );
+}
+
+this.logger.log(
+  `🟢 [CREATE-POST:10] createPost() returning | postId=${post.id}`,
+);
+
+return post;
     } catch (error: any) {
       this.logger.error(`Failed to create post: ${error.message}`, error.stack);
       throw error; 

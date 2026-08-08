@@ -33,16 +33,53 @@ export class PostingController {
     @Request() req, 
     @Body() body: { gcsPath: string; fileType: MediaType }
   ) {
-    try {
+   
       // 🔍 ADD THIS LOG
-      this.logger.log(`[API] 📥 Registering new media from Frontend. GCP Path: ${body.gcsPath}`);
+      this.logger.log(
+    `🔵 [REGISTER-MEDIA:API-1] Request entered`,
+  );
+
+  this.logger.log(
+    `🔵 [REGISTER-MEDIA:API-2] Body=${JSON.stringify(body)}`,
+  );
       
-      const userId = req.user.id || req.user.userId;
-      return await this.postingService.registerMedia(userId, body.gcsPath, body.fileType);
-    } catch (error:any) {
-      this.logger.error(`Media Register Error: ${error.message}`);
-      throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+      try {
+    const userId = req.user.id || req.user.userId;
+
+    this.logger.log(
+      `🔵 [REGISTER-MEDIA:API-3] userId=${userId}`,
+    );
+
+    this.logger.log(
+      `🔵 [REGISTER-MEDIA:API-4] Calling PostingService.registerMedia()`,
+    );
+
+    const result = await this.postingService.registerMedia(
+      userId,
+      body.gcsPath,
+      body.fileType,
+    );
+
+    this.logger.log(
+      `🟢 [REGISTER-MEDIA:API-5] Service returned`,
+    );
+
+    this.logger.log(
+      `🟢 [REGISTER-MEDIA:API-6] mediaId=${result.id}`,
+    );
+
+    return result;
+  } catch (error: any) {
+    this.logger.error(
+      `🔴 [REGISTER-MEDIA:API-ERROR] ${error.message}`,
+      error.stack,
+    );
+
+    throw new HttpException(
+      error.message,
+      HttpStatus.INTERNAL_SERVER_ERROR,
+    );
+  }
   }
 
   @Post('create')
