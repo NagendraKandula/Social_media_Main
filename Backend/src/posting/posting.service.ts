@@ -29,13 +29,13 @@ export class PostingService {
  
   // Added this helper so your frontend hook can register media!
  // MUST BE INSIDE PostingService
-  async registerMedia(userId: number, gcsPath: string, fileType: MediaType) {
+  async registerMedia(userId: number, gcsPath: string, fileType: MediaType, width?: number, height?: number, durationMs?: number, fileSizeBytes?: number) {
     this.logger.log(
     `🔵 [REGISTER-MEDIA:1] Service entered | userId=${userId} | gcsPath=${gcsPath} | fileType=${fileType}`,
   );
 
   this.logger.log(
-    `🔵 [REGISTER-MEDIA:2] About to execute prisma.media.create()`,
+    `🔵 [REGISTER-MEDIA:2] Metadata | width=${width} | height=${height} | durationMs=${durationMs} | fileSizeBytes=${fileSizeBytes}`,
   );
   try{
     const media = await this.prisma.media.create({
@@ -43,7 +43,11 @@ export class PostingService {
         userId,
         gcsPath,
         fileType,
-        status: 'UPLOADED', // From MediaStatus enum
+        status: 'UPLOADED',
+        width,
+       height,
+      durationMs,
+      fileSizeBytes, // From MediaStatus enum
       }
     });
        this.logger.log(

@@ -30,7 +30,10 @@ export const PLATFORM_IMAGE_RULES = {
     feed: {
       minAspectRatio: 4 / 5,
       maxAspectRatio: 1.91,
-      minWidth: 320,
+      minWidth: 40,
+      minHeight: 40,
+       maxWidth: 2048,
+       maxHeight: 2048,
       maxSizeMB: 30,
       formats: ['image/jpeg', 'image/png'],
       recommended: {

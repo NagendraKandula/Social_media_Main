@@ -31,7 +31,7 @@ export class PostingController {
   @UseGuards(JwtAuthGuard)
   async registerMedia(
     @Request() req, 
-    @Body() body: { gcsPath: string; fileType: MediaType }
+    @Body() body: { gcsPath: string; fileType: MediaType,width?: number;height?: number;durationMs?: number;fileSizeBytes?: number; }
   ) {
    
       // 🔍 ADD THIS LOG
@@ -58,6 +58,10 @@ export class PostingController {
       userId,
       body.gcsPath,
       body.fileType,
+      body.width,
+      body.height,
+      body.durationMs,
+      body.fileSizeBytes
     );
 
     this.logger.log(

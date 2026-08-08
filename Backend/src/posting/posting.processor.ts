@@ -104,16 +104,34 @@ export class PostingProcessor {
             
             // Use gcsPath from new Media schema
             const targetPath = readyVariant?.gcsPath || slot.media.gcsPath;
-            let signedUrl = readyVariant?.cdnUrl || '';
+            let signedUrl =  '';
 
-            if (!signedUrl && targetPath) {
-              try {
-                signedUrl = await this.storageService.getSignedReadUrl(targetPath, 'application/octet-stream');
-              } catch (e: any) {
-                this.logger.warn(`Could not sign URL for ${targetPath}: ${e.message}`);
-              }
-            }
+if (readyVariant?.cdnUrl) {
+  try {
+    new URL(readyVariant.cdnUrl);
+    signedUrl = readyVariant.cdnUrl;
+  } catch {
+    this.logger.warn(
+      `[MEDIA] Invalid cdnUrl "${readyVariant.cdnUrl}". Generating signed URL.`,
+    );
+  }
+}
 
+if (!signedUrl && targetPath) {
+  try {
+    signedUrl = await this.storageService.getSignedReadUrl(
+      targetPath,
+      'application/octet-stream',
+    );
+  } catch (e: any) {
+    this.logger.error(
+      `[MEDIA] Failed to generate signed URL for ${targetPath}: ${e.message}`,
+    );
+  }
+}
+this.logger.log(
+  `[MEDIA] targetPath=${targetPath} | finalUrl=${signedUrl}`,
+);
             return {
               url: signedUrl,
               storagePath: targetPath,
@@ -130,12 +148,19 @@ export class PostingProcessor {
         }
         if (platformEntry.platform === Platform.FACEBOOK) {
             if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
+            
             const pageId = (post as any).contentMetadata?.platformOverrides?.facebook?.pageId;
             if (!pageId) throw new Error('Facebook Page ID missing');
             const facebookPostType = (post as any).contentMetadata?.platformOverrides?.facebook?.postType || 'feed';
 
             const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
+this.logger.log(
+  `[FACEBOOK] mediaList=${JSON.stringify(mediaList, null, 2)}`
+);
 
+this.logger.log(
+  `[FACEBOOK] urlsParam=${JSON.stringify(urlsParam)}`
+);
             const result = await this.facebookService.postToFacebook(
                 post.userId, 
                 pageId, 

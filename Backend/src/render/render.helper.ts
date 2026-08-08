@@ -40,9 +40,18 @@ export class RenderHelper {
     if (rules.minWidth && originalWidth < rules.minWidth) {
       return { needsRendering: true, reason: `Width (${originalWidth}px) < minimum (${rules.minWidth}px)` };
     }
+    if (rules.minHeight && originalHeight < rules.minHeight) {
+     return {needsRendering: true,reason: `Height (${originalHeight}px) < minimum (${rules.minHeight}px)`,
+  };
+}
     if (rules.maxWidth && originalWidth > rules.maxWidth) {
       return { needsRendering: true, reason: `Width (${originalWidth}px) > maximum (${rules.maxWidth}px)` };
     }
+
+if (rules.maxHeight && originalHeight > rules.maxHeight) {
+  return {needsRendering: true,reason: `Height (${originalHeight}px) > maximum (${rules.maxHeight}px)`,
+  };
+}
     if (rules.maxSizeMB && fileSizeMB > rules.maxSizeMB) {
       return { needsRendering: true, reason: `Size (${fileSizeMB.toFixed(2)}MB) > maximum (${rules.maxSizeMB}MB)` };
     }

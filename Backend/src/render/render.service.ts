@@ -3,8 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { RenderHelper } from './render.helper';
 import { PLATFORM_IMAGE_RULES } from './config/platformrules';
-import { Placement, Platform } from '@prisma/client';
+import { Placement, Platform,MediaType } from '@prisma/client';
 import sharp from 'sharp';
+
 // Change these two lines at the top of render.service.ts:
 
 
@@ -83,10 +84,13 @@ export class RenderService {
     //----------------------------------------
     // 3. Smart Metadata Resolution
     //----------------------------------------
-    let originalWidth = firstSlot.media.width;
-    let originalHeight = firstSlot.media.height;
+    let resolvedWidth: number;
+    let resolvedHeight: number;
 
-    if (!originalWidth || !originalHeight) {
+    if (firstSlot.media.width && firstSlot.media.height) {
+      resolvedWidth = firstSlot.media.width;
+      resolvedHeight = firstSlot.media.height;
+    } else {
       this.logger.log(`⚠️ Dimensions missing in DB. Analyzing via Sharp...`);
       const metadata = await sharp(originalBuffer).metadata();
 
@@ -94,9 +98,10 @@ export class RenderService {
         throw new Error(`Unable to determine image dimensions for Post #${postId}`);
       }
 
-      originalWidth = metadata.width;
-      originalHeight = metadata.height;
+      resolvedWidth = metadata.width;
+      resolvedHeight = metadata.height;
     }
+
 
     // Rely on native generated types (no 'as any')
     const fileSizeBytes = firstSlot.media.fileSizeBytes || originalBuffer.length;
@@ -122,6 +127,45 @@ export class RenderService {
       const media = slot.media;
       const edit = slot.edit;
       const mappedPlacement = this.mapPlacement(edit.placement);
+       if (media.fileType === MediaType.VIDEO) {
+    this.logger.log(
+      `🎥 [VIDEO-BYPASS] Post #${postId} | ` +
+      `Platform=${platform} | MediaId=${media.id} | ` +
+      `Using original video`,
+    );
+
+    result.variants++;
+    result.reused++;
+
+    dbOperations.push(
+      this.prisma.mediaVariant.upsert({
+        where: {
+          editId_editVersion: {
+            editId: edit.id,
+            editVersion: edit.version,
+          },
+        },
+        update: {
+          gcsPath: media.gcsPath!,
+          cdnUrl: '',
+          width: media.width ?? 0,
+          height: media.height ?? 0,
+          status: 'READY',
+        },
+        create: {
+          editId: edit.id,
+          editVersion: edit.version,
+          gcsPath: media.gcsPath!,
+          cdnUrl: '',
+          width: media.width ?? 0,
+          height: media.height ?? 0,
+          status: 'READY',
+        },
+      }),
+    );
+
+    continue;
+  }
 
       //----------------------------------------
       // 5. Helper Decision
@@ -129,8 +173,8 @@ export class RenderService {
       const decision = this.renderHelper.needsRendering(
         platform,
         mappedPlacement,
-        originalWidth,
-        originalHeight,
+        resolvedWidth,
+        resolvedHeight,
         fileSizeBytes,
       );
 
@@ -152,8 +196,8 @@ export class RenderService {
       `);
 
       let finalGcsPath = media.gcsPath!;
-      let finalWidth = originalWidth;
-      let finalHeight = originalHeight;
+      let finalWidth = resolvedWidth;
+      let finalHeight = resolvedHeight;
       let finalMimeType = originalMimeType;
 
       //----------------------------------------
@@ -204,7 +248,7 @@ export class RenderService {
       //----------------------------------------
       const variantData = {
         gcsPath: finalGcsPath,
-        cdnUrl: finalGcsPath,
+        cdnUrl: '',
         width: finalWidth,
         height: finalHeight,
         status: 'READY' as const,
