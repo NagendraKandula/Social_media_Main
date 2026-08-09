@@ -170,12 +170,32 @@ export class RenderService {
       //----------------------------------------
       // 5. Helper Decision
       //----------------------------------------
+      const effectiveWidth =
+  edit.cropWidth != null && edit.cropWidth > 0
+    ? Math.round(edit.cropWidth)
+    : resolvedWidth;
+
+const effectiveHeight =
+  edit.cropHeight != null && edit.cropHeight > 0
+    ? Math.round(edit.cropHeight)
+    : resolvedHeight;
+
+const effectiveAspectRatio = effectiveWidth / effectiveHeight;
+
+this.logger.log(
+  `📐 [RENDER-DIMENSIONS] ` +
+  `Original=${resolvedWidth}x${resolvedHeight} | ` +
+  `Crop=${edit.cropWidth ?? 'none'}x${edit.cropHeight ?? 'none'} | ` +
+  `Effective=${effectiveWidth}x${effectiveHeight} | ` +
+  `AspectRatio=${effectiveAspectRatio.toFixed(3)}`
+);
+
       const decision = this.renderHelper.needsRendering(
         platform,
-        mappedPlacement,
-        resolvedWidth,
-        resolvedHeight,
-        fileSizeBytes,
+  mappedPlacement,
+  effectiveWidth,
+  effectiveHeight,
+  fileSizeBytes,
       );
 
       // Structured Logging

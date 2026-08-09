@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, InternalServerErrorException } from '@
 import axios from 'axios';
 import { ConfigService } from '@nestjs/config';
 import { FacebookPostResponse, FacebookAttachedMedia } from './facebook.interface';
-import * as FormData from 'form-data';
+import  FormData from 'form-data';
 @Injectable()
 export class FacebookMediaService {
   private readonly FACEBOOK_GRAPH_API_URL: string;
