@@ -1,12 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
-import { RenderHelper } from './render.helper';
-import { PLATFORM_IMAGE_RULES } from './config/platformrules';
-import {
-  Placement,
-  MediaType,
-} from '@prisma/client';
+import { MediaType } from '@prisma/client';
 import sharp from 'sharp';
 
 interface RenderResult {
@@ -22,41 +17,25 @@ export class RenderService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storageService: StorageService,
-    private readonly renderHelper: RenderHelper,
   ) {}
 
   /**
-   * Convert Prisma placement into the placement
-   * expected by PLATFORM_IMAGE_RULES.
-   */
-  private mapPlacement(
-    placement: Placement,
-  ): 'feed' | 'story' {
-    switch (placement) {
-      case Placement.FEED:
-      case Placement.CAROUSEL:
-        return 'feed';
-
-      case Placement.STORY:
-      case Placement.REEL:
-      case Placement.SHORT:
-        return 'story';
-
-      default:
-        return 'feed';
-    }
-  }
-
-  /**
-   * Determines whether the edit actually changes the image.
+   * ------------------------------------------------------------
+   * Check whether frontend supplied a crop.
    *
    * IMPORTANT:
    *
-   * cropWidth/cropHeight are EDIT METADATA.
+   * These values are considered FINAL/NATIVE IMAGE coordinates.
    *
-   * They do NOT mean that the GCS image has already been cropped.
+   * Example:
    *
-   * Therefore, whenever crop information exists, Sharp MUST run.
+   * cropX      = 1348
+   * cropY      = 0
+   * cropWidth  = 1541
+   * cropHeight = 1926
+   *
+   * Sharp will use EXACTLY these values.
+   * ------------------------------------------------------------
    */
   private hasCropEdit(edit: any): boolean {
     return (
@@ -70,7 +49,11 @@ export class RenderService {
   }
 
   /**
-   * Determines whether rotation requires Sharp.
+   * ------------------------------------------------------------
+   * Check rotation.
+   *
+   * Rotation is kept separate from crop.
+   * ------------------------------------------------------------
    */
   private hasRotationEdit(edit: any): boolean {
     return (
@@ -79,6 +62,26 @@ export class RenderService {
     );
   }
 
+  /**
+   * ------------------------------------------------------------
+   * Process render job.
+   *
+   * MAIN RULE:
+   *
+   * Frontend tells us:
+   *
+   *   cropX
+   *   cropY
+   *   cropWidth
+   *   cropHeight
+   *
+   * Backend simply cuts that exact rectangle.
+   *
+   * NO platform resizing.
+   * NO platform aspect-ratio calculation.
+   * NO "cover" resizing.
+   * ------------------------------------------------------------
+   */
   async processRenderJob(
     postId: number,
   ): Promise<RenderResult> {
@@ -93,7 +96,7 @@ export class RenderService {
     };
 
     // ============================================================
-    // 1. LOAD POST + ALL MEDIA SLOTS
+    // 1. LOAD POST
     // ============================================================
 
     const post = await this.prisma.post.findUnique({
@@ -129,7 +132,7 @@ export class RenderService {
     );
 
     // ============================================================
-    // 2. VALIDATE MEDIA SLOTS
+    // 2. VALIDATE MEDIA
     // ============================================================
 
     if (!post.mediaSlots.length) {
@@ -147,7 +150,7 @@ export class RenderService {
     >[] = [];
 
     // ============================================================
-    // 4. PROCESS EVERY PLATFORM
+    // 4. PROCESS EACH PLATFORM
     // ============================================================
 
     for (const postPlatform of post.platforms) {
@@ -165,20 +168,18 @@ export class RenderService {
         `================================================`,
       );
 
-      /**
-       * IMPORTANT:
-       *
-       * One platform can have multiple media slots.
-       *
-       * Example:
-       *
-       * INSTAGRAM
-       *   position 0 -> media 73
-       *   position 1 -> media 71
-       *   position 2 -> media 72
-       *
-       * Therefore we MUST process every slot.
-       */
+      // ------------------------------------------------------------
+      // Get ONLY slots belonging to this platform.
+      //
+      // This is important because:
+      //
+      // Facebook Media 83
+      // Instagram Media 83
+      // Threads Media 83
+      //
+      // can all have different edits.
+      // ------------------------------------------------------------
+
       const platformSlots = post.mediaSlots
         .filter(
           (slot) =>
@@ -202,12 +203,12 @@ export class RenderService {
       }
 
       // ==========================================================
-      // 5. PROCESS EVERY MEDIA SLOT
+      // 5. PROCESS EACH MEDIA SLOT
       // ==========================================================
 
       for (const slot of platformSlots) {
         // --------------------------------------------------------
-        // Validate slot
+        // Validate media
         // --------------------------------------------------------
 
         if (!slot.media) {
@@ -233,10 +234,9 @@ export class RenderService {
 
         result.variants++;
 
-        const mappedPlacement =
-          this.mapPlacement(
-            edit.placement,
-          );
+        // --------------------------------------------------------
+        // Log slot
+        // --------------------------------------------------------
 
         this.logger.log(
           `\n------------------------------------------------`,
@@ -267,11 +267,15 @@ export class RenderService {
         );
 
         this.logger.log(
+          `EditVersion: ${edit.version}`,
+        );
+
+        this.logger.log(
           `GCS Path   : ${media.gcsPath}`,
         );
 
         this.logger.log(
-          `Placement  : ${mappedPlacement}`,
+          `Placement  : ${edit.placement}`,
         );
 
         this.logger.log(
@@ -279,7 +283,7 @@ export class RenderService {
         );
 
         // ========================================================
-        // 6. VIDEO BYPASS
+        // 6. VIDEO
         // ========================================================
 
         if (
@@ -296,8 +300,7 @@ export class RenderService {
 
           if (!media.gcsPath) {
             throw new Error(
-              `Video GCS path missing for ` +
-                `Media #${media.id}`,
+              `Video GCS path missing for Media #${media.id}`,
             );
           }
 
@@ -336,18 +339,17 @@ export class RenderService {
         }
 
         // ========================================================
-        // 7. VALIDATE IMAGE GCS PATH
+        // 7. IMAGE PATH VALIDATION
         // ========================================================
 
         if (!media.gcsPath) {
           throw new Error(
-            `Original media path missing for ` +
-              `Media #${media.id}`,
+            `Original media path missing for Media #${media.id}`,
           );
         }
 
         // ========================================================
-        // 8. DOWNLOAD THIS MEDIA
+        // 8. DOWNLOAD ORIGINAL IMAGE
         // ========================================================
 
         this.logger.log(
@@ -377,42 +379,29 @@ export class RenderService {
             originalBuffer,
           ).metadata();
 
-        const resolvedWidth =
-          media.width ??
-          metadata.width ??
-          0;
+        const actualWidth =
+          metadata.width ?? 0;
 
-        const resolvedHeight =
-          media.height ??
-          metadata.height ??
-          0;
-
-        const fileSizeBytes =
-          media.fileSizeBytes ??
-          originalBuffer.length;
-
-        const originalMimeType =
-          metadata.format
-            ? `image/${metadata.format}`
-            : 'image/jpeg';
+        const actualHeight =
+          metadata.height ?? 0;
 
         if (
-          resolvedWidth <= 0 ||
-          resolvedHeight <= 0
+          actualWidth <= 0 ||
+          actualHeight <= 0
         ) {
           throw new Error(
-            `Unable to determine dimensions for ` +
-              `Media #${media.id}`,
+            `Unable to determine actual image dimensions ` +
+              `for Media #${media.id}`,
           );
         }
 
         this.logger.log(
-          `📐 [${platform}] Media #${media.id} ` +
-            `Original=${resolvedWidth}x${resolvedHeight}`,
+          `📐 [IMAGE] Media #${media.id} ` +
+            `Actual=${actualWidth}x${actualHeight}`,
         );
 
         // ========================================================
-        // 10. DETECT USER EDITS
+        // 10. READ FRONTEND EDIT
         // ========================================================
 
         const hasCrop =
@@ -422,273 +411,259 @@ export class RenderService {
           this.hasRotationEdit(edit);
 
         this.logger.log(
-          `🎨 [EDIT-DETECTION] ` +
-            `Media #${media.id} | ` +
+          `🎨 [EDIT] Media #${media.id} | ` +
             `Crop=${hasCrop ? 'YES' : 'NO'} | ` +
             `Rotation=${hasRotation ? 'YES' : 'NO'}`,
         );
 
-        // ========================================================
-        // 11. PLATFORM COMPLIANCE CHECK
-        //
-        // IMPORTANT FIX:
-        //
-        // DO NOT use cropWidth/cropHeight here.
-        //
-        // Those values describe what the user WANTS to crop.
-        //
-        // The actual GCS image is still resolvedWidth x
-        // resolvedHeight until Sharp executes.
-        // ========================================================
-
-        const platformDecision =
-          this.renderHelper.needsRendering(
-            platform,
-            mappedPlacement,
-            resolvedWidth,
-            resolvedHeight,
-            fileSizeBytes,
-          );
-
-        // ========================================================
-        // 12. FINAL RENDER DECISION
-        //
-        // Sharp is required when:
-        //
-        // 1. User cropped the image
-        // 2. User rotated the image
-        // 3. Platform requirements are not satisfied
-        //
-        // This is the main fix.
-        // ========================================================
-
-        const needsRendering =
-          hasCrop ||
-          hasRotation ||
-          platformDecision.needsRendering;
-
-        let renderReason = '';
-
-        if (hasCrop) {
-          renderReason =
-            'User crop edit requires Sharp rendering.';
-        } else if (hasRotation) {
-          renderReason =
-            'User rotation edit requires Sharp rendering.';
-        } else if (
-          platformDecision.needsRendering
-        ) {
-          renderReason =
-            platformDecision.reason;
-        } else {
-          renderReason =
-            'Original image is platform compliant and has no image edit.';
-        }
-
-        this.logger.log(`
-------------------------------------------------
+        this.logger.log(
+          `
+================================================
+FRONTEND EDIT RECEIVED
+================================================
 Post        : ${postId}
 Platform    : ${platform}
 Position    : ${slot.position}
 MediaId     : ${media.id}
 EditId      : ${edit.id}
-Placement   : ${mappedPlacement}
+EditVersion : ${edit.version}
 
-Original    : ${resolvedWidth}x${resolvedHeight}
+Original    : ${actualWidth}x${actualHeight}
 
-Crop        : ${
-          edit.cropX ?? 'none'
-        },${
-          edit.cropY ?? 'none'
-        } ${
-          edit.cropWidth ?? 'none'
-        }x${
-          edit.cropHeight ?? 'none'
-        }
+cropX       : ${edit.cropX}
+cropY       : ${edit.cropY}
+cropWidth   : ${edit.cropWidth}
+cropHeight  : ${edit.cropHeight}
 
-Rotation    : ${edit.rotation ?? 0}
+rotation    : ${edit.rotation ?? 0}
 
-Platform Need Sharp : ${
-          platformDecision.needsRendering
-            ? 'YES'
-            : 'NO'
-        }
-
-User Edit Need Sharp : ${
-          hasCrop || hasRotation
-            ? 'YES'
-            : 'NO'
-        }
-
-Need Sharp  : ${
-          needsRendering
-            ? 'YES'
-            : 'NO'
-        }
-
-Reason
-------
-${renderReason}
-------------------------------------------------
-        `);
+Has Crop    : ${hasCrop}
+Has Rotation: ${hasRotation}
+================================================
+          `,
+        );
 
         // ========================================================
-        // 13. DEFAULT = ORIGINAL MEDIA
+        // 11. DEFAULT RESULT
         // ========================================================
 
         let finalGcsPath =
           media.gcsPath;
 
         let finalWidth =
-          resolvedWidth;
+          actualWidth;
 
         let finalHeight =
-          resolvedHeight;
+          actualHeight;
 
         let finalMimeType =
-          originalMimeType;
+          metadata.format
+            ? `image/${metadata.format}`
+            : 'image/jpeg';
 
         // ========================================================
-        // 14. RENDER WITH SHARP
+        // 12. IMPORTANT RENDER DECISION
+        //
+        // ONLY USER EDITS DECIDE WHETHER SHARP RUNS.
+        //
+        // We are NOT checking platform rules here.
+        //
+        // If frontend sent crop:
+        //
+        //       Sharp MUST CUT IT.
+        //
+        // If frontend sent rotation:
+        //
+        //       Sharp MUST APPLY IT.
+        //
+        // Otherwise:
+        //
+        //       Original image can be reused.
+        // ========================================================
+
+        const needsRendering =
+          hasCrop ||
+          hasRotation;
+
+        if (!needsRendering) {
+          result.reused++;
+
+          this.logger.log(
+            `♻️ [REUSE] ` +
+              `Media #${media.id} has no crop or rotation.`,
+          );
+        }
+
+        // ========================================================
+        // 13. SHARP RENDER
         // ========================================================
 
         if (needsRendering) {
           result.generated++;
 
-          const platformRules =
-            PLATFORM_IMAGE_RULES[
-              platform
-            ];
-
-          if (!platformRules) {
-            throw new Error(
-              `No image rules configured for ` +
-                `platform ${platform}`,
-            );
-          }
-
-          const placementRules =
-            platformRules[
-              mappedPlacement
-            ];
-
-          if (!placementRules) {
-            throw new Error(
-              `No image rules configured for ` +
-                `${platform}/${mappedPlacement}`,
-            );
-          }
-
-          const targetRules =
-            placementRules.recommended;
-
           this.logger.log(
             `🎨 [SHARP] Rendering Media #${media.id}`,
           );
 
-          this.logger.log(
-            `🎯 [SHARP] Target=${targetRules.width}x${targetRules.height}`,
-          );
-
           // ------------------------------------------------------
-          // Create Sharp instance from THIS MEDIA
+          // VERY IMPORTANT:
+          //
+          // Start with the ORIGINAL IMAGE.
+          //
+          // Do NOT resize first.
+          // Do NOT calculate platform dimensions.
+          // Do NOT use fit: cover.
           // ------------------------------------------------------
 
           let sharpInstance =
             sharp(originalBuffer);
 
-          // ------------------------------------------------------
-          // 14A. APPLY CROP
-          // ------------------------------------------------------
+          // ======================================================
+          // 13A. EXACT FRONTEND CROP
+          // ======================================================
 
           if (hasCrop) {
-            let cropX =
-              Math.round(
-                Number(edit.cropX),
-              );
+            const cropX = Math.round(
+              Number(edit.cropX),
+            );
 
-            let cropY =
-              Math.round(
-                Number(edit.cropY),
-              );
+            const cropY = Math.round(
+              Number(edit.cropY),
+            );
 
-            let cropWidth =
-              Math.round(
-                Number(edit.cropWidth),
-              );
+            const cropWidth = Math.round(
+              Number(edit.cropWidth),
+            );
 
-            let cropHeight =
-              Math.round(
-                Number(edit.cropHeight),
-              );
-
-            // ----------------------------------------------------
-            // Prevent negative coordinates
-            // ----------------------------------------------------
-
-            cropX =
-              Math.max(
-                0,
-                cropX,
-              );
-
-            cropY =
-              Math.max(
-                0,
-                cropY,
-              );
-
-            // ----------------------------------------------------
-            // Clamp crop position to image
-            // ----------------------------------------------------
-
-            if (cropX >= resolvedWidth) {
-              throw new Error(
-                `Invalid cropX=${cropX} for Media #${media.id}. ` +
-                  `Image width=${resolvedWidth}`,
-              );
-            }
-
-            if (cropY >= resolvedHeight) {
-              throw new Error(
-                `Invalid cropY=${cropY} for Media #${media.id}. ` +
-                  `Image height=${resolvedHeight}`,
-              );
-            }
-
-            // ----------------------------------------------------
-            // Clamp crop dimensions
-            // ----------------------------------------------------
-
-            cropWidth =
-              Math.min(
-                cropWidth,
-                resolvedWidth - cropX,
-              );
-
-            cropHeight =
-              Math.min(
-                cropHeight,
-                resolvedHeight - cropY,
-              );
-
-            if (
-              cropWidth <= 0 ||
-              cropHeight <= 0
-            ) {
-              throw new Error(
-                `Invalid crop dimensions for Media #${media.id}: ` +
-                  `${cropWidth}x${cropHeight}`,
-              );
-            }
+            const cropHeight = Math.round(
+              Number(edit.cropHeight),
+            );
 
             this.logger.log(
-              `✂️ [SHARP] Crop Media #${media.id}: ` +
-                `x=${cropX}, ` +
-                `y=${cropY}, ` +
-                `w=${cropWidth}, ` +
-                `h=${cropHeight}`,
+              `
+✂️ [SHARP EXACT CROP]
+
+MediaId     : ${media.id}
+Platform    : ${platform}
+
+Original    : ${actualWidth}x${actualHeight}
+
+Frontend:
+cropX       = ${cropX}
+cropY       = ${cropY}
+cropWidth   = ${cropWidth}
+cropHeight  = ${cropHeight}
+
+Sharp:
+left        = ${cropX}
+top         = ${cropY}
+width       = ${cropWidth}
+height      = ${cropHeight}
+              `,
             );
+
+            // ----------------------------------------------------
+            // Validate X
+            // ----------------------------------------------------
+
+            if (
+              cropX < 0 ||
+              cropX >= actualWidth
+            ) {
+              throw new Error(
+                `[CROP] Invalid cropX=${cropX} ` +
+                  `for Media #${media.id}. ` +
+                  `Original width=${actualWidth}`,
+              );
+            }
+
+            // ----------------------------------------------------
+            // Validate Y
+            // ----------------------------------------------------
+
+            if (
+              cropY < 0 ||
+              cropY >= actualHeight
+            ) {
+              throw new Error(
+                `[CROP] Invalid cropY=${cropY} ` +
+                  `for Media #${media.id}. ` +
+                  `Original height=${actualHeight}`,
+              );
+            }
+
+            // ----------------------------------------------------
+            // Validate width
+            // ----------------------------------------------------
+
+            if (cropWidth <= 0) {
+              throw new Error(
+                `[CROP] Invalid cropWidth=${cropWidth} ` +
+                  `for Media #${media.id}`,
+              );
+            }
+
+            // ----------------------------------------------------
+            // Validate height
+            // ----------------------------------------------------
+
+            if (cropHeight <= 0) {
+              throw new Error(
+                `[CROP] Invalid cropHeight=${cropHeight} ` +
+                  `for Media #${media.id}`,
+              );
+            }
+
+            // ----------------------------------------------------
+            // IMPORTANT:
+            //
+            // We do NOT silently change the user's crop.
+            //
+            // If frontend says:
+            //
+            // x=1348
+            // y=0
+            // w=1541
+            // h=1926
+            //
+            // then Sharp receives exactly:
+            //
+            // left=1348
+            // top=0
+            // width=1541
+            // height=1926
+            //
+            // If the rectangle doesn't fit inside the image,
+            // throw an error instead of silently modifying it.
+            // ----------------------------------------------------
+
+            if (
+              cropX + cropWidth >
+              actualWidth
+            ) {
+              throw new Error(
+                `[CROP] Crop exceeds image width for Media #${media.id}. ` +
+                  `cropX(${cropX}) + cropWidth(${cropWidth}) = ` +
+                  `${cropX + cropWidth}, ` +
+                  `imageWidth=${actualWidth}`,
+              );
+            }
+
+            if (
+              cropY + cropHeight >
+              actualHeight
+            ) {
+              throw new Error(
+                `[CROP] Crop exceeds image height for Media #${media.id}. ` +
+                  `cropY(${cropY}) + cropHeight(${cropHeight}) = ` +
+                  `${cropY + cropHeight}, ` +
+                  `imageHeight=${actualHeight}`,
+              );
+            }
+
+            // ----------------------------------------------------
+            // EXACT CUT
+            // ----------------------------------------------------
 
             sharpInstance =
               sharpInstance.extract({
@@ -698,19 +673,21 @@ ${renderReason}
                 height: cropHeight,
               });
 
-            // ----------------------------------------------------
-            // Update effective dimensions after crop
-            // ----------------------------------------------------
-
+            // The image after the crop has exactly these dimensions.
             finalWidth =
               cropWidth;
 
             finalHeight =
               cropHeight;
+
+            this.logger.log(
+              `✅ [SHARP] Exact crop applied: ` +
+                `${cropWidth}x${cropHeight}`,
+            );
           }
 
           // ======================================================
-          // 14B. APPLY ROTATION
+          // 13B. ROTATION
           // ======================================================
 
           if (hasRotation) {
@@ -718,8 +695,8 @@ ${renderReason}
               Number(edit.rotation);
 
             this.logger.log(
-              `🔄 [SHARP] Rotation Media #${media.id}: ` +
-                `${rotation}°`,
+              `🔄 [SHARP] Applying rotation ` +
+                `${rotation}° to Media #${media.id}`,
             );
 
             sharpInstance =
@@ -729,70 +706,68 @@ ${renderReason}
           }
 
           // ======================================================
-          // 14C. RESIZE TO PLATFORM TARGET
+          // 13C. OUTPUT
+          //
+          // IMPORTANT:
+          //
+          // NO resize.
+          //
+          // NO fit.
+          //
+          // NO platform dimensions.
+          //
+          // The output is exactly the crop.
           // ======================================================
-
-          this.logger.log(
-            `📐 [SHARP] Resizing Media #${media.id} ` +
-              `to ${targetRules.width}x${targetRules.height}`,
-          );
 
           const processedBuffer =
             await sharpInstance
-              .resize({
-                width:
-                  targetRules.width,
-                height:
-                  targetRules.height,
-                fit: 'cover',
-                position: 'center',
-              })
               .jpeg({
                 quality: 90,
               })
               .toBuffer();
 
           this.logger.log(
-            `✅ [SHARP] Rendered Media #${media.id} ` +
+            `✅ [SHARP] Processed Media #${media.id} ` +
               `(${processedBuffer.length} bytes)`,
           );
 
-          // ======================================================
-          // 14D. FINAL DIMENSIONS
-          // ======================================================
+          // ------------------------------------------------------
+          // Verify actual output dimensions.
+          // ------------------------------------------------------
+
+          const outputMetadata =
+            await sharp(
+              processedBuffer,
+            ).metadata();
 
           finalWidth =
-            targetRules.width;
+            outputMetadata.width ??
+            finalWidth;
 
           finalHeight =
-            targetRules.height;
+            outputMetadata.height ??
+            finalHeight;
 
           finalMimeType =
             'image/jpeg';
 
-          // ======================================================
-          // 14E. UNIQUE VARIANT PATH
-          // ======================================================
+          this.logger.log(
+            `📐 [SHARP OUTPUT] ` +
+              `Media #${media.id} -> ` +
+              `${finalWidth}x${finalHeight}`,
+          );
 
-          /**
-           * Include:
-           *
-           * postId
-           * platform
-           * mediaId
-           * edit version
-           *
-           * This prevents different media from overwriting
-           * each other's variants.
-           */
+          // ======================================================
+          // 13D. UNIQUE GCS VARIANT PATH
+          // ======================================================
 
           const fileName =
             `variants/post-${postId}/` +
             `${platform.toLowerCase()}/` +
-            `media-${media.id}-v${edit.version}.jpg`;
+            `media-${media.id}-edit-${edit.id}-v${edit.version}.jpg`;
 
           this.logger.log(
-            `📤 [GCS] Uploading Media #${media.id}`,
+            `📤 [GCS] Uploading variant`,
           );
 
           this.logger.log(
@@ -807,24 +782,13 @@ ${renderReason}
             );
 
           this.logger.log(
-            `✅ [GCS] Uploaded Media #${media.id}: ` +
+            `✅ [GCS] Uploaded variant: ` +
               `${finalGcsPath}`,
-          );
-        } else {
-          // ======================================================
-          // 15. REUSE ORIGINAL
-          // ======================================================
-
-          result.reused++;
-
-          this.logger.log(
-            `♻️ [REUSE] Media #${media.id} ` +
-              `does not require rendering.`,
           );
         }
 
         // ========================================================
-        // 16. UPSERT MEDIA VARIANT
+        // 14. UPSERT MEDIA VARIANT
         // ========================================================
 
         const variantData = {
@@ -848,8 +812,11 @@ ${renderReason}
           this.prisma.mediaVariant.upsert({
             where: {
               editId_editVersion: {
-                editId: edit.id,
-                editVersion: edit.version,
+                editId:
+                  edit.id,
+
+                editVersion:
+                  edit.version,
               },
             },
 
@@ -869,17 +836,26 @@ ${renderReason}
         );
 
         this.logger.log(
-          `💾 [VARIANT] Prepared DB record ` +
-            `Media #${media.id} | ` +
-            `Edit #${edit.id} | ` +
-            `Version=${edit.version} | ` +
-            `Path=${finalGcsPath}`,
+          `
+💾 [VARIANT READY]
+
+Post        : ${postId}
+Platform    : ${platform}
+Position    : ${slot.position}
+MediaId     : ${media.id}
+EditId      : ${edit.id}
+Version     : ${edit.version}
+
+Final GCS   : ${finalGcsPath}
+Final Size  : ${finalWidth}x${finalHeight}
+Status      : READY
+          `,
         );
       }
     }
 
     // ============================================================
-    // 17. COMMIT ALL VARIANTS
+    // 15. COMMIT ALL VARIANTS
     // ============================================================
 
     if (dbOperations.length > 0) {
@@ -898,19 +874,25 @@ ${renderReason}
     }
 
     // ============================================================
-    // 18. FINAL SUMMARY
+    // 16. FINAL SUMMARY
     // ============================================================
 
-    this.logger.log(`
+    this.logger.log(
+      `
 ================================================
-✅ Render completed for Post #${postId}
+✅ RENDER COMPLETED
+================================================
 
-Variants : ${result.variants}
-Generated: ${result.generated}
-Reused   : ${result.reused}
-DB Writes: ${dbOperations.length}
+Post       : #${postId}
+
+Variants   : ${result.variants}
+Generated  : ${result.generated}
+Reused     : ${result.reused}
+DB Writes  : ${dbOperations.length}
+
 ================================================
-    `);
+      `,
+    );
 
     return result;
   }

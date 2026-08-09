@@ -361,96 +361,246 @@ return post;
   }
 
   async getScheduledPosts(userId: number, offset: number) {
-    try {
-      const now = new Date();
-      const startOfWeek = new Date(now);
-      startOfWeek.setDate(now.getDate() - now.getDay() + (offset * 7));
-      startOfWeek.setHours(0, 0, 0, 0);
+  try {
+    const now = new Date();
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 7);
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(
+      now.getDate() - now.getDay() + offset * 7,
+    );
+    startOfWeek.setHours(0, 0, 0, 0);
 
-      const posts = await this.prisma.post.findMany({
-        where: {
-          userId,
-          OR: [
-            { scheduledAt: { gte: startOfWeek, lt: endOfWeek } },
-            { scheduledAt: null, createdAt: { gte: startOfWeek, lt: endOfWeek } }
-          ]
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+    this.logger.log(
+      `📅 [SCHEDULED] Fetching posts | userId=${userId} | offset=${offset}`,
+    );
+
+    const posts = await this.prisma.post.findMany({
+      where: {
+        userId,
+        OR: [
+          {
+            scheduledAt: {
+              gte: startOfWeek,
+              lt: endOfWeek,
+            },
+          },
+          {
+            scheduledAt: null,
+            createdAt: {
+              gte: startOfWeek,
+              lt: endOfWeek,
+            },
+          },
+        ],
+      },
+
+      include: {
+        platforms: true,
+
+        mediaSlots: {
+          include: {
+            media: true,
+
+            // ⭐ IMPORTANT
+            // Load the saved crop/edit information
+            edit: true,
+          },
+
+          orderBy: {
+            position: 'asc',
+          },
         },
-        include: { 
-          platforms: true, 
-          mediaSlots: { 
-            include: { media: true },
-            orderBy: { position: 'asc' } 
-          } 
-        }, 
-      });
-const formattedPosts = await Promise.all(
-  posts.map(async (post) => {
-    const isPublished = post.status === PostStatus.PUBLISHED;
+      },
+    });
 
-    let secureMediaItems: any[] = [];
+    this.logger.log(
+      `🟢 [SCHEDULED] Found ${posts.length} posts`,
+    );
 
-    // Only generate previews for posts whose media still exists in GCS
-    if (!isPublished) {
-      secureMediaItems = await Promise.all(
-        post.mediaSlots.map(async (slot) => {
-          let url: string | null = null;
+    const formattedPosts = await Promise.all(
+      posts.map(async (post) => {
+        const isPublished =
+          post.status === PostStatus.PUBLISHED;
 
-          if (slot.media.gcsPath) {
-            try {
-              url = await this.storageService.getSignedReadUrl(
-                slot.media.gcsPath,
-                "application/octet-stream",
-              );
-            } catch (error: any) {
-              this.logger.warn(`Failed to sign URL: ${error.message}`);
-            }
-          }
+        let secureMediaSlots: any[] = [];
 
-          return {
-            ...slot.media,
-            fileUrl: url,
-            secureUrl: url,
+        /*
+         * Published posts:
+         * media may already be deleted from GCS.
+         *
+         * Scheduled / pending posts:
+         * generate signed URLs so frontend can preview them.
+         */
+        if (!isPublished) {
+          secureMediaSlots = await Promise.all(
+            post.mediaSlots.map(async (slot) => {
+              let url: string | null = null;
+
+              if (slot.media?.gcsPath) {
+                try {
+                  url =
+                    await this.storageService.getSignedReadUrl(
+                      slot.media.gcsPath,
+                      'application/octet-stream',
+                    );
+                } catch (error: any) {
+                  this.logger.warn(
+                    `[SCHEDULED] Failed to sign media URL | mediaId=${slot.mediaId} | error=${error.message}`,
+                  );
+                }
+              }
+
+              return {
+                mediaId: slot.mediaId,
+
+                platform: slot.platform.toLowerCase(),
+
+                position: slot.position,
+
+                /*
+                 * Original media information
+                 */
+                media: slot.media
+                  ? {
+                      ...slot.media,
+                      fileUrl: url,
+                      secureUrl: url,
+                    }
+                  : null,
+
+                /*
+                 * ⭐ SAVED CROP INFORMATION
+                 *
+                 * This is what the old getScheduledPosts()
+                 * was missing.
+                 */
+                edit: slot.edit
+                  ? {
+                      id: slot.edit.id,
+
+                      mediaId: slot.edit.mediaId,
+
+                      platform: slot.edit.platform,
+
+                      placement: slot.edit.placement,
+
+                      cropX: slot.edit.cropX,
+                      cropY: slot.edit.cropY,
+
+                      cropWidth: slot.edit.cropWidth,
+                      cropHeight: slot.edit.cropHeight,
+
+                      rotation: slot.edit.rotation,
+
+                      focalX: slot.edit.focalX,
+                      focalY: slot.edit.focalY,
+
+                      version: slot.edit.version,
+                    }
+                  : null,
+              };
+            }),
+          );
+        }
+
+        /*
+         * Return the exact structure that the Planning page
+         * can use.
+         */
+        return {
+          id: post.id,
+
+          content: post.primaryCaption,
+
+          scheduledAt:
+            post.scheduledAt || post.createdAt,
+
+          status: post.status,
+
+          /*
+           * All selected platforms
+           */
+          platforms: post.platforms.map(
+            (p) => p.platform.toLowerCase(),
+          ),
+
+          /*
+           * Platform-specific status
+           */
+          platformStatuses: post.platforms.map((p) => ({
+            platform: p.platform.toLowerCase(),
+
+            status: p.status,
+
+            externalId: p.externalId,
+
+            errorMessage: p.errorMessage,
+          })),
+
+          /*
+           * Backward-compatible single platform field
+           */
+          platform:
+            post.platforms.length > 0
+              ? post.platforms[0].platform.toLowerCase()
+              : 'instagram',
+
+          /*
+           * ⭐ Keep platform override information
+           */
+          contentMetadata: post.contentMetadata,
+
+          /*
+           * ⭐ NEW STRUCTURE
+           *
+           * This contains:
+           * media
+           * crop/edit
+           * platform
+           * position
+           */
+          mediaSlots: secureMediaSlots,
+
+          /*
+           * ⭐ BACKWARD COMPATIBILITY
+           *
+           * If your current Planning page still reads
+           * mediaItems, it will continue working.
+           *
+           * But now mediaItems ALSO contains edit.
+           */
+          mediaItems: secureMediaSlots.map((slot) => ({
+            ...(slot.media || {}),
+
+            mediaId: slot.mediaId,
+
             platform: slot.platform,
-          };
-        }),
-      );
-    }
 
-    return {
-      id: post.id,
-      content: post.primaryCaption,
-      scheduledAt: post.scheduledAt || post.createdAt,
-      status: post.status,
+            position: slot.position,
 
-      platforms: post.platforms.map((p) => p.platform.toLowerCase()),
+            edit: slot.edit,
+          })),
+        };
+      }),
+    );
 
-      platformStatuses: post.platforms.map((p) => ({
-        platform: p.platform.toLowerCase(),
-        status: p.status,
-        externalId: p.externalId,
-        errorMessage: p.errorMessage,
-      })),
+    this.logger.log(
+      `🟢 [SCHEDULED] Returning ${formattedPosts.length} formatted posts`,
+    );
 
-      platform:
-        post.platforms.length > 0
-          ? post.platforms[0].platform.toLowerCase()
-          : "instagram",
+    return formattedPosts;
+  } catch (error: any) {
+    this.logger.error(
+      `🔴 [SCHEDULED] Failed to fetch scheduled posts: ${error.message}`,
+      error.stack,
+    );
 
-      // Empty for published posts
-      mediaItems: secureMediaItems,
-    };
-  }),
-);
-
-return formattedPosts;
-    } catch (error: any) {
-      this.logger.error(`Failed to fetch scheduled posts: ${error.message}`, error.stack);
-      throw error;
-    }
+    throw error;
   }
+}
 
   async getPostStatus(userId: number, postId: number) {
     const post = await this.prisma.post.findUnique({
@@ -493,55 +643,357 @@ return formattedPosts;
     });
   }
 
-  async updatePost(userId: number, postId: number, data: UpdatePostDto) { 
-    const post = await this.prisma.post.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Post not found');
-    if (post.userId !== userId) throw new ForbiddenException('Access denied');
-    if (post.status === PostStatus.PUBLISHED || post.status === PostStatus.FAILED) {
-       throw new ForbiddenException(`Cannot edit a post that is already ${post.status.toLowerCase()}.`);
-    }
+  async updatePost(
+  userId: number,
+  postId: number,
+  data: UpdatePostDto,
+) {
+  this.logger.log(
+    `🚀 [UPDATE-POST] Starting update | userId=${userId} | postId=${postId}`,
+  );
 
-    return this.prisma.$transaction(async (tx) => {
-      if (data.mediaSlots) {
-        await tx.postMediaSlot.deleteMany({ where: { postId } });
-      }
+  /*
+   * 1. Verify post exists
+   */
+  const post = await this.prisma.post.findUnique({
+    where: {
+      id: postId,
+    },
+  });
+
+  if (!post) {
+    throw new NotFoundException(
+      'Post not found',
+    );
+  }
+
+  /*
+   * 2. Verify ownership
+   */
+  if (post.userId !== userId) {
+    throw new ForbiddenException(
+      'Access denied',
+    );
+  }
+
+  /*
+   * 3. Do not allow modification of completed posts
+   */
+  if (
+    post.status === PostStatus.PUBLISHED ||
+    post.status === PostStatus.FAILED
+  ) {
+    throw new ForbiddenException(
+      `Cannot edit a post that is already ${post.status.toLowerCase()}.`,
+    );
+  }
+
+  const updatedPost =
+    await this.prisma.$transaction(async (tx) => {
+      /*
+       * =====================================================
+       * PLATFORM UPDATE
+       * =====================================================
+       */
 
       if (data.platforms) {
-        await tx.postPlatform.deleteMany({ where: { postId } });
+        this.logger.log(
+          `🟡 [UPDATE-POST] Replacing platforms`,
+        );
+
+        await tx.postPlatform.deleteMany({
+          where: {
+            postId,
+          },
+        });
       }
 
-      const normalizedUpdatePlatforms: Platform[] = data.platforms 
-        ? data.platforms.map((p: string) => p.toUpperCase() as Platform)
-        : [];
+      const normalizedPlatforms: Platform[] =
+        data.platforms
+          ? data.platforms.map(
+              (platform: string) =>
+                platform.toUpperCase() as Platform,
+            )
+          : [];
 
-      return tx.post.update({
-        where: { id: postId },
-        data: {
-          primaryCaption: data.primaryCaption,
-          status: data.status,
-          scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-          ...(data.platforms && {
-            platforms: {
-              create: normalizedUpdatePlatforms.map((platform) => ({
-                platform: platform,
-                status: PostStatus.PENDING,
-              })),
+      /*
+       * =====================================================
+       * MEDIA SLOT UPDATE
+       * =====================================================
+       */
+
+      let processedSlots: {
+        postId: number;
+        mediaId: number;
+        platform: Platform;
+        position: number;
+        editId: number | null;
+      }[] = [];
+
+      if (data.mediaSlots) {
+        this.logger.log(
+          `🟡 [UPDATE-POST] Replacing ${data.mediaSlots.length} media slots`,
+        );
+
+        /*
+         * Remove old post -> media relationships.
+         *
+         * IMPORTANT:
+         * We are NOT deleting MediaEdit here.
+         *
+         * The MediaEdit belongs to the media itself and can
+         * still be reused.
+         */
+        await tx.postMediaSlot.deleteMany({
+          where: {
+            postId,
+          },
+        });
+
+        /*
+         * Build new slots
+         */
+        processedSlots = [];
+
+        for (const slot of data.mediaSlots) {
+          this.logger.log(
+            `🟡 [UPDATE-POST] Processing slot | mediaId=${slot.mediaId} | platform=${slot.platform} | position=${slot.position}`,
+          );
+
+          let editRecordId: number | null = null;
+
+          /*
+           * =================================================
+           * CASE 1:
+           * Frontend sends complete crop/edit information
+           * =================================================
+           */
+          if (slot.edit) {
+            this.logger.log(
+              `🟢 [UPDATE-POST] New edit data received | mediaId=${slot.mediaId}`,
+            );
+
+            /*
+             * Make sure the edit belongs to the same
+             * platform/media being saved.
+             *
+             * saveMediaEdit() already uses:
+             *
+             * mediaId + platform + placement
+             *
+             * as the unique key.
+             */
+            const editRecord =
+              await this.saveMediaEdit(
+                tx,
+                slot.mediaId,
+                slot.edit,
+              );
+
+            editRecordId = editRecord.id;
+
+            this.logger.log(
+              `🟢 [UPDATE-POST] Edit saved | editId=${editRecordId}`,
+            );
+          }
+
+          /*
+           * =================================================
+           * CASE 2:
+           * Frontend only sends existing editId
+           * =================================================
+           */
+          else if (
+            (slot as any).editId != null
+          ) {
+            const editId =
+              Number((slot as any).editId);
+
+            this.logger.log(
+              `🟡 [UPDATE-POST] Existing editId received | editId=${editId}`,
+            );
+
+            const existingEdit =
+              await tx.mediaEdit.findUnique({
+                where: {
+                  id: editId,
+                },
+              });
+
+            /*
+             * Security check:
+             *
+             * editId must actually belong to
+             * the mediaId being attached.
+             */
+            if (
+              !existingEdit ||
+              existingEdit.mediaId !== slot.mediaId
+            ) {
+              throw new BadRequestException(
+                'Invalid media edit reference',
+              );
             }
-          }),
-          ...(data.mediaSlots && {
+
+            editRecordId =
+              existingEdit.id;
+
+            this.logger.log(
+              `🟢 [UPDATE-POST] Existing edit validated | editId=${editRecordId}`,
+            );
+          }
+
+          /*
+           * =================================================
+           * CASE 3:
+           * No edit supplied
+           *
+           * This is allowed.
+           * The slot will simply have no editId.
+           * =================================================
+           */
+
+          processedSlots.push({
+            postId,
+
+            mediaId: slot.mediaId,
+
+            platform:
+              (
+                typeof slot.platform ===
+                'string'
+                  ? slot.platform.toUpperCase()
+                  : slot.platform
+              ) as Platform,
+
+            position: slot.position,
+
+            editId: editRecordId,
+          });
+        }
+
+        /*
+         * Insert all new slots
+         */
+        if (processedSlots.length > 0) {
+          await tx.postMediaSlot.createMany({
+            data: processedSlots,
+          });
+
+          this.logger.log(
+            `🟢 [UPDATE-POST] Created ${processedSlots.length} media slots`,
+          );
+        }
+      }
+
+      /*
+       * =====================================================
+       * UPDATE POST
+       * =====================================================
+       */
+
+      const updated =
+        await tx.post.update({
+          where: {
+            id: postId,
+          },
+
+          data: {
+            /*
+             * Caption
+             */
+            primaryCaption:
+              data.primaryCaption,
+
+            /*
+             * Status
+             */
+            status: data.status,
+
+            /*
+             * Scheduled time
+             */
+            scheduledAt:
+              data.scheduledAt
+                ? new Date(data.scheduledAt)
+                : undefined,
+            ...(data.platforms && {
+              platforms: {
+                create:
+                  normalizedPlatforms.map(
+                    (platform) => ({
+                      platform,
+
+                      status:
+                        PostStatus.PENDING,
+                    }),
+                  ),
+              },
+            }),
+          },
+
+          /*
+           * Return updated post with relations.
+           *
+           * This is useful for debugging and confirms
+           * the update actually contains the expected
+           * relationships.
+           */
+          include: {
+            platforms: true,
+
             mediaSlots: {
-              create: data.mediaSlots.map((slot) => ({
-                mediaId: slot.mediaId,
-                platform: slot.platform,
-                position: slot.position,
-                editId: slot.editId || null
-              }))
-            }
-          })
-        },
-      });
+              include: {
+                media: true,
+                edit: true,
+              },
+
+              orderBy: {
+                position: 'asc',
+              },
+            },
+          },
+        });
+
+      return updated;
     });
-  }
+/*
+ * =====================================================
+ * RENDER QUEUE
+ * =====================================================
+ *
+ * Scheduled posts:
+ *   - Do NOT render during every edit.
+ *   - Keep the latest crop/edit in DB.
+ *   - Scheduler/render process will render it when due.
+ *
+ * Immediate posts:
+ *   - Render immediately after update.
+ */
+
+const shouldRenderImmediately =
+  updatedPost.status !== PostStatus.SCHEDULED &&
+  !updatedPost.scheduledAt;
+
+if (shouldRenderImmediately) {
+  const job = await this.renderQueue.add(
+    'process-media',
+    {
+      postId: updatedPost.id,
+    },
+  );
+
+  this.logger.log(
+    `🟢 [UPDATE-POST] render-queue job added | jobId=${job.id} | postId=${updatedPost.id}`,
+  );
+} else {
+  this.logger.log(
+    `⏰ [UPDATE-POST] Scheduled post updated | postId=${updatedPost.id} | render deferred until scheduled time`,
+  );
+}
+
+return updatedPost;
+}
 
   async deletePost(userId: number, postId: number) {
     const post = await this.prisma.post.findUnique({ where: { id: postId } });

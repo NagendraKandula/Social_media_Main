@@ -200,6 +200,7 @@ const PostCard = ({ post, onOpen }: any) => {
 };
 
 /* ─── Advanced Schedule Modal ────────────────────────────────── */
+/* ─── Advanced Schedule Modal ────────────────────────────────── */
 const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, isReadOnly }: any) => {
   const { uploadMultipleMedia } = usePostCreation();
   
@@ -256,59 +257,57 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
         });
       }
 
-      // 🌟 FIX: Deduplicate files and securely map the crops!
+      // 🌟 FIX: Deduplicate files, supply both 'url' and 'preview', and ensure valid dimensions!
       const itemsToProcess = post.mediaSlots || post.mediaItems || [];
       
-      // 3. Hydrate Files (Show only UNIQUE original images in UI)
       const uniqueFiles: any[] = [];
       const seenMediaIds = new Set();
 
       itemsToProcess.forEach((item: any) => {
-        // Safely extract the media info regardless of backend payload shape
         const mediaId = item.mediaId || item.media?.id || item.id;
         const mediaObj = item.media || item;
         
         if (mediaId && !seenMediaIds.has(mediaId)) {
           seenMediaIds.add(mediaId);
+          const fileUrl = mediaObj.mediaUrl || mediaObj.secureUrl || mediaObj.fileUrl || mediaObj.gcsPath;
+          
           uniqueFiles.push({
             id: mediaId,
-            url: mediaObj.mediaUrl || mediaObj.secureUrl || mediaObj.fileUrl || mediaObj.gcsPath,
+            url: fileUrl,
+            preview: fileUrl, // 🌟 CRITICAL: ContentEditor looks for 'preview' to render image thumbnails
             type: mediaObj.mimeType || mediaObj.type || mediaObj.fileType || 'image/jpeg',
-            // 👇 CRITICAL: We name the file matching its ID so the crop tool finds it
             name: `media-${mediaId}`, 
             size: mediaObj.size || mediaObj.fileSizeBytes || 0,
-            width: mediaObj.width,
-            height: mediaObj.height
+            width: mediaObj.width || 1080,  // Fallback dimensions so cropper initializes correctly
+            height: mediaObj.height || 1080
           });
         }
       });
       setFiles(uniqueFiles);
 
-      // 4. Hydrate Media Edits (Load all crop ratios secretly in the background)
+      // 4. Hydrate Media Edits (Load all crop ratios securely with normalized casing)
       const initialEdits: MediaEditMap = {};
       
       itemsToProcess.forEach((item: any) => {
          if (item.edit) {
            const mediaId = item.mediaId || item.media?.id || item.id;
-           
-           // Create a mock file signature that matches the name we assigned above
            const mockFile = { name: `media-${mediaId}` } as File;
            
-           const placement = item.edit.placement || 'FEED';
-           const platform = item.edit.platform || item.platform;
+           const placement = (item.edit.placement || 'FEED').toLowerCase();
+           const platform = (item.edit.platform || item.platform || '').toLowerCase();
            
-           // Generate the exact key the ContentEditor uses to find crops
-           const key = getMediaEditKey(mockFile, platform.toLowerCase(), placement.toLowerCase());
-           
-           initialEdits[key] = {
-             platform: platform.toUpperCase(),
-             placement: placement.toUpperCase(),
-             cropX: item.edit.cropX,
-             cropY: item.edit.cropY,
-             cropWidth: item.edit.cropWidth,
-             cropHeight: item.edit.cropHeight,
-             rotation: item.edit.rotation || 0,
-           } as MediaEditDraft;
+           if (platform) {
+             const key = getMediaEditKey(mockFile, platform, placement);
+             initialEdits[key] = {
+               platform: platform.toUpperCase(),
+               placement: placement.toUpperCase(),
+               cropX: item.edit.cropX,
+               cropY: item.edit.cropY,
+               cropWidth: item.edit.cropWidth,
+               cropHeight: item.edit.cropHeight,
+               rotation: item.edit.rotation || 0,
+             } as MediaEditDraft;
+           }
          }
       });
       setMediaEdits(initialEdits);
@@ -395,14 +394,11 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
         placement: destination.placement.toUpperCase(),
       } as MediaEditDraft,
     }));
-    setMediaEditsPreviews((current) => ({
+    setMediaEditPreviews((current) => ({
       ...current,
       [getMediaEditKey(file, destination.platform, destination.placement)]: renderedPreview,
     }));
   };
-  
-  // Used purely for visual updates inside the component state
-  const setMediaEditsPreviews = setMediaEditPreviews;
 
   const getFilesWithMediaEdits = (sourceFiles: any[], platform: Channel) => {
     const placement = getPlatformPlacement(platform, platformState);
@@ -438,7 +434,6 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
     setIsScheduling(true);
 
     try {
-      // 1. Upload only NEW files (Files that are actual File objects, not hydrated URLs)
       let uploadedMediaItems: any[] = [];
       if (files.length > 0) {
         const filesToUpload = files.filter(f => f instanceof File);
@@ -448,15 +443,13 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
           newlyUploaded = await uploadMultipleMedia(filesToUpload);
         }
 
-        // Reconstruct order blending existing files and newly uploaded files
         let uploadIndex = 0;
         uploadedMediaItems = files.map(f => {
           if (f instanceof File) return newlyUploaded[uploadIndex++];
-          return f; // It's an already uploaded item from hydration
+          return f; 
         });
       }
 
-      // 2. Build media slots with crop instructions
       const mediaSlots: any[] = [];
       if (uploadedMediaItems.length > 0) {
         selectedChannelList.forEach((platform) => {
@@ -466,8 +459,7 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
             const savedEdit = mediaEdits[editKey];
             const isImage = files[index].type?.startsWith('image/') || files[index].mimeType?.startsWith('image/');
 
-            // Use original dimensions if no new crop exists (if editing, previous crop is already in mediaEdits)
-            const width = files[index].width || 1080; // Fallback if no dimension fetched
+            const width = files[index].width || 1080;
             const height = files[index].height || 1080;
 
             mediaSlots.push({
@@ -492,7 +484,6 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
         });
       }
 
-      // 3. Metadata
       const contentMetadata: Record<string, any> = { platformOverrides: {} };
       if (selectedChannels.has('facebook')) {
         contentMetadata.platformOverrides.facebook = {
@@ -514,8 +505,8 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
 
       const payload = {
         id: post?.id,
-        primaryCaption: cleanCaption, // Match Backend DTO
-        content: cleanCaption, // Legacy compatibility
+        primaryCaption: cleanCaption,
+        content: cleanCaption,
         platforms: selectedChannelList.map(c => c.toUpperCase()),
         status: status,
         scheduledAt: status === 'SCHEDULED' ? new Date(scheduleDate).toISOString() : null,
@@ -637,14 +628,14 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
             <div className={styles.scheduleSideContent}>
               {rightTab === 'ai' ? (
                <LazyAIAssistant 
-                  files={files}
-                  content={content}
-                  onAnalysisComplete={handleAnalysisComplete}
-                  onAnalysisReset={handleAnalysisReset}
-                  onApplyCaption={handleApplyCaption}
-                  onApplyHashtags={handleApplyHashtags}
-                  onAutoSelectPlatforms={handleAutoSelectPlatforms}
-                />
+                 files={files}
+                 content={content}
+                 onAnalysisComplete={handleAnalysisComplete}
+                 onAnalysisReset={handleAnalysisReset}
+                 onApplyCaption={handleApplyCaption}
+                 onApplyHashtags={handleApplyHashtags}
+                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
+               />
               ) : (
                 <LazyDynamicPreview
                   selectedPlatforms={selectedChannelList}
