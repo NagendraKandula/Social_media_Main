@@ -469,17 +469,16 @@ export default function ContentEditor({
 
                     {!isReadOnly && !needsCropping && (
                       <>
-                        {preview.isImage && preview.file instanceof File && (!onMediaEditApply || cropDestinations.length > 0) && (
-                          <button
-                            type="button"
-                            className={styles.cropButton}
-                            onClick={() => cropFeatureRef.current?.open(index)}
-                            aria-label="Crop image"
-                            title="Crop image"
-                          >
-                            <Crop size={12} />
-                          </button>
-                        )}
+                        // ✅ New Code: Allows both local files and scheduled URLs
+                      {preview.isImage && (!onMediaEditApply || cropDestinations.length > 0) && (
+                       <button
+                         type="button"
+                         className={styles.cropButton}
+                         onClick={() => cropFeatureRef.current?.open(index)}
+                         >
+                          <Crop size={12} />
+                         </button>
+                       )}
                         <button
                           type="button"
                           className={styles.removeButton}

@@ -419,6 +419,15 @@ return post;
     this.logger.log(
       `🟢 [SCHEDULED] Found ${posts.length} posts`,
     );
+    posts.forEach(post => {
+      post.mediaSlots.forEach(slot => {
+        this.logger.log(
+          `🔍 [SCHEDULED DEBUG] Post ID: ${post.id} | Media ID: ${slot.mediaId} | Platform: ${slot.platform} | Edit Data: ${
+            slot.edit ? JSON.stringify(slot.edit) : 'NULL'
+          }`
+        );
+      });
+    });
 
     const formattedPosts = await Promise.all(
       posts.map(async (post) => {

@@ -259,6 +259,36 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
 
       // 🌟 FIX: Deduplicate files, supply both 'url' and 'preview', and ensure valid dimensions!
       const itemsToProcess = post.mediaSlots || post.mediaItems || [];
+
+        console.log("========== SCHEDULED POST DEBUG ==========");
+        console.log("Post ID:", post.id);
+        console.log("Full scheduled post:", post);
+        console.log("Media slots from backend:", post.mediaSlots);
+        console.log("Media items from backend:", post.mediaItems);
+
+itemsToProcess.forEach((item: any, index: number) => {
+  console.log(`----- MEDIA SLOT ${index} -----`);
+  console.log("Raw item:", item);
+  console.log("Media ID:", item.mediaId || item.media?.id || item.id);
+  console.log("Platform:", item.platform);
+  console.log("Backend edit:", item.edit);
+
+  if (item.edit) {
+    console.log("Backend crop values:", {
+      cropX: item.edit.cropX,
+      cropY: item.edit.cropY,
+      cropWidth: item.edit.cropWidth,
+      cropHeight: item.edit.cropHeight,
+      rotation: item.edit.rotation,
+      placement: item.edit.placement,
+      platform: item.edit.platform,
+    });
+  } else {
+    console.log("⚠️ NO EDIT/CROP DATA FOR THIS MEDIA");
+  }
+});
+
+      console.log("==========================================");
       
       const uniqueFiles: any[] = [];
       const seenMediaIds = new Set();
@@ -291,13 +321,14 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
       itemsToProcess.forEach((item: any) => {
          if (item.edit) {
            const mediaId = item.mediaId || item.media?.id || item.id;
-           const mockFile = { name: `media-${mediaId}` } as File;
+           
+           // 👇 FIX: Use the actual hydrated file object instead of a fake mockFile
+           const actualFile = uniqueFiles.find((f: any) => f.id === mediaId);
            
            const placement = (item.edit.placement || 'FEED').toLowerCase();
            const platform = (item.edit.platform || item.platform || '').toLowerCase();
-           
-           if (platform) {
-             const key = getMediaEditKey(mockFile, platform, placement);
+           if (platform && actualFile) {
+             const key = getMediaEditKey(actualFile, platform, placement);
              initialEdits[key] = {
                platform: platform.toUpperCase(),
                placement: placement.toUpperCase(),
@@ -460,10 +491,13 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
             const placement = getPlatformPlacement(platform, platformState).toUpperCase();
             const editKey = getMediaEditKey(files[index], platform, placement.toLowerCase());
             const savedEdit = mediaEdits[editKey];
-            const isImage = files[index].type?.startsWith('image/') || files[index].mimeType?.startsWith('image/');
+            // Safely grab the type, fallback to an empty string, and convert to lowercase
+const typeStr = (files[index].type || files[index].mimeType || files[index].fileType || '').toLowerCase();
 
-            const width = files[index].width || 1080;
-            const height = files[index].height || 1080;
+// Check if it starts with 'image' (handles 'image/jpeg') OR equals 'image' (handles your backend 'IMAGE' enum)
+const isImage = typeStr.startsWith('image') || typeStr === 'image';
+            const width = media.width || files[index].width || 1080;
+            const height = media.height || files[index].height || 1080;
 
             mediaSlots.push({
               mediaId: media.id,
