@@ -437,7 +437,22 @@ export default function Publish() {
       })
       .catch((err) => console.error('FB Pages Error:', err));
   }, [accounts.facebook, platformState.facebookPageId]);
-
+  
+const htmlToPlainText = (html: string) => {
+  if (!html) return '';
+  
+  // 1. Replace <br> tags with standard newlines (\n)
+  let processedHtml = html.replace(/<br\s*\/?>/gi, '\n');
+  
+  // 2. Replace closing paragraph/div tags with newlines
+  processedHtml = processedHtml.replace(/<\/p>|<\/div>/gi, '\n');
+  
+  // 3. Create a temporary DOM element to strip remaining tags (like <strong>) and decode entities (like &amp;)
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = processedHtml;
+  
+  return tempDiv.textContent?.trim() || '';
+};
   /* ===============================
      Submit Payload Generation
   ================================ */
@@ -554,8 +569,12 @@ export default function Publish() {
         };
       }
 
+
+     // Convert HTML caption to plain text before sending
+      const cleanCaption = htmlToPlainText(sharedContent || content);
+
       const payload = {
-        primaryCaption: sharedContent || content,
+        primaryCaption: cleanCaption, // 👈 Use the clean text here
         platforms: selectedChannelList.map(channel => channel.toUpperCase()),
         status: isScheduled ? 'SCHEDULED' : 'PENDING',
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
@@ -926,6 +945,15 @@ export default function Publish() {
           channelContents={channelContents}
           fallbackContent={sharedContent || content}
           files={files}
+          
+          // 🌟 ADD THIS: Pass the cropped files to the review modal
+          mediaFilesByPlatform={Object.fromEntries(
+            selectedChannelList.map((platform) => [
+              platform,
+              getFilesWithMediaEdits(files, platform),
+            ])
+          )}
+
           platformState={platformState}
           accounts={accounts}
           facebookPage={selectedFacebookPage}

@@ -184,7 +184,7 @@ export class PostingService {
             if (media.fileType === MediaType.VIDEO) videoCount++;
             if (media.fileType === MediaType.IMAGE) imageCount++;
           });
-
+              
           if (platform === Platform.THREADS && (primaryCaption || '').length > THREADS_MAX_TEXT_LENGTH) {
             throw new BadRequestException('Threads text posts are limited to 500 characters.');
           }

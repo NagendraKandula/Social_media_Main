@@ -17,7 +17,6 @@ import {
 } from "../utils/cropValidation.mjs";
 import type { ImageEditDestination, MediaEditDraft } from "../features/publish/types";
 
-
 const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
   loading: () => <div>Loading emojis...</div>,
@@ -97,25 +96,28 @@ export default function ContentEditor({
   const cropFeatureRef = useRef<CropfeatureHandle>(null);
   const [imageFitIssues, setImageFitIssues] = useState<Record<number, any[]>>({});
   
-  // Tracks file indices that have been successfully cropped to clear warnings instantly
-  const [croppedIndices, setCroppedIndices] = useState<Set<number>>(new Set());
+  // 🌟 Track local previews and edits to force re-renders
+  const [localCropPreviews, setLocalCropPreviews] = useState<Record<number, string>>({});
+  const [editCounter, setEditCounter] = useState(0);
 
   const handleInternalMediaEditApply = (
     file: File,
-    edit: {
-      cropX: number;
-      cropY: number;
-      cropWidth: number;
-      cropHeight: number;
-      rotation: number;
-    },
+    edit: { cropX: number; cropY: number; cropWidth: number; cropHeight: number; rotation: number; },
     renderedPreview: File,
     destination: ImageEditDestination
   ) => {
     const index = files.findIndex(f => f === file || (f instanceof File && f.name === file.name));
-    if (index !== -1) {
-      setCroppedIndices(prev => new Set(prev).add(index));
+    
+    // 🌟 Update the thumbnail to show the newly cropped image
+    if (index !== -1 && renderedPreview) {
+      setLocalCropPreviews(prev => ({
+        ...prev,
+        [index]: URL.createObjectURL(renderedPreview)
+      }));
     }
+
+    // Force the warning effect to re-run
+    setEditCounter(c => c + 1);
 
     if (onMediaEditApply) {
       onMediaEditApply(file, edit, renderedPreview, destination);
@@ -129,14 +131,27 @@ export default function ContentEditor({
       const newFitIssues: Record<number, any[]> = {};
 
       for (let i = 0; i < files.length; i++) {
-        if (croppedIndices.has(i)) continue;
-
         const file = files[i];
         if (file instanceof File && file.type.startsWith('image/')) {
           try {
             const dimensions = await getImageDimensions(file);
-            const issues = analyzeImageFit(dimensions, targets);
+            let issues = analyzeImageFit(dimensions, targets);
             
+            // 🌟 SMART FILTERING: Remove warnings for platforms that have already been cropped!
+            if (issues.length > 0 && getSavedMediaEdit) {
+              issues = issues.filter(issue => {
+                // Find the matching destination prop for this issue
+                const dest = cropDestinations.find(d => 
+                  d.platform.toLowerCase() === issue.platform.toLowerCase()
+                );
+                // If a saved edit exists for this platform, the warning is resolved.
+                if (dest && getSavedMediaEdit(file, dest)) {
+                  return false; 
+                }
+                return true; 
+              });
+            }
+
             if (issues.length > 0) {
               newFitIssues[i] = issues;
             }
@@ -153,7 +168,7 @@ export default function ContentEditor({
     } else {
       setImageFitIssues({});
     }
-  }, [files, selectedChannels, platformState, croppedIndices]);
+  }, [files, selectedChannels, platformState, cropDestinations, getSavedMediaEdit, editCounter]);
 
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
@@ -214,7 +229,6 @@ export default function ContentEditor({
   const addMediaFiles = async (selectedFiles: File[]) => {
     if (selectedFiles.length === 0) return;
     setMediaError(null);
-
 
     const nextFiles = [...files, ...selectedFiles];
     const validationErrors = validateFilesForSelectedChannels
@@ -391,28 +405,60 @@ export default function ContentEditor({
                 const needsCropping = issues && issues.length > 0;
 
                 return (
-                  <div key={index} className={styles.mediaItem}>
+                  <div key={index} className={styles.mediaItem} style={{ position: 'relative' }}>
                     {preview.isImage ? (
                       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                        <img src={preview.url} alt="Uploaded media preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        {/* 🌟 Show local cropped preview if it exists */}
+                        <img 
+                          src={localCropPreviews[index] || preview.url} 
+                          alt="Uploaded media preview" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                        
+                        {/* 🌟 THE NEW EXPLICIT WARNING OVERLAY */}
                         {needsCropping && (
-                          <div className={styles.cropWarningOverlay} style={{
+                          <div style={{
                             position: 'absolute',
-                            top: '4px',
-                            left: '4px',
-                            right: '4px',
-                            backgroundColor: 'rgba(220, 38, 38, 0.9)',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
                             color: 'white',
-                            padding: '4px 6px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
-                            gap: '4px',
+                            justifyContent: 'center',
+                            padding: '12px',
+                            textAlign: 'center',
                             zIndex: 10
                           }}>
-                            <AlertTriangle size={12} />
-                            <span>Crop required</span>
+                            <AlertTriangle size={24} color="#fca5a5" style={{ marginBottom: '8px' }} />
+                            <span style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
+                              Crop required for:
+                            </span>
+                            <div style={{ fontSize: '11px', marginBottom: '12px', color: '#fecaca' }}>
+                              {issues.map((i, idx) => (
+                                <div key={idx}>• {i.label || i.platform}</div>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                cropFeatureRef.current?.open(index);
+                              }}
+                              style={{
+                                backgroundColor: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                animation: 'pulse 2s infinite'
+                              }}
+                            >
+                              Edit Crop
+                            </button>
                           </div>
                         )}
                       </div>
@@ -424,28 +470,26 @@ export default function ContentEditor({
                       />
                     )}
 
-                    {!isReadOnly && (
+                    {!isReadOnly && !needsCropping && (
                       <>
                         {preview.isImage && preview.file instanceof File && (!onMediaEditApply || cropDestinations.length > 0) && (
                           <button
                             type="button"
                             className={styles.cropButton}
-                            style={needsCropping ? { backgroundColor: '#dc2626', color: 'white', borderColor: '#b91c1c', animation: 'pulse 2s infinite' } : {}}
                             onClick={() => cropFeatureRef.current?.open(index)}
                             aria-label="Crop image"
                             title="Crop image"
                           >
                             <Crop size={12} />
-                            {needsCropping && <span style={{ marginLeft: '4px', fontSize: '11px' }}>Fix</span>}
                           </button>
                         )}
                         <button
                           type="button"
                           className={styles.removeButton}
                           onClick={() => {
-                            setCroppedIndices(prev => {
-                              const next = new Set(prev);
-                              next.delete(index);
+                            setLocalCropPreviews(prev => {
+                              const next = { ...prev };
+                              delete next[index];
                               return next;
                             });
                             onFilesChange(files.filter((_, fileIndex) => fileIndex !== index));
