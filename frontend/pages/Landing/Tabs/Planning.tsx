@@ -338,7 +338,10 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
       .catch(console.error);
   }, [accounts.facebook, platformState.facebookPageId]);
 
-  const selectedChannelList = Array.from(selectedChannels);
+  const selectedChannelList = useMemo(
+  () => Array.from(selectedChannels),
+  [selectedChannels]
+);
   const effectiveRules = resolveEditorRules(activeEditorChannel ? [activeEditorChannel] : selectedChannelList);
   const selectedFacebookPage = facebookPages.find((page: any) => page.id === platformState.facebookPageId);
 

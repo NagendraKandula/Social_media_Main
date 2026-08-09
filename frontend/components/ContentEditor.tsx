@@ -98,7 +98,6 @@ export default function ContentEditor({
   
   // 🌟 Track local previews and edits to force re-renders
   const [localCropPreviews, setLocalCropPreviews] = useState<Record<number, string>>({});
-  const [editCounter, setEditCounter] = useState(0);
 
   const handleInternalMediaEditApply = (
     file: File,
@@ -116,8 +115,6 @@ export default function ContentEditor({
       }));
     }
 
-    // Force the warning effect to re-run
-    setEditCounter(c => c + 1);
 
     if (onMediaEditApply) {
       onMediaEditApply(file, edit, renderedPreview, destination);
@@ -125,50 +122,50 @@ export default function ContentEditor({
   };
 
   useEffect(() => {
-    const checkImageFits = async () => {
-      const channelSet = new Set(selectedChannels);
-      const targets = getImageFitTargets(channelSet, platformState);
-      const newFitIssues: Record<number, any[]> = {};
+  const checkImageFits = async () => {
+    const channelSet = new Set(selectedChannels);
+    const targets = getImageFitTargets(channelSet, platformState);
+    const newFitIssues: Record<number, any[]> = {};
 
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file instanceof File && file.type.startsWith('image/')) {
-          try {
-            const dimensions = await getImageDimensions(file);
-            let issues = analyzeImageFit(dimensions, targets);
-            
-            // 🌟 SMART FILTERING: Remove warnings for platforms that have already been cropped!
-            if (issues.length > 0 && getSavedMediaEdit) {
-              issues = issues.filter(issue => {
-                // Find the matching destination prop for this issue
-                const dest = cropDestinations.find(d => 
-                  d.platform.toLowerCase() === issue.platform.toLowerCase()
-                );
-                // If a saved edit exists for this platform, the warning is resolved.
-                if (dest && getSavedMediaEdit(file, dest)) {
-                  return false; 
-                }
-                return true; 
-              });
-            }
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
 
-            if (issues.length > 0) {
-              newFitIssues[i] = issues;
-            }
-          } catch (error) {
-            console.error("Could not read dimensions for", file.name);
+      if (file instanceof File && file.type.startsWith("image/")) {
+        try {
+          const dimensions = await getImageDimensions(file);
+          let issues = analyzeImageFit(dimensions, targets);
+
+          if (issues.length > 0 && getSavedMediaEdit) {
+            issues = issues.filter(issue => {
+              const dest = cropDestinations.find(
+                d => d.platform.toLowerCase() === issue.platform.toLowerCase()
+              );
+
+              if (dest && getSavedMediaEdit(file, dest)) {
+                return false;
+              }
+              return true;
+            });
           }
+
+          if (issues.length > 0) {
+            newFitIssues[i] = issues;
+          }
+        } catch (error) {
+          console.error("Could not read dimensions for", file.name);
         }
       }
-      setImageFitIssues(newFitIssues);
-    };
-
-    if (files.length > 0 && selectedChannels.length > 0) {
-      checkImageFits();
-    } else {
-      setImageFitIssues({});
     }
-  }, [files, selectedChannels, platformState, cropDestinations, getSavedMediaEdit, editCounter]);
+
+    setImageFitIssues(newFitIssues);
+  };
+
+  if (files.length > 0 && selectedChannels.length > 0) {
+    checkImageFits();
+  } else {
+    setImageFitIssues({});
+  }
+}, [files]); // <-- Dependency array reduced to just [files]
 
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
