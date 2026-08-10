@@ -1,16 +1,21 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { AlertTriangle, BadgeCheck, Bold, ChartNoAxesColumnIncreasing, ChevronLeft, ChevronRight, Crop, ImagePlus, Italic, Underline, Smile, Link as LinkIcon, PenLine, Sparkles, X } from "lucide-react";
+import { AlertTriangle, BadgeCheck, ChartNoAxesColumnIncreasing, Crop, X } from "lucide-react";
 import styles from "../styles/ContentEditor.module.css";
+import Dragdrop from "./Dragdrop";
+import Toolbar from "./Toolbar";
+import Cropfeature, { CropfeatureHandle } from "./Cropfeature";
 import { PlatformRecommendation } from "../types";
 import { PLATFORM_RULES, Platform } from "../config/platformRules";
 import { EffectiveEditorRules } from "../utils/resolveEditorRules";
 import { getStableObjectUrl } from "../utils/mediaObjectUrl";
+import { getImageFitTargets, analyzeImageFit } from '../features/publish/imageFitAnalysis.mjs';
+import { getImageDimensions } from '../features/publish/mediaValidation';
 import {
   areDimensionOnlyErrors,
-  getCropOutputFormat,
   getNewImageIndices,
 } from "../utils/cropValidation.mjs";
+import type { ImageEditDestination, MediaEditDraft } from "../features/publish/types";
 
 const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   ssr: false,
@@ -18,28 +23,6 @@ const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
 });
 
 type ValidationMap = Record<string, string[]>;
-type CropSession = {
-  originalFiles: any[];
-  remainingIndices: number[];
-};
-
-const CROP_RATIOS = [
-  {
-    label: "Square",
-    sizeLabel: "1:1",
-    value: 1,
-    outputWidth: 1080,
-    outputHeight: 1080,
-  },
-  {
-    label: "Landscape",
-    sizeLabel: "1.91:1",
-    value: 1200 / 627,
-    outputWidth: 1200,
-    outputHeight: 627,
-  },
-];
-
 const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
   facebook: "Facebook",
   instagram: "Instagram",
@@ -60,15 +43,26 @@ export interface ContentEditorProps {
   validation: ValidationMap;
   isReadOnly?: boolean; 
   validateFilesForSelectedChannels?: (nextFiles: any[]) => string[] | Promise<string[]>;
+  getImageFitWarnings?: (newFiles: File[]) => string[] | Promise<string[]>;
+  onMediaEditApply?: (
+    file: File,
+    edit: {
+      cropX: number;
+      cropY: number;
+      cropWidth: number;
+      cropHeight: number;
+      rotation: number;
+    },
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => void;
   selectedChannels?: string[];
+  cropDestinations?: ImageEditDestination[];
+  getSavedMediaEdit?: (file: File, destination: ImageEditDestination) => MediaEditDraft | undefined;
   onOpenAIAssistant?: () => void;
   size?: "default" | "publish";
   aiRecommendations?: PlatformRecommendation[];
-  activeChannelLabel?: string;
-  activeChannelIndex?: number;
-  totalChannels?: number;
-  onPreviousChannel?: () => void;
-  onNextChannel?: () => void;
+  platformState?: Record<string, any>; 
 }
 
 export default function ContentEditor({
@@ -79,15 +73,15 @@ export default function ContentEditor({
   effectiveRules,
   isReadOnly = false, 
   validateFilesForSelectedChannels,
+  getImageFitWarnings,
+  onMediaEditApply,
   selectedChannels = [],
+  cropDestinations = [],
+  getSavedMediaEdit,
   onOpenAIAssistant,
   size = "default",
   aiRecommendations = [],
-  activeChannelLabel,
-  activeChannelIndex = 0,
-  totalChannels = 0,
-  onPreviousChannel,
-  onNextChannel,
+  platformState = {},
 }: ContentEditorProps) {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeFormats, setActiveFormats] = useState({
@@ -95,20 +89,84 @@ export default function ContentEditor({
     italic: false,
     underline: false,
   });
-  const [cropTargetIndex, setCropTargetIndex] = useState<number | null>(null);
-  const [cropRatio, setCropRatio] = useState(CROP_RATIOS[0]);
-  const [cropZoom, setCropZoom] = useState(1);
-  const [cropX, setCropX] = useState(50);
-  const [cropY, setCropY] = useState(50);
-  const [isDraggingCrop, setIsDraggingCrop] = useState(false);
-  const [isDraggingMedia, setIsDraggingMedia] = useState(false);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
-  const [cropSession, setCropSession] = useState<CropSession | null>(null);
   const editorRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cropPreviewRef = useRef<HTMLDivElement>(null);
+  const cropFeatureRef = useRef<CropfeatureHandle>(null);
+  const [imageFitIssues, setImageFitIssues] = useState<Record<number, any[]>>({});
+  
+  // 🌟 Track local previews and edits to force re-renders
+  const [localCropPreviews, setLocalCropPreviews] = useState<Record<number, string>>({});
+
+  const handleInternalMediaEditApply = (
+    file: File,
+    edit: { cropX: number; cropY: number; cropWidth: number; cropHeight: number; rotation: number; },
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => {
+    const index = files.findIndex(f => f === file || (f instanceof File && f.name === file.name));
+    
+    // 🌟 Update the thumbnail to show the newly cropped image
+    if (index !== -1 && renderedPreview) {
+      setLocalCropPreviews(prev => ({
+        ...prev,
+        [index]: URL.createObjectURL(renderedPreview)
+      }));
+    }
+
+
+    if (onMediaEditApply) {
+      onMediaEditApply(file, edit, renderedPreview, destination);
+    }
+  };
+
+  useEffect(() => {
+  const checkImageFits = async () => {
+    const channelSet = new Set(selectedChannels);
+    const targets = getImageFitTargets(channelSet, platformState);
+    const newFitIssues: Record<number, any[]> = {};
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+
+      if (file instanceof File && file.type.startsWith("image/")) {
+        try {
+          const dimensions = await getImageDimensions(file);
+          let issues = analyzeImageFit(dimensions, targets);
+
+          if (issues.length > 0 && getSavedMediaEdit) {
+            issues = issues.filter(issue => {
+              const dest = cropDestinations.find(
+                d => d.platform.toLowerCase() === issue.platform.toLowerCase()
+              );
+
+              if (dest && getSavedMediaEdit(file, dest)) {
+                return false;
+              }
+              return true;
+            });
+          }
+
+          if (issues.length > 0) {
+            newFitIssues[i] = issues;
+          }
+        } catch (error) {
+          console.error("Could not read dimensions for", file.name);
+        }
+      }
+    }
+
+    setImageFitIssues(newFitIssues);
+  };
+
+  if (files.length > 0 && selectedChannels.length > 0) {
+    checkImageFits();
+  } else {
+    setImageFitIssues({});
+  }
+}, [files]); // <-- Dependency array reduced to just [files]
+
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
       ...recommendation,
@@ -183,11 +241,10 @@ export default function ContentEditor({
       ) {
         setMediaError(null);
         onFilesChange(nextFiles);
-        setCropSession({
+        cropFeatureRef.current?.open(pendingImageIndices[0], {
           originalFiles: [...files],
           remainingIndices: pendingImageIndices,
         });
-        openCrop(pendingImageIndices[0]);
         return;
       }
 
@@ -205,18 +262,6 @@ export default function ContentEditor({
     }
 
     onFilesChange(nextFiles);
-  };
-
-  const handleMediaSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(event.target.files || []);
-    event.target.value = "";
-    await addMediaFiles(selectedFiles);
-  };
-
-  const handleMediaDrop = async (event: React.DragEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    setIsDraggingMedia(false);
-    await addMediaFiles(Array.from(event.dataTransfer.files || []));
   };
 
   /* ---------- Rich Text ---------- */
@@ -266,182 +311,6 @@ export default function ContentEditor({
     });
   }, [files]);
 
-  const cropTargetPreview =
-    cropTargetIndex !== null ? filePreviews[cropTargetIndex] : undefined;
-
-  const openCrop = (index: number) => {
-    setCropTargetIndex(index);
-    setCropRatio(CROP_RATIOS[0]);
-    setCropZoom(1);
-    setCropX(50);
-    setCropY(50);
-  };
-
-  const closeCrop = () => {
-    setCropTargetIndex(null);
-    setIsDraggingCrop(false);
-  };
-
-  const cancelCrop = () => {
-    if (cropSession) {
-      onFilesChange(cropSession.originalFiles);
-      setCropSession(null);
-    }
-
-    closeCrop();
-  };
-
-  const selectCropRatio = (ratio: typeof CROP_RATIOS[number]) => {
-    setCropRatio(ratio);
-    setCropZoom(1);
-    setCropX(50);
-    setCropY(50);
-  };
-
-  const adjustCropZoom = (amount: number) => {
-    setCropZoom((currentZoom) =>
-      Number(Math.min(3, Math.max(1, currentZoom + amount)).toFixed(2))
-    );
-  };
-
-  const updateCropFocusFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-    const preview = cropPreviewRef.current;
-    if (!preview) return;
-
-    const rect = preview.getBoundingClientRect();
-    const nextX = ((event.clientX - rect.left) / rect.width) * 100;
-    const nextY = ((event.clientY - rect.top) / rect.height) * 100;
-
-    setCropX(Math.min(100, Math.max(0, Math.round(nextX))));
-    setCropY(Math.min(100, Math.max(0, Math.round(nextY))));
-  };
-
-  const applyCrop = async () => {
-    if (cropTargetIndex === null) return;
-
-    const file = files[cropTargetIndex];
-    if (!file || !(file instanceof File) || !file.type.startsWith("image/")) {
-      closeCrop();
-      return;
-    }
-
-    const image = new Image();
-    const url = URL.createObjectURL(file);
-
-    image.onload = () => {
-      const outputWidth = cropRatio.outputWidth;
-      const outputHeight = cropRatio.outputHeight;
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-
-      if (!context) {
-        URL.revokeObjectURL(url);
-        closeCrop();
-        return;
-      }
-
-      canvas.width = outputWidth;
-      canvas.height = outputHeight;
-
-      const sourceRatio = image.naturalWidth / image.naturalHeight;
-      const targetRatio = outputWidth / outputHeight;
-      let sourceWidth = image.naturalWidth;
-      let sourceHeight = image.naturalHeight;
-
-      if (sourceRatio > targetRatio) {
-        sourceWidth = image.naturalHeight * targetRatio;
-      } else {
-        sourceHeight = image.naturalWidth / targetRatio;
-      }
-
-      sourceWidth /= cropZoom;
-      sourceHeight /= cropZoom;
-
-      const maxX = Math.max(0, image.naturalWidth - sourceWidth);
-      const maxY = Math.max(0, image.naturalHeight - sourceHeight);
-      const sourceX = (cropX / 100) * maxX;
-      const sourceY = (cropY / 100) * maxY;
-
-      context.drawImage(
-        image,
-        sourceX,
-        sourceY,
-        sourceWidth,
-        sourceHeight,
-        0,
-        0,
-        outputWidth,
-        outputHeight
-      );
-
-      const outputFormat = getCropOutputFormat(file.type);
-
-      canvas.toBlob(async (blob) => {
-        URL.revokeObjectURL(url);
-        if (!blob) {
-          alert("Could not crop this image.");
-          return;
-        }
-
-        const croppedFile = new File(
-          [blob],
-          file.name.replace(/\.[^.]+$/, `-${cropRatio.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.${outputFormat.extension}`),
-          { type: outputFormat.mimeType }
-        );
-
-        const nextFiles = [...files];
-        nextFiles[cropTargetIndex] = croppedFile;
-
-        if (cropSession && validateFilesForSelectedChannels) {
-          const validationErrors =
-            await validateFilesForSelectedChannels(nextFiles);
-          const remainingIndices = cropSession.remainingIndices.filter(
-            (index) => index !== cropTargetIndex
-          );
-
-          if (validationErrors.length === 0) {
-            onFilesChange(nextFiles);
-            setCropSession(null);
-            closeCrop();
-            return;
-          }
-
-          if (
-            areDimensionOnlyErrors(validationErrors) &&
-            remainingIndices.length > 0
-          ) {
-            onFilesChange(nextFiles);
-            setCropSession({
-              ...cropSession,
-              remainingIndices,
-            });
-            openCrop(remainingIndices[0]);
-            return;
-          }
-
-          onFilesChange(cropSession.originalFiles);
-          setCropSession(null);
-          closeCrop();
-          alert(
-            `This media still cannot be uploaded:\n\n${validationErrors.join('\n')}`
-          );
-          return;
-        }
-
-        onFilesChange(nextFiles);
-        closeCrop();
-      }, outputFormat.mimeType, outputFormat.quality);
-    };
-
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      alert("Could not crop this image.");
-      closeCrop();
-    };
-
-    image.src = url;
-  };
-
   /* ---------- Counts ---------- */
   const charCount = getPlainTextLength();
   const maxLength = effectiveRules?.text?.maxLength;
@@ -473,69 +342,30 @@ export default function ContentEditor({
       className={`${styles.editorCard} ${size === "publish" ? styles.publishEditorCard : ""}`}
       style={{ opacity: isReadOnly ? 0.8 : 1 }}
     >
-      {/* Toolbar */}
-      <div className={styles.toolbar} style={{ pointerEvents: isReadOnly ? 'none' : 'auto', opacity: isReadOnly ? 0.5 : 1 }}>
-        <div className={styles.toolbarLeft}>
-          <button type="button" className={activeFormats.bold ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("bold")} disabled={isReadOnly} aria-label="Bold" title="Bold"><Bold size={18} strokeWidth={2.4} /></button>
-          <button type="button" className={activeFormats.italic ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("italic")} disabled={isReadOnly} aria-label="Italic" title="Italic"><Italic size={18} strokeWidth={2.4} /></button>
-          <button type="button" className={activeFormats.underline ? styles.toolActive : ""} onMouseDown={(event) => event.preventDefault()} onClick={() => applyCommand("underline")} disabled={isReadOnly} aria-label="Underline" title="Underline"><Underline size={18} strokeWidth={2.4} /></button>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={insertLink} disabled={isReadOnly} aria-label="Add link" title="Add link"><LinkIcon size={18} strokeWidth={2.4} /></button>
-          <button type="button" onClick={() => insertText("#")} disabled={isReadOnly} aria-label="Add hashtag" title="Add hashtag">#</button>
-          <button type="button" onClick={() => insertText("@")} disabled={isReadOnly} aria-label="Add mention" title="Add mention">@</button>
-          <button type="button" onClick={() => setShowEmojiPicker(v => !v)} disabled={isReadOnly} aria-label="Add emoji" title="Add emoji">
-            <Smile size={18} strokeWidth={2.4} />
-          </button>
-        </div>
-        {activeChannelLabel && (
-          <div className={styles.channelNavigator} aria-label="Channel content editor">
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onPreviousChannel}
-              disabled={isReadOnly || !onPreviousChannel || totalChannels <= 1}
-              aria-label="Previous channel content"
-              title="Previous channel"
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
-            <span className={styles.channelContentLabel}>
-              {activeChannelLabel} content
-              {totalChannels > 1 && (
-                <small>{activeChannelIndex + 1} / {totalChannels}</small>
-              )}
-            </span>
-            <button
-              type="button"
-              className={styles.channelNavButton}
-              onClick={onNextChannel}
-              disabled={isReadOnly || !onNextChannel || totalChannels <= 1}
-              aria-label="Next channel content"
-              title="Next channel"
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          </div>
-        )}
-        <div className={styles.toolbarMeta}>
-          <span className={`${styles.charCount} ${overLimit ? styles.overLimit : ""}`}>
-            {charCount}{maxLength ? ` / ${maxLength}` : ""} chars
-          </span>
-          {onOpenAIAssistant && (
-            <button
-              type="button"
-              className={styles.aiAssistantButton}
-              onClick={onOpenAIAssistant}
-              disabled={isReadOnly}
-              aria-label="Open AI Assistant"
-              title="Open AI Assistant"
-            >
-              <Sparkles size={16} aria-hidden="true" />
-              <PenLine size={15} aria-hidden="true" />
-              <span>AI</span>
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Editor */}
+      <div
+        className={styles.editor}
+        contentEditable={!isReadOnly}
+        ref={editorRef}
+        onInput={handleInput}
+        suppressContentEditableWarning
+        data-placeholder={isReadOnly ? "" : "Write your post..."}
+        style={{ cursor: isReadOnly ? 'default' : 'text', background: isReadOnly ? '#fafafa' : '#fff' }}
+      />
+
+      <Toolbar
+        activeFormats={activeFormats}
+        charCount={charCount}
+        maxLength={maxLength}
+        overLimit={Boolean(overLimit)}
+        showCharacterCount={true}
+        isReadOnly={isReadOnly}
+        onApplyCommand={applyCommand}
+        onInsertLink={insertLink}
+        onInsertText={insertText}
+        onToggleEmojiPicker={() => setShowEmojiPicker((visible) => !visible)}
+        onOpenAIAssistant={onOpenAIAssistant}
+      />
 
       {showEmojiPicker && !isReadOnly && (
         <div className={styles.emojiPopover}>
@@ -548,194 +378,127 @@ export default function ContentEditor({
         </div>
       )}
 
-      {/* Editor */}
-      <div
-        className={styles.editor}
-        contentEditable={!isReadOnly}
-        ref={editorRef}
-        onInput={handleInput}
-        suppressContentEditableWarning
-        data-placeholder={isReadOnly ? "" : "Write your post..."}
-        style={{ cursor: isReadOnly ? 'default' : 'text', background: isReadOnly ? '#fafafa' : '#fff' }}
+      <Cropfeature
+        ref={cropFeatureRef}
+        files={files}
+        onFilesChange={onFilesChange}
+        cropDestinations={cropDestinations}
+        getSavedMediaEdit={getSavedMediaEdit}
+        validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+        onMediaEditApply={handleInternalMediaEditApply}
       />
-
-      {cropTargetPreview?.isImage && cropTargetPreview.url && (
-        <div className={styles.cropOverlay}>
-          <div
-            className={styles.cropModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="crop-dialog-title"
-          >
-            <div className={styles.cropHeader}>
-              <div>
-                <h3 id="crop-dialog-title">
-                  {cropSession ? "Crop to upload" : "Crop Image"}
-                </h3>
-                <p>{cropRatio.label} · {cropRatio.outputWidth}x{cropRatio.outputHeight}</p>
-              </div>
-              <button type="button" onClick={cancelCrop} aria-label="Close crop">
-                ×
-              </button>
-            </div>
-
-            <div className={styles.cropStage}>
-              <div
-                ref={cropPreviewRef}
-                className={styles.cropPreview}
-                style={{ aspectRatio: `${cropRatio.outputWidth} / ${cropRatio.outputHeight}` }}
-                onPointerDown={(event) => {
-                  setIsDraggingCrop(true);
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  updateCropFocusFromPointer(event);
-                }}
-                onPointerMove={(event) => {
-                  if (isDraggingCrop) updateCropFocusFromPointer(event);
-                }}
-                onPointerUp={(event) => {
-                  setIsDraggingCrop(false);
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }}
-                onPointerCancel={() => setIsDraggingCrop(false)}
-              >
-                <img
-                  src={cropTargetPreview.url}
-                  alt="Crop preview"
-                  style={{
-                    transform: `scale(${cropZoom})`,
-                    objectPosition: `${cropX}% ${cropY}%`,
-                  }}
-                />
-                <div className={styles.cropGrid} aria-hidden="true" />
-                <div
-                  className={styles.cropFocusMarker}
-                  style={{ left: `${cropX}%`, top: `${cropY}%` }}
-                  aria-hidden="true"
-                />
-              </div>
-            </div>
-
-            <div className={styles.cropControls}>
-              <div className={styles.cropRecommendations}>
-                <span>Crop ratio</span>
-                <div className={styles.recommendationGrid}>
-                  {CROP_RATIOS.map((ratio) => (
-                    <button
-                      key={ratio.label}
-                      type="button"
-                      className={cropRatio.label === ratio.label ? styles.selectedRecommendation : ""}
-                      onClick={() => selectCropRatio(ratio)}
-                    >
-                      <span>{ratio.sizeLabel}</span>
-                      <strong>{ratio.label}</strong>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.cropToolGroup}>
-                <span>
-                  Zoom <strong>{cropZoom.toFixed(2)}x</strong>
-                </span>
-                <div className={styles.zoomControls}>
-                  <button type="button" onClick={() => adjustCropZoom(-0.1)}>
-                    -
-                  </button>
-                  <div className={styles.zoomMeter}>
-                    <span style={{ width: `${((cropZoom - 1) / 2) * 100}%` }} />
-                  </div>
-                  <button type="button" onClick={() => adjustCropZoom(0.1)}>
-                    +
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-            <div className={styles.cropActions}>
-              <button type="button" onClick={cancelCrop}>
-                Cancel
-              </button>
-              <button type="button" onClick={applyCrop}>
-                Apply crop
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <div className={styles.footerInfo}>
         <div className={styles.mediaFooterContent}>
           {!isReadOnly && (
-            <>
-            <button
-              type="button"
-              className={`${styles.uploadBox} ${isDraggingMedia ? styles.uploadBoxDragging : ""}`}
-              onClick={() => fileInputRef.current?.click()}
-              onDragEnter={(event) => {
-                event.preventDefault();
-                setIsDraggingMedia(true);
-              }}
-              onDragOver={(event) => event.preventDefault()}
-              onDragLeave={() => setIsDraggingMedia(false)}
-              onDrop={handleMediaDrop}
-            >
-              <ImagePlus size={34} aria-hidden="true" />
-              <span>
-                Drag &amp; drop or
-                <strong>select a file</strong>
-              </span>
-            </button>
-            <input
-              type="file"
-              multiple
-              hidden
-              ref={fileInputRef}
-              onChange={handleMediaSelection}
-            />
-            </>
+            <Dragdrop onFilesSelected={addMediaFiles} />
           )}
 
           {filePreviews.length > 0 && (
             <div className={styles.mediaGrid}>
-              {filePreviews.map((preview, index) => (
-                <div key={index} className={styles.mediaItem}>
-                  {preview.isImage ? (
-                    <img src={preview.url} alt="Uploaded media preview" />
-                  ) : (
-                    <video
-                      src={preview.url}
-                      controls
-                      className={styles.mediaVideo}
-                    />
-                  )}
+              {filePreviews.map((preview, index) => {
+                const issues = imageFitIssues[index];
+                const needsCropping = issues && issues.length > 0;
 
-                  {!isReadOnly && (
-                    <>
-                      {preview.isImage && preview.file instanceof File && (
+                return (
+                  <div key={index} className={styles.mediaItem} style={{ position: 'relative' }}>
+                    {preview.isImage ? (
+                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                        {/* 🌟 Show local cropped preview if it exists */}
+                        <img 
+                          src={localCropPreviews[index] || preview.url} 
+                          alt="Uploaded media preview" 
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        />
+                        
+                        {/* 🌟 THE NEW EXPLICIT WARNING OVERLAY */}
+                        {needsCropping && (
+                          <div style={{
+                            position: 'absolute',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                            color: 'white',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '12px',
+                            textAlign: 'center',
+                            zIndex: 10
+                          }}>
+                            <AlertTriangle size={24} color="#fca5a5" style={{ marginBottom: '8px' }} />
+                            <span style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
+                              Crop required for:
+                            </span>
+                            <div style={{ fontSize: '11px', marginBottom: '12px', color: '#fecaca' }}>
+                              {issues.map((i, idx) => (
+                                <div key={idx}>• {i.label || i.platform}</div>
+                              ))}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                cropFeatureRef.current?.open(index);
+                              }}
+                              style={{
+                                backgroundColor: '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                                animation: 'pulse 2s infinite'
+                              }}
+                            >
+                              Edit Crop
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <video
+                        src={preview.url}
+                        controls
+                        className={styles.mediaVideo}
+                      />
+                    )}
+
+                    {!isReadOnly && !needsCropping && (
+                      <>
+                        // ✅ New Code: Allows both local files and scheduled URLs
+                      {preview.isImage && (!onMediaEditApply || cropDestinations.length > 0) && (
+                       <button
+                         type="button"
+                         className={styles.cropButton}
+                         onClick={() => cropFeatureRef.current?.open(index)}
+                         >
+                          <Crop size={12} />
+                         </button>
+                       )}
                         <button
                           type="button"
-                          className={styles.cropButton}
-                          onClick={() => openCrop(index)}
-                          aria-label="Crop image"
-                          title="Crop image"
+                          className={styles.removeButton}
+                          onClick={() => {
+                            setLocalCropPreviews(prev => {
+                              const next = { ...prev };
+                              delete next[index];
+                              return next;
+                            });
+                            onFilesChange(files.filter((_, fileIndex) => fileIndex !== index));
+                          }}
+                          aria-label="Remove media"
                         >
-                          <Crop size={12} />
+                          ×
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.removeButton}
-                        onClick={() => onFilesChange(files.filter((_, fileIndex) => fileIndex !== index))}
-                        aria-label="Remove media"
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

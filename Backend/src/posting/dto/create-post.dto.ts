@@ -1,6 +1,7 @@
 import { IsString, IsOptional, IsDateString, IsArray, IsEnum, ValidateNested, IsNumber, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Platform, PostStatus } from '@prisma/client'; 
+import { MediaEditDto } from './media-edit.dto';
 
 export class PostMediaSlotDto {
   @IsNumber()
@@ -15,6 +16,10 @@ export class PostMediaSlotDto {
   @IsNumber()
   @IsOptional()
   editId?: number;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MediaEditDto)
+  edit?: MediaEditDto;
 }
 
 export class CreatePostDto {

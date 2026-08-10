@@ -71,8 +71,6 @@
   overflow: hidden;
   position: relative;
   background: #f3f4f6;
-  /* Allow natural height, but cap for preview */
-  max-height: 300px;
 }
 
 .media img,
@@ -80,7 +78,7 @@
   width: 100%;
   height: auto;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 /* Video-specific container (if using thumbnail + play icon) */

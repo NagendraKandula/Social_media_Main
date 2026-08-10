@@ -65,18 +65,8 @@
 
 .mediaFrame {
   width: 100%;
-  height: 300px;
   background: #eef2f7;
   overflow: hidden;
-}
-
-.mediaFrame :global(img),
-.mediaFrame :global(video) {
-  width: 100% !important;
-  height: 100% !important;
-  aspect-ratio: auto !important;
-  object-fit: cover !important;
-  display: block;
 }
 
 .actions {
@@ -122,7 +112,7 @@
   width: 350px;
   height: 560px;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 12px;
   border: 1px solid #e2e2e2;
   background: #050505;
   color: #ffffff;

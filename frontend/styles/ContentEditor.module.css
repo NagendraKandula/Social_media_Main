@@ -11,7 +11,8 @@
 
 .publishEditorCard {
   display: flex;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   flex: 1 1 auto;
   flex-direction: column;
   border: 0;
@@ -19,41 +20,18 @@
   overflow: visible;
 }
 
-.publishEditorCard .channelNavigator {
-  position: static;
-}
-
-.publishEditorCard .channelNavButton {
-  position: absolute;
-  top: 46%;
-  z-index: 4;
-  width: 44px;
-  height: 56px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 4px 16px rgba(23, 23, 43, 0.08);
-  transform: translateY(-50%);
-}
-
-.publishEditorCard .channelNavButton:first-child {
-  left: 4px;
-}
-
-.publishEditorCard .channelNavButton:last-child {
-  right: 4px;
-}
-
-.publishEditorCard .channelNavButton:hover:not(:disabled) {
-  transform: translateY(-50%) scale(1.04);
-}
-
 .publishEditorCard .toolbar {
+  border-top: 1px solid #e9e9f3;
   border-bottom: 0;
-  padding: 6px 0;
+  padding: 10px 0 6px;
 }
 
 .publishEditorCard .editor {
   flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding-top: 10px;
   padding-right: 0;
   padding-left: 0;
@@ -99,10 +77,6 @@
   font-weight: 700;
   transition: color 0.16s ease, background-color 0.16s ease,
     border-color 0.16s ease, transform 0.16s ease;
-}
-
-.toolbarLeft button:first-child {
-  justify-content: flex-start;
 }
 
 .toolbarLeft button:hover {
@@ -193,22 +167,21 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  gap: 4px;
-  min-height: 32px;
-  padding: 5px 10px;
-  border: 1px solid rgba(79, 76, 190, 0.2);
-  border-radius: 9px;
-  background: linear-gradient(135deg, rgba(79, 76, 190, 0.09), rgba(247, 243, 126, 0.25));
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
   color: #4f4cbe;
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.86rem;
+  font-weight: 650;
   cursor: pointer;
   transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
 .aiAssistantButton:hover {
-  border-color: #7d71f2;
-  background: linear-gradient(135deg, rgba(125, 113, 242, 0.15), rgba(247, 243, 126, 0.38));
+  background: rgba(125, 113, 242, 0.1);
   transform: translateY(-1px);
 }
 
@@ -244,13 +217,7 @@
 }
 
 .publishEditorCard .editor {
-  min-height: clamp(220px, 27vh, 270px);
-}
-
-@media (max-width: 1180px) {
-  .publishEditorCard .editor {
-    min-height: clamp(200px, 25vh, 250px);
-  }
+  min-height: 0;
 }
 
 /* Placeholder */
@@ -273,8 +240,8 @@
 
 .mediaItem {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 78px;
+  height: 78px;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #d1d5db;
@@ -355,7 +322,7 @@
 }
 
 .cropModal {
-  width: min(860px, 100%);
+  width: min(1100px, 100%);
   max-height: calc(100vh - 48px);
   overflow: auto;
   border: 1px solid rgba(79, 76, 190, 0.12);
@@ -405,39 +372,214 @@
   color: #4f4cbe;
 }
 
+.cropDestinationSection {
+  padding: 20px 22px 22px;
+  border-bottom: 1px solid rgba(79, 76, 190, 0.1);
+  background: #f7f7f8;
+}
+
+.cropDestinationHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: #17172b;
+  font-size: 14px;
+}
+
+.cropDestinationHeading span {
+  color: #6f7085;
+  font-size: 12px;
+}
+
+.cropDestinationGrid {
+  display: grid;
+  align-items: start;
+  grid-auto-columns: minmax(250px, 300px);
+  grid-auto-flow: column;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+}
+
+.cropDestinationCard {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dedee8;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #17172b;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.cropDestinationCard:focus-visible {
+  outline: 3px solid rgba(90, 82, 207, 0.28);
+  outline-offset: 2px;
+}
+
+.cropDestinationCard:hover {
+  border-color: #9b93ef;
+  transform: translateY(-1px);
+}
+
+.cropDestinationCardActive {
+  border-color: #5a52cf;
+  box-shadow: 0 0 0 2px rgba(90, 82, 207, 0.14);
+}
+
+.cropDestinationPostHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cropDestinationPostHeader > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cropDestinationPostHeader small {
+  color: #77788b;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.cropDestinationMenu {
+  margin-left: auto;
+  color: #77788b;
+  letter-spacing: 2px;
+}
+
+.cropDestinationIcon {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 7px;
+  background: #f0efff;
+  color: #5148c8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cropDestinationMedia {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-height: 330px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #e9e5e8;
+}
+
+.cropDestinationMedia img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.cropDestinationEditControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cropDestinationEditControls button {
+  display: inline-flex;
+  min-width: 32px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 1px solid #dedee8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #34344a;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.cropDestinationEditControls button:hover:not(:disabled) {
+  border-color: #9b93ef;
+  color: #5148c8;
+}
+
+.cropDestinationEditControls .cropConfirmedButton {
+  border-color: #16a36a;
+  background: #16a36a;
+  color: #ffffff;
+}
+
+.cropDestinationEditControls .cropConfirmedButton:hover:not(:disabled) {
+  border-color: #128557;
+  background: #128557;
+  color: #ffffff;
+}
+
+.cropDestinationEditControls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
 .cropStage {
   display: flex;
   justify-content: center;
-  padding: 28px;
-  background: linear-gradient(160deg, #fffefa 0%, rgba(247, 243, 126, 0.14) 100%);
+  padding: 28px clamp(20px, 6vw, 80px);
+  background: #f5f5f5;
 }
 
 .cropPreview {
-  width: min(100%, 520px);
-  max-height: min(56vh, 560px);
+  width: min(100%, 760px);
+  max-height: min(62vh, 660px);
   margin: 0 auto;
   overflow: hidden;
-  border: 3px solid #ffffff;
-  border-radius: 14px;
-  background: #111827;
-  box-shadow: 0 18px 42px rgba(17, 24, 39, 0.22);
+  border: 0;
+  border-radius: 0;
+  background: #e9e5e8;
+  box-shadow: none;
   position: relative;
-  cursor: grab;
   touch-action: none;
   user-select: none;
-}
-
-.cropPreview:active {
-  cursor: grabbing;
 }
 
 .cropPreview img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: fill;
   transform-origin: center;
   display: block;
   pointer-events: none;
+}
+
+.cropSelection {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  border: 2px solid #111111;
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.58);
+  touch-action: none;
+}
+
+.cropSelection:active {
+  cursor: grabbing;
 }
 
 .cropGrid {
@@ -450,6 +592,85 @@
     linear-gradient(to bottom, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.72) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.72) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
     linear-gradient(to bottom, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.72) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.72) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
 }
+
+.cropHandle {
+  position: absolute;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.cropHandle::after {
+  position: absolute;
+  content: "";
+  background: #111111;
+}
+
+.cropHandleN,
+.cropHandleS {
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.cropHandleN { top: -13px; }
+.cropHandleS { bottom: -13px; }
+.cropHandleN::after,
+.cropHandleS::after {
+  left: 3px;
+  right: 3px;
+  top: 10px;
+  height: 4px;
+}
+
+.cropHandleE,
+.cropHandleW {
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.cropHandleE { right: -13px; }
+.cropHandleW { left: -13px; }
+.cropHandleE::after,
+.cropHandleW::after {
+  top: 3px;
+  bottom: 3px;
+  left: 10px;
+  width: 4px;
+}
+
+.cropHandleNE,
+.cropHandleNW { top: -13px; }
+.cropHandleSE,
+.cropHandleSW { bottom: -13px; }
+.cropHandleNE,
+.cropHandleSE { right: -13px; }
+.cropHandleNW,
+.cropHandleSW { left: -13px; }
+.cropHandleNE,
+.cropHandleSW { cursor: nesw-resize; }
+.cropHandleNW,
+.cropHandleSE { cursor: nwse-resize; }
+
+.cropHandleNE::after,
+.cropHandleNW::after,
+.cropHandleSE::after,
+.cropHandleSW::after {
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  border-color: #111111;
+  border-style: solid;
+}
+
+.cropHandleNW::after { right: 0; bottom: 0; border-width: 4px 0 0 4px; }
+.cropHandleNE::after { left: 0; bottom: 0; border-width: 4px 4px 0 0; }
+.cropHandleSW::after { right: 0; top: 0; border-width: 0 0 4px 4px; }
+.cropHandleSE::after { left: 0; top: 0; border-width: 0 4px 4px 0; }
 
 .cropFocusMarker {
   position: absolute;
@@ -494,17 +715,17 @@
 
 .recommendationGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .recommendationGrid button {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   align-items: center;
   column-gap: 10px;
-  min-height: 58px;
-  padding: 11px 12px;
+  min-height: 44px;
+  padding: 8px 10px;
   border: 1px solid rgba(79, 76, 190, 0.16);
   border-radius: 12px;
   background: #ffffff;
@@ -520,7 +741,7 @@
 }
 
 .recommendationGrid button > span {
-  min-width: 48px;
+  min-width: 0;
   padding: 5px 7px;
   border-radius: 9px;
   background: rgba(125, 113, 242, 0.09);
@@ -545,6 +766,48 @@
 .cropToolGroup {
   display: grid;
   gap: 8px;
+}
+
+.imageEffectsGroup {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+
+.imageEffectsGroup > span {
+  color: #17172b;
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.imageEffectsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.imageEffectsGrid button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid rgba(79, 76, 190, 0.16);
+  border-radius: 10px;
+  background: #ffffff;
+  color: #17172b;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.imageEffectsGrid button:hover,
+.imageEffectsGrid .imageEffectActive {
+  border-color: #4f4cbe;
+  background: rgba(125, 113, 242, 0.1);
+  color: #4f4cbe;
+}
+
+.imageEffectsGrid button strong {
+  margin-left: 3px;
+  color: inherit;
 }
 
 .zoomControls {
@@ -638,6 +901,15 @@
     padding: 16px;
   }
 
+  .cropDestinationSection {
+    padding: 14px 16px 16px;
+  }
+
+  .cropDestinationHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   .cropPreview {
     max-height: 48vh;
   }
@@ -648,7 +920,11 @@
   }
 
   .recommendationGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .imageEffectsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .cropActions {
@@ -684,17 +960,19 @@
 /* Upload */
 .uploadBox {
   display: flex;
-  margin-top: 8px;
-  width: 150px;
-  min-height: 120px;
-  flex: 0 0 120px;
+  box-sizing: border-box;
+  margin-top: 0;
+  width: 96px;
+  height: 96px;
+  min-height: 96px;
+  flex: 0 0 96px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 3px;
   border: 1.5px dashed #9ca3af;
-  padding: 11px 9px;
-  border-radius: 10px;
+  padding: 5px 4px;
+  border-radius: 8px;
   cursor: pointer;
   font: inherit;
   color: #5f606b;
@@ -705,17 +983,17 @@
 }
 
 .uploadBox svg {
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   color: #62636d;
 }
 
 .uploadBox span {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  font-size: 12px;
-  line-height: 1.35;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.25;
 }
 
 .uploadBox strong {
@@ -944,4 +1222,37 @@
 .overLimit {
   color: #dc2626;
   font-weight: 500;
+}
+
+.mediaPreviewCard {
+  position: relative;
+  /* ... your existing styles ... */
+}
+
+.cropWarningOverlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  background-color: rgba(220, 38, 38, 0.9); /* Red warning background */
+  color: white;
+  padding: 6px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  z-index: 10;
+}
+
+.editButtonHighlight {
+  background-color: #dc2626; /* Make the edit button red if it needs fixing */
+  color: white;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }

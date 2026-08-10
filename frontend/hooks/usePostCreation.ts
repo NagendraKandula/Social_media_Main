@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import apiClient from '../lib/axios'; // Your configured axios
 import axios from 'axios'; // Standard axios for Google upload
+import { getImageDimensions, getVideoDimensions } from '../features/publish/mediaValidation';
 
 export const usePostCreation = () => {
   const [uploading, setUploading] = useState(false);
@@ -27,15 +28,51 @@ export const usePostCreation = () => {
       });
 
       // C. Register Media in the Database
-      const mediaType = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
-      
+       const mediaType = file.type.startsWith('video/')
+      ? 'VIDEO'
+      : 'IMAGE';
+
+    const fileSizeBytes = file.size;
+
+    let width: number | null = null;
+    let height: number | null = null;
+    let durationMs: number | null = null;
+
+    try {
+      if (file.type.startsWith('image/')) {
+        const dimensions = await getImageDimensions(file);
+
+        width = dimensions.width;
+        height = dimensions.height;
+      }
+
+      if (file.type.startsWith('video/')) {
+        const metadata = await getVideoDimensions(file);
+
+        width = metadata.width;
+        height = metadata.height;
+        durationMs = Math.round(metadata.duration * 1000);
+      }
+    } catch (metaError) {
+      console.warn(
+        `[Frontend] Could not extract metadata for ${file.name}`,
+        metaError
+      );
+    }
       const mediaRes = await apiClient.post('/posting/media/register', {
         gcsPath: storagePath,  // ✅ FIX: Map the backend's storagePath to the DB's gcsPath
-        fileType: mediaType,   
+        fileType: mediaType,  
+        width,                 
+        height,                
+        durationMs,            
+        fileSizeBytes 
       });
 
       console.log(`[Frontend] ☁️ Successfully uploaded to GCP! Path: ${storagePath} | DB Media ID: ${mediaRes.data.id}`);
-
+       console.log(
+  `[Frontend] ☁️ Successfully uploaded to GCP!`,
+  mediaRes.data
+);
       setUploading(false);
       
       // D. Return the ID along with the paths

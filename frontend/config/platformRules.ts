@@ -1,5 +1,3 @@
-// frontend/config/platformRules.ts
-
 export type Platform =
   | "facebook"
   | "instagram"
@@ -20,11 +18,97 @@ export interface PlatformRule {
     inputType?: "file" | "url";
     mediaTypes?: string[];
   };
-  title?: boolean;            // ✅ YouTube needs this
-  description?: boolean;      // ✅ ADDED THIS (Fixes your error)
-  requiresPageSelection?: boolean; 
+  title?: boolean;
+  description?: boolean;
+  requiresPageSelection?: boolean;
   notes?: string[];
 }
+
+export const PLATFORM_IMAGE_RULES = {
+  instagram: {
+    feed: {
+      minAspectRatio: 4 / 5,      // 0.8
+      maxAspectRatio: 1.91,
+      minWidth: 320,
+      maxWidth: 1440,
+      maxSizeMB: 8,
+      formats: ['image/jpeg'],
+      recommended: {
+        width: 1080,
+        height: 1350,
+      },
+    },
+
+    story: {
+      aspectRatio: 9 / 16,
+      minWidth: 500,
+      maxSizeMB: 8,
+      formats: ['image/jpeg'],
+      recommended: {
+        width: 1080,
+        height: 1920,
+      },
+    },
+  },
+
+  facebook: {
+    feed: {
+      minAspectRatio: 4 / 5,
+      maxAspectRatio: 1.91,
+      minWidth: 40,
+      minHeight: 40,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      maxSizeMB: 30,
+      formats: ['image/jpeg', 'image/png'],
+      recommended: {
+        width: 1200,
+        height: 630,
+      },
+    },
+
+    story: {
+      minAspectRatio: 4 / 5,
+      maxAspectRatio: 1.91,
+      minWidth: 500,
+      maxSizeMB: 30,
+      formats: ['image/jpeg', 'image/png'],
+      recommended: {
+        width: 1080,
+        height: 1920,
+      },
+    },
+  },
+
+  linkedin: {
+    feed: {
+      minAspectRatio: 1 / 2,
+      maxAspectRatio: 2,
+      minWidth: 552,
+      maxSizeMB: 20,
+      formats: ['image/jpeg', 'image/png'],
+      recommended: {
+        width: 1200,
+        height: 627,
+      },
+    },
+  },
+
+  threads: {
+    feed: {
+      minAspectRatio: 0.01,
+      maxAspectRatio: 10,
+      minWidth: 320,
+      maxWidth: 1440,
+      maxSizeMB: 8,
+      formats: ['image/jpeg', 'image/png'],
+      recommended: {
+        width: 1080,
+        height: 1080,
+      },
+    },
+  },
+} as const;
 
 export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
   facebook: {
@@ -71,13 +155,13 @@ export const PLATFORM_RULES: Record<Platform, PlatformRule> = {
     media: { inputType: "file", mediaTypes: ["image/*", "video/*"] },
     notes: [
       "X supports up to 4 images or one video.",
-      "X does not support mixed image and video posts.",
+      "X does not allow mixing images and videos in one post.",
     ],
   },
   youtube: {
     title: true,
-    description: true, // ✅ Explicitly marking description as supported
-    text: { required: true, maxLength: 5000 }, 
+    description: true,
+    text: { required: true, maxLength: 5000 },
     media: { required: true, inputType: "file", mediaTypes: ["video/*"] },
   },
   threads: {

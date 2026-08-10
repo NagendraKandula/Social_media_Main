@@ -1,7 +1,7 @@
 import { MediaItem } from "../../types";
 import type { PreviewAccount } from "../DynamicPreview";
 import MediaPreviewGrid from "./MediaPreviewGrid";
-import { toPreviewText } from "./previewText";
+import { toPreviewRichTextParts } from "./previewText";
 import styles from "../../styles/LinkedInPreview.module.css";
 import {
   FaGlobeAmericas,
@@ -19,7 +19,7 @@ const getDisplayName = (account?: PreviewAccount) =>
   account?.name || account?.username || "Bantubilli Sai Siva Meg...";
 
 export default function LinkedInPreview({ content, files, account }: Props) {
-  const captionText = toPreviewText(content);
+  const captionParts = toPreviewRichTextParts(content);
   const displayName = getDisplayName(account);
 
   return (
@@ -49,9 +49,15 @@ export default function LinkedInPreview({ content, files, account }: Props) {
           </div>
         </header>
 
-        {captionText && (
+        {captionParts.length > 0 && (
           <p className={styles.caption}>
-            {captionText}
+            {captionParts.map((part, index) =>
+              part.bold ? (
+                <strong key={index}>{part.text}</strong>
+              ) : (
+                <span key={index}>{part.text}</span>
+              )
+            )}
           </p>
         )}
 

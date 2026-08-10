@@ -10,6 +10,26 @@ import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { usePostCreation } from '../../../hooks/usePostCreation';
 import { addNotification } from '../../../utils/notifications';
 import { AiAnalysisResult, PlatformRecommendation } from '../../../types';
+import ContentChannelTabs from '../../../components/publish/ContentChannelTabs';
+import ChannelPostOptions from '../../../components/publish/ChannelPostOptions';
+
+import type {
+  ChannelContentMap,
+  ImageEditDestination,
+  MediaEditDraft,
+  MediaEditMap,
+} from '../../../features/publish/types';
+import {
+  getChannelContent,
+  reconcileChannelContents,
+} from '../../../utils/channelContent.mjs';
+import { getSelectedImageFitWarnings } from '../../../features/publish/imageFitAnalysis.mjs';
+import {
+  getImageEditDestinations,
+  getMediaEditKey,
+  getPlatformPlacement,
+  readImageDimensions,
+} from '../../../features/publish/mediaEdits.mjs';
 
 const LazyContentEditor = dynamic(() => import('../../../components/ContentEditor'), {
   loading: () => <p>Loading editor...</p>,
@@ -35,68 +55,6 @@ const PLATFORMS: Record<string, any> = {
 };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const FACEBOOK_MAX_IMAGE_SIZE_BYTES = 10_000_000;
-const FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES = 1_000_000;
-const THREADS_MAX_IMAGE_SIZE_BYTES = 8_000_000;
-const THREADS_MAX_VIDEO_SIZE_BYTES = 1_000_000_000;
-const LINKEDIN_MAX_IMAGE_SIZE_BYTES = 8_000_000;
-const LINKEDIN_MIN_VIDEO_SIZE_BYTES = 75_000;
-const LINKEDIN_MAX_VIDEO_SIZE_BYTES = 5_000_000_000;
-const FACEBOOK_ALLOWED_IMAGE_TYPES = new Set([
-  'image/jpeg',
-  'image/bmp',
-  'image/png',
-  'image/gif',
-  'image/tiff',
-]);
-const THREADS_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png']);
-const THREADS_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/quicktime']);
-const LINKEDIN_ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif']);
-const LINKEDIN_ALLOWED_VIDEO_TYPES = new Set(['video/mp4', 'video/webm']);
-
-const getImageDimensions = (file: File) =>
-  new Promise<{ width: number; height: number }>((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: image.naturalWidth, height: image.naturalHeight });
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Could not read image dimensions'));
-    };
-    image.src = url;
-  });
-
-const getVideoDimensions = (file: File) =>
-  new Promise<{ width: number; height: number; duration: number }>((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: video.videoWidth, height: video.videoHeight, duration: video.duration });
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Could not read video metadata'));
-    };
-    video.src = url;
-  });
-
-const isNearRatio = (actual: number, target: number, tolerance = 0.06) =>
-  Math.abs(actual - target) <= tolerance;
-
-const matchesLinkedInRecommendedImageDimensions = ({ width, height }: { width: number; height: number }) => {
-  const ratio = width / height;
-  return (
-    (width >= 1080 && height >= 1080 && isNearRatio(ratio, 1)) ||
-    (width >= 1200 && height >= 627 && isNearRatio(ratio, 1200 / 627, 0.08)) ||
-    ((width >= 1080 && height >= 1350 && isNearRatio(ratio, 4 / 5, 0.08)) ||
-      (width >= 1080 && height >= 1920 && isNearRatio(ratio, 9 / 16, 0.08)))
-  );
-};
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
@@ -147,7 +105,7 @@ const PlatformIcon = ({ platform, size = 14, color }: any) => {
   return icons[platform] || <div style={{ width: size, height: size, background: c, borderRadius: '50%' }} />;
 };
 
-/* ─── TIMEZONE HELPER ────────────────────────────────────────── */
+/* ─── TIMEZONE & UTILITY HELPERS ────────────────────────────────────────── */
 const toLocalInput = (dateStr: string) => {
   const d = new Date(dateStr);
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -166,6 +124,16 @@ const getNotificationSnippet = (content?: string, mediaCount = 0) => {
   return mediaCount > 0 ? `Media post with ${mediaCount} file${mediaCount === 1 ? '' : 's'}` : 'Untitled post';
 };
 
+// 🌟 HTML to Plain Text Converter
+const htmlToPlainText = (html: string) => {
+  if (!html) return '';
+  let processedHtml = html.replace(/<br\s*\/?>/gi, '\n');
+  processedHtml = processedHtml.replace(/<\/p>|<\/div>/gi, '\n');
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = processedHtml;
+  return tempDiv.textContent?.trim() || '';
+};
+
 /* ─── Post Card Component ────────────────────────────────────── */
 const isFutureScheduledPost = (post: any) =>
   post?.status === 'scheduled' && new Date(post.scheduledAt).getTime() > Date.now();
@@ -174,9 +142,20 @@ const isEditableCalendarPost = (post: any) =>
   post?.status !== 'published' && isFutureScheduledPost(post);
 
 const PostCard = ({ post, onOpen }: any) => {
-  const plt = PLATFORMS[post.platform] || PLATFORMS.instagram;
-  const displayTitle = post.content ? post.content.substring(0, 25) + "..." : "Media Post";
+  const platformArray = post.platforms && post.platforms.length > 0 ? post.platforms : [post.platform];
+  const primaryPlatform = platformArray[0]?.toLowerCase() || 'instagram';
+  const plt = PLATFORMS[primaryPlatform] || PLATFORMS.instagram;
+  
+  const displayTitle = post.primaryCaption 
+    ? post.primaryCaption.substring(0, 25) + "..." 
+    : post.content 
+      ? post.content.substring(0, 25) + "..." 
+      : "Media Post";
+      
   const canEdit = isEditableCalendarPost(post);
+
+  // Determine unique thumbnails to show on the calendar card
+  const uniqueThumbnails = Array.from(new Set(post.mediaItems?.map((item: any) => item.mediaUrl || item.secureUrl))).slice(0, 3);
 
   return (
     <div
@@ -201,62 +180,49 @@ const PostCard = ({ post, onOpen }: any) => {
       style={{ background: plt.bg, border: `1px solid ${plt.border}` }}
     >
       <div className={styles.postCardHeader}>
-        <PlatformIcon platform={post.platform} size={13} />
+        <PlatformIcon platform={primaryPlatform} size={13} />
         <span className={styles.postCardTitle}>{displayTitle}</span>
       </div>
       <div className={styles.postCardTime}>{post.timeLabel || post.hour}</div>
       <div className={styles.postCardThumbs}>
-        {[0, 1, 2].map((i) => <div key={i} className={styles.postCardThumb} />)}
+        {uniqueThumbnails.map((url: any, i: number) => (
+           <img 
+              key={i} 
+              src={url} 
+              className={styles.postCardThumb} 
+              alt="thumbnail" 
+              style={{ objectFit: 'cover' }} 
+           />
+        ))}
       </div>
     </div>
   );
 };
 
 /* ─── Advanced Schedule Modal ────────────────────────────────── */
+/* ─── Advanced Schedule Modal ────────────────────────────────── */
 const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, isReadOnly }: any) => {
-  const [content, setContent] = useState(post?.content || '');
-  const [files, setFiles] = useState<any[]>(post?.files || []);
-  const [isScheduling, setIsScheduling] = useState(false);
-  // Inside function Publish() or function Planning()
-const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
-
-const handleAnalysisComplete = (result: AiAnalysisResult) => {
-    setAiAnalysis(result);
-};
-
-const handleAnalysisReset = () => {
-    setAiAnalysis(null);
-};
-
-const handleApplyCaption = (caption: string) => {
-    setContent(caption);
-};
-
-const handleApplyHashtags = (hashtags: string[]) => {
-    setContent(prev => `${prev}\n\n${hashtags.join(" ")}`);
-};
-
-const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) => {
-    const next = new Set<Channel>();
-    recommendations.forEach((r) => {
-        next.add(r.platform.toLowerCase() as Channel);
-    });
-    setSelectedChannels(next);
-};
+  const { uploadMultipleMedia } = usePostCreation();
   
-  const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(
-    new Set(post?.platforms ? post.platforms : (post?.platform ? [post.platform as Channel] : []))
-  );
-
+  // 🌟 Full Publish-like State
+  const [content, setContent] = useState('');
+  const [sharedContent, setSharedContent] = useState('');
+  const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
+  const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
+  const [files, setFiles] = useState<any[]>([]);
+  const [mediaEdits, setMediaEdits] = useState<MediaEditMap>({});
+  const [mediaEditPreviews, setMediaEditPreviews] = useState<Record<string, File>>({});
+  const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
+  
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
   const [rightTab, setRightTab] = useState<'ai' | 'preview'>('ai');
   
-  const [platformState, setPlatformState] = useState<PlatformState>(
-    post?.contentMetadata?.platformOverrides?.[post?.platforms?.[0] || post?.platform] || {
-      facebookPostType: 'feed',
-      instagramPostType: 'post',
-      youtubeType: 'video',
-    }
-  );
+  const [platformState, setPlatformState] = useState<PlatformState>({
+    facebookPostType: 'feed',
+    instagramPostType: 'post',
+    youtubeType: 'video',
+  });
 
   const [scheduleDate, setScheduleDate] = useState(() => {
     if (post?.scheduledAt) return toLocalInput(post.scheduledAt);
@@ -268,270 +234,329 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
 
   const currentLocalTime = toLocalInput(new Date().toISOString());
 
+  // 🌟 Hydration Effect (Runs once when modal opens)
   useEffect(() => {
     axios.get('/auth/social/active-accounts').then((res) => setAccounts(res.data)).catch(console.error);
-  }, []);
+    
+    if (post) {
+      // 1. Hydrate Channels
+      const postPlatforms = post.platforms && post.platforms.length > 0 
+        ? post.platforms.map((p: string) => p.toLowerCase()) 
+        : [post.platform?.toLowerCase()];
+      setSelectedChannels(new Set(postPlatforms));
+
+      // 2. Hydrate Metadata/PlatformState
+      if (post.contentMetadata?.platformOverrides) {
+        const overrides = post.contentMetadata.platformOverrides;
+        setPlatformState({
+          facebookPageId: overrides.facebook?.pageId,
+          facebookPostType: overrides.facebook?.postType || 'feed',
+          instagramPostType: overrides.instagram?.postType || 'post',
+          youtubeTitle: overrides.youtube?.title,
+          youtubeType: overrides.youtube?.type || 'video',
+        });
+      }
+
+      // 🌟 FIX: Deduplicate files, supply both 'url' and 'preview', and ensure valid dimensions!
+      const itemsToProcess = post.mediaSlots || post.mediaItems || [];
+
+        console.log("========== SCHEDULED POST DEBUG ==========");
+        console.log("Post ID:", post.id);
+        console.log("Full scheduled post:", post);
+        console.log("Media slots from backend:", post.mediaSlots);
+        console.log("Media items from backend:", post.mediaItems);
+
+itemsToProcess.forEach((item: any, index: number) => {
+  console.log(`----- MEDIA SLOT ${index} -----`);
+  console.log("Raw item:", item);
+  console.log("Media ID:", item.mediaId || item.media?.id || item.id);
+  console.log("Platform:", item.platform);
+  console.log("Backend edit:", item.edit);
+
+  if (item.edit) {
+    console.log("Backend crop values:", {
+      cropX: item.edit.cropX,
+      cropY: item.edit.cropY,
+      cropWidth: item.edit.cropWidth,
+      cropHeight: item.edit.cropHeight,
+      rotation: item.edit.rotation,
+      placement: item.edit.placement,
+      platform: item.edit.platform,
+    });
+  } else {
+    console.log("⚠️ NO EDIT/CROP DATA FOR THIS MEDIA");
+  }
+});
+
+      console.log("==========================================");
+      
+      const uniqueFiles: any[] = [];
+      const seenMediaIds = new Set();
+
+      itemsToProcess.forEach((item: any) => {
+        const mediaId = item.mediaId || item.media?.id || item.id;
+        const mediaObj = item.media || item;
+        
+        if (mediaId && !seenMediaIds.has(mediaId)) {
+          seenMediaIds.add(mediaId);
+          const fileUrl = mediaObj.mediaUrl || mediaObj.secureUrl || mediaObj.fileUrl || mediaObj.gcsPath;
+          
+          uniqueFiles.push({
+            id: mediaId,
+            url: fileUrl,
+            preview: fileUrl, // 🌟 CRITICAL: ContentEditor looks for 'preview' to render image thumbnails
+            type: mediaObj.mimeType || mediaObj.type || mediaObj.fileType || 'image/jpeg',
+            name: `media-${mediaId}`, 
+            size: mediaObj.size || mediaObj.fileSizeBytes || 0,
+            width: mediaObj.width || 1080,  // Fallback dimensions so cropper initializes correctly
+            height: mediaObj.height || 1080
+          });
+        }
+      });
+      setFiles(uniqueFiles);
+
+      // 4. Hydrate Media Edits (Load all crop ratios securely with normalized casing)
+      const initialEdits: MediaEditMap = {};
+      
+      itemsToProcess.forEach((item: any) => {
+         if (item.edit) {
+           const mediaId = item.mediaId || item.media?.id || item.id;
+           
+           // 👇 FIX: Use the actual hydrated file object instead of a fake mockFile
+           const actualFile = uniqueFiles.find((f: any) => f.id === mediaId);
+           
+           const placement = (item.edit.placement || 'FEED').toLowerCase();
+           const platform = (item.edit.platform || item.platform || '').toLowerCase();
+           if (platform && actualFile) {
+             const key = getMediaEditKey(actualFile, platform, placement);
+             initialEdits[key] = {
+               platform: platform.toUpperCase(),
+               placement: placement.toUpperCase(),
+               cropX: item.edit.cropX,
+               cropY: item.edit.cropY,
+               cropWidth: item.edit.cropWidth,
+               cropHeight: item.edit.cropHeight,
+               rotation: item.edit.rotation || 0,
+             } as MediaEditDraft;
+           }
+         }
+      });
+      setMediaEdits(initialEdits);
+
+      // 5. Hydrate Content
+      const initialContent = post.primaryCaption || post.content || '';
+      setContent(initialContent);
+      setSharedContent(initialContent);
+      
+      const initialChannelContents: ChannelContentMap = {};
+      postPlatforms.forEach((p: string) => {
+        initialChannelContents[p as Channel] = initialContent;
+      });
+      setChannelContents(initialChannelContents);
+    }
+  }, [post]);
 
   useEffect(() => {
     if (!accounts.facebook) return;
-
     axios
       .get('/facebook/pages')
       .then(({ data }) => {
         setFacebookPages(data);
         if (!platformState.facebookPageId && data.length > 0) {
-          setPlatformState((prev) => ({
-            ...prev,
-            facebookPageId: data[0].id,
-          }));
+          setPlatformState((prev) => ({ ...prev, facebookPageId: data[0].id }));
         }
       })
       .catch(console.error);
   }, [accounts.facebook, platformState.facebookPageId]);
 
-  const selectedChannelList = Array.from(selectedChannels);
-  const effectiveRules = resolveEditorRules(selectedChannelList);
-  const selectedFacebookPage = facebookPages.find(
-    (page: any) => page.id === platformState.facebookPageId
+  const selectedChannelList = useMemo(
+  () => Array.from(selectedChannels),
+  [selectedChannels]
+);
+  const effectiveRules = resolveEditorRules(activeEditorChannel ? [activeEditorChannel] : selectedChannelList);
+  const selectedFacebookPage = facebookPages.find((page: any) => page.id === platformState.facebookPageId);
+
+  const cropDestinations = useMemo(
+    () => getImageEditDestinations(selectedChannelList, platformState) as ImageEditDestination[],
+    [selectedChannelList, platformState]
   );
 
-  const getFacebookValidationErrors = () => {
-    if (!selectedChannels.has('facebook')) return [];
+  useEffect(() => {
+    const nextContents = reconcileChannelContents(selectedChannelList, channelContents, sharedContent) as ChannelContentMap;
+    setChannelContents(nextContents);
 
-    const unsupportedImages = files.filter(
-      (file) =>
-        file.type?.startsWith('image/') &&
-        !FACEBOOK_ALLOWED_IMAGE_TYPES.has(file.type)
-    );
-    const oversizedImages = files.filter(
-      (file) =>
-        file.type?.startsWith('image/') &&
-        file.size &&
-        file.size > FACEBOOK_MAX_IMAGE_SIZE_BYTES
-    );
-    const oversizedPngImages = files.filter(
-      (file) =>
-        file.type === 'image/png' &&
-        file.size &&
-        file.size > FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES
-    );
-
-    if (unsupportedImages.length > 0) {
-      return unsupportedImages.map(
-        (file) =>
-          `${file.name || 'Selected image'} uses an unsupported Facebook image type. Use JPEG, BMP, PNG, GIF, or TIFF.`
-      );
+    if (selectedChannelList.length === 0) {
+      setActiveEditorChannel(null);
+      setContent(sharedContent);
+      return;
     }
-
-    if (oversizedImages.length > 0) {
-      return oversizedImages.map(
-        (file) =>
-          `${file.name || 'Selected image'} is too large. Facebook photos must be less than 10 MB, so this post cannot be scheduled until you compress or replace it.`
-      );
+    if (activeEditorChannel && !selectedChannels.has(activeEditorChannel)) {
+      setActiveEditorChannel(null);
+      setContent(sharedContent);
     }
+  }, [selectedChannelList]);
 
-    if (oversizedPngImages.length > 0) {
-      return oversizedPngImages.map(
-        (file) =>
-          `${file.name || 'Selected image'} is a PNG larger than 1 MB. Facebook recommends PNG files stay under 1 MB or the image may appear pixelated, so this post cannot be scheduled until you compress or replace it.`
-      );
+  const handleChannelContentChange = (value: string) => {
+    setContent(value);
+    if (!activeEditorChannel) {
+      setSharedContent(value);
+      setChannelContents(Object.fromEntries(selectedChannelList.map((channel) => [channel, value])) as ChannelContentMap);
+      return;
     }
-
-    return [];
+    setChannelContents((prev) => ({ ...prev, [activeEditorChannel]: value }));
   };
 
-  const validateFilesForSelectedChannels = async (nextFiles: any[]) => {
-    const errors: string[] = [];
-    const imageCount = nextFiles.filter((file) => file.type?.startsWith('image/')).length;
-    const videoCount = nextFiles.filter((file) => file.type?.startsWith('video/')).length;
-    const hasImages = imageCount > 0;
-    const hasVideos = videoCount > 0;
-    const totalItems = nextFiles.length;
+  const handleEditorTabSelect = (channel: Channel | null) => {
+    setActiveEditorChannel(channel);
+    setContent(channel ? getChannelContent(channel, channelContents, sharedContent) : sharedContent);
+  };
 
-    nextFiles.forEach((file) => {
-      if (!file.type?.startsWith('image/') && !file.type?.startsWith('video/')) {
-        errors.push(`${file.name || 'Selected file'} is not supported. Upload an image or video file.`);
-      }
+  const getSavedMediaEdit = (file: File, destination: ImageEditDestination) =>
+    mediaEdits[getMediaEditKey(file, destination.platform, destination.placement)];
+
+  const handleMediaEditApply = (
+    file: File,
+    crop: Omit<MediaEditDraft, 'platform' | 'placement'>,
+    renderedPreview: File,
+    destination: ImageEditDestination
+  ) => {
+    setMediaEdits((current) => ({
+      ...current,
+      [getMediaEditKey(file, destination.platform, destination.placement)]: {
+        ...crop,
+        platform: destination.platform.toUpperCase(),
+        placement: destination.placement.toUpperCase(),
+      } as MediaEditDraft,
+    }));
+    setMediaEditPreviews((current) => ({
+      ...current,
+      [getMediaEditKey(file, destination.platform, destination.placement)]: renderedPreview,
+    }));
+  };
+
+  const getFilesWithMediaEdits = (sourceFiles: any[], platform: Channel) => {
+    const placement = getPlatformPlacement(platform, platformState);
+    return sourceFiles.map((file) => {
+      const key = getMediaEditKey(file, platform, placement);
+      return mediaEditPreviews[key] || file;
     });
+  };
 
-    if (selectedChannels.has('facebook')) {
-      nextFiles.forEach((file) => {
-        if (file.type?.startsWith('image/') && !FACEBOOK_ALLOWED_IMAGE_TYPES.has(file.type)) {
-          errors.push(`${file.name || 'Selected image'} cannot be uploaded to Facebook. Use JPEG, BMP, PNG, GIF, or TIFF.`);
-        }
-        if (file.type?.startsWith('image/') && file.size > FACEBOOK_MAX_IMAGE_SIZE_BYTES) {
-          errors.push(`${file.name || 'Selected image'} cannot be uploaded to Facebook because photos must be less than 10 MB.`);
-        }
-        if (file.type === 'image/png' && file.size > FACEBOOK_RECOMMENDED_PNG_SIZE_BYTES) {
-          errors.push(`${file.name || 'Selected image'} cannot be uploaded to Facebook because PNG files should stay under 1 MB to avoid pixelation.`);
-        }
-      });
-    }
+  const getCurrentImageFitWarnings = (newFiles: File[]) =>
+    getSelectedImageFitWarnings(newFiles, selectedChannels, platformState);
 
-    if (selectedChannels.has('instagram')) {
-      if (platformState.instagramPostType === 'reel') {
-        if (hasImages) {
-          errors.push('Instagram Reels do not allow photos. Reels must be created from one video because Instagram publishes Reels as short-form video content.');
-        }
-        if (videoCount > 1 || totalItems > 1) {
-          errors.push('Instagram Reels allow only one video. Remove extra media or switch Instagram to Post for carousel publishing.');
-        }
-      } else if (platformState.instagramPostType === 'story' && totalItems > 1) {
-        errors.push('Instagram Story allows only one media file.');
-      } else if (platformState.instagramPostType === 'post') {
-        if (hasVideos) {
-          errors.push('Instagram Post allows images only. Upload one image for a feed post or multiple images for a carousel.');
-        }
-        if (totalItems > 10) {
-          errors.push('Instagram carousel allows a maximum of 10 media files.');
-        }
-      }
-    }
-
-    if (selectedChannels.has('threads')) {
-      nextFiles.forEach((file) => {
-        if (file.type?.startsWith('image/')) {
-          if (!THREADS_ALLOWED_IMAGE_TYPES.has(file.type)) {
-            errors.push(`${file.name || 'Selected image'} cannot be uploaded to Threads. Use JPEG or PNG images.`);
-          }
-          if (file.size > THREADS_MAX_IMAGE_SIZE_BYTES) {
-            errors.push(`${file.name || 'Selected image'} cannot be uploaded to Threads because images must be 8 MB or smaller.`);
-          }
-        }
-        if (file.type?.startsWith('video/')) {
-          if (!THREADS_ALLOWED_VIDEO_TYPES.has(file.type)) {
-            errors.push(`${file.name || 'Selected video'} cannot be uploaded to Threads. Use MP4 or MOV videos.`);
-          }
-          if (file.size > THREADS_MAX_VIDEO_SIZE_BYTES) {
-            errors.push(`${file.name || 'Selected video'} cannot be uploaded to Threads because videos must be 1 GB or smaller.`);
-          }
-        }
-      });
-
-      if (totalItems > 10) {
-        errors.push('Threads carousel allows a maximum of 10 media files.');
-      }
-    }
-
-    if (selectedChannels.has('twitter')) {
-      if (hasImages && hasVideos) errors.push('X does not allow mixing images and videos in one post.');
-      if (videoCount > 1) errors.push('X allows only one video.');
-      if (imageCount > 4) errors.push('X allows a maximum of 4 images.');
-    }
-
-    if (selectedChannels.has('linkedin')) {
-      if (hasImages && hasVideos) errors.push('LinkedIn does not allow mixing images and videos in one post.');
-      if (videoCount > 1) errors.push('LinkedIn allows only one video.');
-      if (imageCount > 9) errors.push('LinkedIn allows a maximum of 9 images.');
-
-      for (const file of nextFiles) {
-        const typedFile = file as File;
-        const canInspectFile = typeof File !== 'undefined' && typedFile instanceof File;
-        if (file.type?.startsWith('image/')) {
-          if (!LINKEDIN_ALLOWED_IMAGE_TYPES.has(file.type)) {
-            errors.push(`${file.name || 'Selected image'} cannot be uploaded to LinkedIn. Use JPG, PNG, or static GIF images.`);
-          }
-          if (file.size > LINKEDIN_MAX_IMAGE_SIZE_BYTES) {
-            errors.push(`${file.name || 'Selected image'} cannot be uploaded to LinkedIn because images must be 8 MB or smaller.`);
-          }
-
-          if (canInspectFile) {
-            try {
-              const dimensions = await getImageDimensions(typedFile);
-              if (!matchesLinkedInRecommendedImageDimensions(dimensions)) {
-                errors.push(
-                  `${file.name || 'Selected image'} does not match LinkedIn recommended dimensions. Use square 1080x1080 or 1200x1200, landscape 1200x627, or portrait 4:5 / 9:16.`
-                );
-              }
-            } catch {
-              errors.push(`Could not read dimensions for ${file.name || 'selected image'}.`);
-            }
-          }
-        }
-
-        if (file.type?.startsWith('video/')) {
-          if (!LINKEDIN_ALLOWED_VIDEO_TYPES.has(file.type)) {
-            errors.push(`${file.name || 'Selected video'} cannot be uploaded to LinkedIn. Use MP4 or WebM video.`);
-          }
-          if (file.size < LINKEDIN_MIN_VIDEO_SIZE_BYTES || file.size > LINKEDIN_MAX_VIDEO_SIZE_BYTES) {
-            errors.push(`${file.name || 'Selected video'} cannot be uploaded to LinkedIn because videos must be between 75 KB and 5 GB.`);
-          }
-
-          if (canInspectFile) {
-            try {
-              const { width, height, duration } = await getVideoDimensions(typedFile);
-              const ratio = width / height;
-              if (duration < 3 || duration > 600) {
-                errors.push(`${file.name || 'Selected video'} must be between 3 seconds and 10 minutes for LinkedIn.`);
-              }
-              if (width < 256 || height < 144 || width > 4096 || height > 2304) {
-                errors.push(`${file.name || 'Selected video'} must have a resolution between 256x144 and 4096x2304 for LinkedIn.`);
-              }
-              if (ratio < 1 / 2.4 || ratio > 2.4) {
-                errors.push(`${file.name || 'Selected video'} must use a LinkedIn-supported aspect ratio between 1:2.4 and 2.4:1.`);
-              }
-            } catch {
-              errors.push(`Could not read video metadata for ${file.name || 'selected video'}.`);
-            }
-          }
-        }
-      }
-    }
-
-    if (selectedChannels.has('youtube')) {
-      if (hasImages) errors.push('YouTube requires a video file.');
-      if (videoCount > 1 || totalItems > 1) errors.push('YouTube allows only one video.');
-    }
-
-    return [...new Set(errors)];
+  // AI Handlers
+  const handleAnalysisComplete = (result: AiAnalysisResult) => setAiAnalysis(result);
+  const handleAnalysisReset = () => setAiAnalysis(null);
+  const handleApplyCaption = (caption: string) => handleChannelContentChange(content ? `${content}<br/><br/>${caption}` : caption);
+  const handleApplyHashtags = (hashtags: string[]) => handleChannelContentChange(content ? `${content}<br/><br/>${hashtags.join(" ")}` : hashtags.join(" "));
+  const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) => {
+    const next = new Set<Channel>(selectedChannels);
+    recommendations.forEach((r) => { if (r.rating >= 4) next.add(r.platform.toLowerCase() as Channel); });
+    setSelectedChannels(next);
   };
 
   const handleSubmit = async (status: 'DRAFT' | 'SCHEDULED') => {
-    if (isReadOnly || isScheduling) return; // Prevent any saves if read only or already saving
+    if (isReadOnly || isScheduling) return;
     if (selectedChannels.size === 0) return alert('Select at least one channel.');
     if (!content && files.length === 0) return alert('Add content or media.');
     if (status === 'SCHEDULED' && !scheduleDate) return alert('Please select a date and time.');
-
     if (status === 'SCHEDULED' && new Date(scheduleDate) < new Date()) {
        return alert('You cannot schedule a post in the past.');
     }
 
-    const facebookErrors = getFacebookValidationErrors();
-    if (facebookErrors.length > 0) {
-      return alert(`Facebook media does not match publishing limits:\n\n${facebookErrors.join('\n')}`);
-    }
-
-    const platformOverrides: any = {};
-    if (selectedChannels.has('facebook')) {
-      platformOverrides.facebook = {
-        pageId: platformState.facebookPageId,
-        postType: platformState.facebookPostType,
-      };
-    }
-    if (selectedChannels.has('instagram')) {
-      platformOverrides.instagram = { postType: platformState.instagramPostType };
-    }
-    if (selectedChannels.has('youtube')) {
-      platformOverrides.youtube = {
-        title: platformState.youtubeTitle,
-        postType: platformState.youtubeType,
-      };
-    }
-
-    if (status === 'SCHEDULED') setIsScheduling(true);
+    setIsScheduling(true);
 
     try {
-      await onSave({
+      let uploadedMediaItems: any[] = [];
+      if (files.length > 0) {
+        const filesToUpload = files.filter(f => f instanceof File);
+        let newlyUploaded: any[] = [];
+        
+        if (filesToUpload.length > 0) {
+          newlyUploaded = await uploadMultipleMedia(filesToUpload);
+        }
+
+        let uploadIndex = 0;
+        uploadedMediaItems = files.map(f => {
+          if (f instanceof File) return newlyUploaded[uploadIndex++];
+          return f; 
+        });
+      }
+
+      const mediaSlots: any[] = [];
+      if (uploadedMediaItems.length > 0) {
+        selectedChannelList.forEach((platform) => {
+          uploadedMediaItems.forEach((media, index) => {
+            const placement = getPlatformPlacement(platform, platformState).toUpperCase();
+            const editKey = getMediaEditKey(files[index], platform, placement.toLowerCase());
+            const savedEdit = mediaEdits[editKey];
+            // Safely grab the type, fallback to an empty string, and convert to lowercase
+const typeStr = (files[index].type || files[index].mimeType || files[index].fileType || '').toLowerCase();
+
+// Check if it starts with 'image' (handles 'image/jpeg') OR equals 'image' (handles your backend 'IMAGE' enum)
+const isImage = typeStr.startsWith('image') || typeStr === 'image';
+            const width = media.width || files[index].width || 1080;
+            const height = media.height || files[index].height || 1080;
+
+            mediaSlots.push({
+              mediaId: media.id,
+              platform: platform.toUpperCase(),
+              position: index,
+              ...(isImage 
+                ? {
+                    edit: {
+                      platform: platform.toUpperCase(),
+                      placement: placement,
+                      cropX: savedEdit ? Math.round(savedEdit.cropX) : 0,
+                      cropY: savedEdit ? Math.round(savedEdit.cropY) : 0,
+                      cropWidth: savedEdit ? Math.round(savedEdit.cropWidth) : Math.round(width),
+                      cropHeight: savedEdit ? Math.round(savedEdit.cropHeight) : Math.round(height),
+                      rotation: savedEdit?.rotation || 0,
+                    },
+                  }
+                : {}),
+            });
+          });
+        });
+      }
+
+      const contentMetadata: Record<string, any> = { platformOverrides: {} };
+      if (selectedChannels.has('facebook')) {
+        contentMetadata.platformOverrides.facebook = {
+          pageId: platformState.facebookPageId,
+          postType: platformState.facebookPostType || 'feed',
+        };
+      }
+      if (selectedChannels.has('instagram')) {
+        contentMetadata.platformOverrides.instagram = { postType: platformState.instagramPostType || 'post' };
+      }
+      if (selectedChannels.has('youtube')) {
+        contentMetadata.platformOverrides.youtube = {
+          type: platformState.youtubeType || 'video',
+          title: platformState.youtubeTitle,
+        };
+      }
+
+      const cleanCaption = htmlToPlainText(sharedContent || content);
+
+      const payload = {
         id: post?.id,
-        content,
-        status,
+        primaryCaption: cleanCaption,
+        content: cleanCaption,
+        platforms: selectedChannelList.map(c => c.toUpperCase()),
+        status: status,
         scheduledAt: status === 'SCHEDULED' ? new Date(scheduleDate).toISOString() : null,
-        platforms: selectedChannelList,
-        files,
-        contentMetadata: { text: content, platformOverrides }
-      });
+        mediaSlots: mediaSlots,
+        contentMetadata: contentMetadata
+      };
+
+      await onSave(payload);
+    } catch (error) {
+      console.error("Failed to save post", error);
+      alert("Failed to save post. Check console.");
     } finally {
-      if (status === 'SCHEDULED') setIsScheduling(false);
+      setIsScheduling(false);
     }
   };
 
@@ -564,7 +589,7 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
                   Save Draft
                 </button>
                 <button className={styles.schedulePrimaryBtn} onClick={() => handleSubmit('SCHEDULED')} disabled={isScheduling}>
-                  {isScheduling ? 'Scheduling post' : 'Schedule Post'}
+                  {isScheduling ? 'Saving...' : 'Schedule Post'}
                 </button>
               </>
             )}
@@ -588,20 +613,40 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
                 setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
               }
             />
+
+            {selectedChannelList.length > 0 && (
+              <ContentChannelTabs
+                selectedChannels={selectedChannelList}
+                activeChannel={activeEditorChannel}
+                onSelect={handleEditorTabSelect}
+              />
+            )}
+            {activeEditorChannel && (
+              <ChannelPostOptions
+                channel={activeEditorChannel}
+                platformState={platformState}
+                setPlatformState={setPlatformState}
+              />
+            )}
+
             <LazyContentEditor
               content={content}
-              onContentChange={setContent}
+              onContentChange={handleChannelContentChange}
               files={files}
               onFilesChange={setFiles}
               effectiveRules={effectiveRules}
               validation={{}}
               isReadOnly={isReadOnly}
               selectedChannels={selectedChannelList}
-              validateFilesForSelectedChannels={validateFilesForSelectedChannels}
+              cropDestinations={cropDestinations}
+              getSavedMediaEdit={getSavedMediaEdit}
+              getImageFitWarnings={getCurrentImageFitWarnings}
+              onMediaEditApply={handleMediaEditApply}
               aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
+              platformState={platformState}
             />
-            <LazyPlatformFields selectedChannels={selectedChannels} platformState={platformState} setPlatformState={setPlatformState} facebookPages={facebookPages} />
           </div>
+          
           <aside className={styles.scheduleSidePane}>
             <div className={styles.scheduleTabs}>
               <button
@@ -620,19 +665,26 @@ const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) =>
             <div className={styles.scheduleSideContent}>
               {rightTab === 'ai' ? (
                <LazyAIAssistant 
-  files={files}
-  content={content}
-  onAnalysisComplete={handleAnalysisComplete}
-  onAnalysisReset={handleAnalysisReset}
-  onApplyCaption={handleApplyCaption}
-  onApplyHashtags={handleApplyHashtags}
-  onAutoSelectPlatforms={handleAutoSelectPlatforms}
-/>
+                 files={files}
+                 content={content}
+                 onAnalysisComplete={handleAnalysisComplete}
+                 onAnalysisReset={handleAnalysisReset}
+                 onApplyCaption={handleApplyCaption}
+                 onApplyHashtags={handleApplyHashtags}
+                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
+               />
               ) : (
                 <LazyDynamicPreview
                   selectedPlatforms={selectedChannelList}
                   content={content}
+                  channelContents={channelContents}
                   mediaFiles={files}
+                  mediaFilesByPlatform={Object.fromEntries(
+                    selectedChannelList.map((platform) => [
+                      platform,
+                      getFilesWithMediaEdits(files, platform),
+                    ])
+                  )}
                   facebookPostType={platformState.facebookPostType}
                   instagramPostType={platformState.instagramPostType}
                   youtubeType={platformState.youtubeType}
@@ -659,8 +711,6 @@ const Planning = () => {
   const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [listAccounts, setListAccounts] = useState<Partial<Record<Channel, any>>>({});
   const [listFacebookPages, setListFacebookPages] = useState<any[]>([]);
-
-  const { uploadMedia } = usePostCreation();
 
   useEffect(() => {
     axios
@@ -800,8 +850,8 @@ const Planning = () => {
       const formattedPosts = response.data.map((post: any) => ({
         ...post,
         platforms: post.platforms ? post.platforms.map((p: string) => p.toLowerCase()) : [],
-        platform: post.platform.toLowerCase(),
-        content: post.content || "",
+        platform: post.platform?.toLowerCase() || (post.platforms?.[0]?.toLowerCase() ?? 'instagram'),
+        content: post.primaryCaption || post.content || "",
         status: post.status.toLowerCase(),
         ...dateToGrid(post.scheduledAt)
       }));
@@ -817,65 +867,24 @@ const Planning = () => {
     fetchScheduledPosts();
   }, [fetchScheduledPosts]);
 
-  const handleSave = async (postData: any) => {
+  const handleSave = async (payload: any) => {
     try {
-      let mediaItems: any[] = [];
-
-      if (postData.files && postData.files.length > 0) {
-        const uploadPromises = postData.files.map(async (fileObj: any) => {
-          
-          if (fileObj.mediaUrl || fileObj.secureUrl) {
-            return {
-              mediaUrl: fileObj.mediaUrl || fileObj.secureUrl, 
-              storagePath: fileObj.storagePath,
-              mimeType: fileObj.mimeType,
-              mediaType: fileObj.mediaType || fileObj.type,
-              size: fileObj.size,
-            };
-          }
-
-          const uploaded: any = await uploadMedia(fileObj);
-          if (uploaded) {
-            return {
-              mediaUrl: uploaded.publicUrl || uploaded.url, 
-              storagePath: uploaded.storagePath || uploaded.key,
-              mimeType: fileObj.type,
-              mediaType: fileObj.type.startsWith('video') ? 'VIDEO' : 'IMAGE',
-              size: fileObj.size,
-            };
-          }
-          return null;
-        });
-
-        const results = await Promise.all(uploadPromises);
-        mediaItems = results.filter(item => item !== null);
-      }
-
-      const payload = {
-        content: postData.content,
-        platforms: postData.platforms,
-        status: postData.status.toUpperCase(),
-        scheduledAt: postData.scheduledAt,
-        contentMetadata: postData.contentMetadata,
-        mediaItems: mediaItems 
-      };
-
-      if (postData.id) {
-        await axios.patch(`/posting/${postData.id}`, payload);
+      if (payload.id) {
+        await axios.patch(`/posting/${payload.id}`, payload);
       } else {
         await axios.post('/posting/create', payload);
       }
 
-      if (postData.status === 'SCHEDULED') {
+      if (payload.status === 'SCHEDULED') {
         addNotification({
           type: 'success',
-          title: postData.id ? 'Scheduled post updated' : 'Post scheduled',
-          message: getNotificationSnippet(postData.content, mediaItems.length || postData.files?.length || 0),
+          title: payload.id ? 'Scheduled post updated' : 'Post scheduled',
+          message: getNotificationSnippet(payload.primaryCaption, payload.mediaSlots?.length || 0),
           details: [
-            ...(postData.id ? [{ label: 'Post ID', value: String(postData.id) }] : []),
-            { label: 'Channels', value: postData.platforms.join(', ') },
-            { label: 'Media', value: `${mediaItems.length || postData.files?.length || 0} file${(mediaItems.length || postData.files?.length || 0) === 1 ? '' : 's'}` },
-            { label: 'Scheduled', value: new Date(postData.scheduledAt).toLocaleString() },
+            ...(payload.id ? [{ label: 'Post ID', value: String(payload.id) }] : []),
+            { label: 'Channels', value: payload.platforms.join(', ') },
+            { label: 'Media', value: `${payload.mediaSlots?.length || 0} file${(payload.mediaSlots?.length || 0) === 1 ? '' : 's'}` },
+            { label: 'Scheduled', value: new Date(payload.scheduledAt).toLocaleString() },
           ],
         });
       }
@@ -929,7 +938,6 @@ const Planning = () => {
       });
     } catch (error: any) {
       console.error("Failed to reschedule", error);
-      // Alert if they try to drag a published post
       if (error.response?.status === 403) alert(error.response.data.message);
       setPosts(previousPosts); 
     }
@@ -971,18 +979,9 @@ const Planning = () => {
 
   const openEditPost = (post: any) => {
     if (!isEditableCalendarPost(post)) return;
-
-    const mappedFiles = post.mediaItems ? post.mediaItems.map((item: any) => ({
-      ...item,
-      type: item.type || item.mimeType,
-      mediaUrl: item.secureUrl || item.fileUrl || item.mediaUrl,
-      preview: item.secureUrl || item.fileUrl || item.mediaUrl,
-      url: item.secureUrl || item.fileUrl || item.mediaUrl
-    })) : [];
-
     setModal({
       type: "edit",
-      post: { ...post, files: mappedFiles },
+      post,
       isReadOnly: false
     });
   };
@@ -1195,7 +1194,6 @@ const Planning = () => {
           .sort((a: any, b: any) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
           .map((post: any) => {
             const date = getPostDate(post);
-            const platform = PLATFORMS[post.platform] || PLATFORMS.instagram;
             const postPlatforms = getPostPlatforms(post);
             const canEdit = isEditableCalendarPost(post);
 
@@ -1355,7 +1353,7 @@ const Planning = () => {
           onClose={() => setModal(null)}
           onSave={handleSave}
           onDelete={handleDelete}
-          isReadOnly={modal.isReadOnly} // ✅ Pass down the freeze state
+          isReadOnly={modal.isReadOnly}
         />
       )}
     </div>
