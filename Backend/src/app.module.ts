@@ -18,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule'; // 👈 IMPORT THIS
 import { BullModule } from '@nestjs/bull';
 import { InstagramAnalyticsViaFbModule} from './analytics/instagram-analytics-via-fb/instagram-analytics-via-fb.module';
 import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook-analytics.module';
+import { RenderModule } from './render/render.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -40,7 +41,7 @@ import { FacebookAnalyticsModule } from './analytics/facebook-analytics/facebook
     FacebookModule,
      AiAssistantModule,
     InstagramModule,TwitterModule,ThreadsModule,InstagramBusinessModule,LinkedinModule,PostingModule, 
-    InstagramAnalyticsViaFbModule,FacebookAnalyticsModule
+    InstagramAnalyticsViaFbModule,FacebookAnalyticsModule,RenderModule
     
   ],
   controllers: [AuthController],

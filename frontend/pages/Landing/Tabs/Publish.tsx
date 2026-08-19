@@ -72,6 +72,8 @@ export default function Publish() {
   const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
   const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  
+  // 🌟 Holds crop edits per file/platform combo
   const [mediaEdits, setMediaEdits] = useState<MediaEditMap>({});
   const [mediaEditPreviews, setMediaEditPreviews] = useState<Record<string, File>>({});
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
@@ -208,7 +210,6 @@ export default function Publish() {
       setActiveEditorChannel(null);
       setContent(sharedContent);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChannelList]);
 
   const handleChannelContentChange = (value: string) => {
@@ -376,6 +377,7 @@ export default function Publish() {
       platformState
     );
 
+  // 🌟 Handles edits applied in ContentEditor
   const handleMediaEditApply = (
     file: File,
     crop: Omit<MediaEditDraft, 'platform' | 'placement'>,
@@ -387,7 +389,7 @@ export default function Publish() {
       next[getMediaEditKey(file, destination.platform, destination.placement)] = {
         ...crop,
         platform: destination.platform.toUpperCase(),
-        placement: destination.placement,
+        placement: destination.placement.toUpperCase(), // Ensure uppercase for DB ENUM
       } as MediaEditDraft;
       return next;
     });
@@ -435,9 +437,24 @@ export default function Publish() {
       })
       .catch((err) => console.error('FB Pages Error:', err));
   }, [accounts.facebook, platformState.facebookPageId]);
-
+  
+const htmlToPlainText = (html: string) => {
+  if (!html) return '';
+  
+  // 1. Replace <br> tags with standard newlines (\n)
+  let processedHtml = html.replace(/<br\s*\/?>/gi, '\n');
+  
+  // 2. Replace closing paragraph/div tags with newlines
+  processedHtml = processedHtml.replace(/<\/p>|<\/div>/gi, '\n');
+  
+  // 3. Create a temporary DOM element to strip remaining tags (like <strong>) and decode entities (like &amp;)
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = processedHtml;
+  
+  return tempDiv.textContent?.trim() || '';
+};
   /* ===============================
-     Submit
+     Submit Payload Generation
   ================================ */
 
   const handleSubmit = async (isScheduled: boolean) => {
@@ -464,7 +481,6 @@ export default function Publish() {
         return;
       }
 
-      // ✅ 1. Upload media to the new backend endpoint that registers the media DB records
       let uploadedMediaItems: any[] = [];
 
       if (files.length > 0) {
@@ -479,31 +495,48 @@ export default function Publish() {
         )
       );
 
-      // ✅ 2. Generate the explicit media slots required by the new schema
-      // We create a slot for EVERY piece of media on EVERY selected platform
+      // 🌟 Build dynamic Media Slots mapping (Solves Cases 1, 2, and 3)
       const mediaSlots: any[] = [];
       
       if (uploadedMediaItems.length > 0) {
+        // CASE 1 & 3: Iterate through selected platforms so single image gets unique crop instructions
         selectedChannelList.forEach((platform) => {
+          
+          // CASE 2: Iterate through files to maintain Carousel Position
           uploadedMediaItems.forEach((media, index) => {
-            const placement = getPlatformPlacement(platform, platformState);
-            const editKey = getMediaEditKey(files[index], platform, placement);
+          const rawPlacement = getPlatformPlacement(platform, platformState);
+            
+            // 🔍 Match the EXACT key used when saving the crop
+            const editKey = getMediaEditKey(files[index], platform, rawPlacement);
             const savedEdit = mediaEdits[editKey];
+
+            // Debug log to ensure the crop data is found!
+            console.log(`[Publish Debug] Looking for crop on ${platform}:`, { 
+              editKey, 
+              wasCropFound: !!savedEdit, 
+              savedEdit 
+            });
+
             const dimensions = mediaDimensions[index];
+            const isImage = files[index].type.startsWith('image/');
+
             mediaSlots.push({
-              mediaId: media.id, // Comes from your updated usePostCreation hook
+              mediaId: media.id, 
               platform: platform.toUpperCase(),
-              position: index,
-              ...(files[index].type.startsWith('image/') && dimensions
+              position: index, // Carousel Order
+              
+              // Only append edit payload if it's an Image (Videos bypass sharp rendering)
+              ...(isImage && dimensions
                 ? {
-                    edit: savedEdit || {
+                    edit: {
                       platform: platform.toUpperCase(),
-                      placement,
-                      cropX: 0,
-                      cropY: 0,
-                      cropWidth: dimensions.width,
-                      cropHeight: dimensions.height,
-                      rotation: 0,
+                      placement: rawPlacement.toUpperCase(),
+                      // Pull exact custom edits, or default to full-image dimensions
+                      cropX: savedEdit ? Math.round(savedEdit.cropX) : 0,
+                      cropY: savedEdit ? Math.round(savedEdit.cropY) : 0,
+                      cropWidth: savedEdit ? Math.round(savedEdit.cropWidth) : Math.round(dimensions.width),
+                      cropHeight: savedEdit ? Math.round(savedEdit.cropHeight) : Math.round(dimensions.height),
+                      rotation: savedEdit?.rotation || 0,
                     },
                   }
                 : {}),
@@ -512,13 +545,10 @@ export default function Publish() {
         });
       }
 
-      // ✅ 3. Construct the new payload matching CreatePostDto
-      // ✅ 3. Construct the content metadata from the frontend's platformState
       const contentMetadata: Record<string, any> = {
         platformOverrides: {}
       };
 
-      // If Facebook is selected, grab the Page ID from the dropdown state
       if (selectedChannels.has('facebook')) {
         contentMetadata.platformOverrides.facebook = {
           pageId: platformState.facebookPageId,
@@ -539,14 +569,17 @@ export default function Publish() {
         };
       }
 
-      // ✅ 4. Construct the new payload and INCLUDE the contentMetadata
+
+     // Convert HTML caption to plain text before sending
+      const cleanCaption = htmlToPlainText(sharedContent || content);
+
       const payload = {
-        primaryCaption: sharedContent || content,
+        primaryCaption: cleanCaption, // 👈 Use the clean text here
         platforms: selectedChannelList.map(channel => channel.toUpperCase()),
         status: isScheduled ? 'SCHEDULED' : 'PENDING',
         scheduledAt: isScheduled ? new Date(scheduleDate).toISOString() : null,
         mediaSlots: mediaSlots,
-        contentMetadata: contentMetadata, // <--- THIS IS THE MISSING PIECE
+        contentMetadata: contentMetadata,
       };
 
       console.log(
@@ -767,6 +800,7 @@ export default function Publish() {
               onOpenAIAssistant={() => setActiveSidePanel('ai')}
               size="publish"
               aiRecommendations={aiRecommendations}
+              platformState={platformState}
             />
           </div>
         </section>
@@ -911,6 +945,15 @@ export default function Publish() {
           channelContents={channelContents}
           fallbackContent={sharedContent || content}
           files={files}
+          
+          // 🌟 ADD THIS: Pass the cropped files to the review modal
+          mediaFilesByPlatform={Object.fromEntries(
+            selectedChannelList.map((platform) => [
+              platform,
+              getFilesWithMediaEdits(files, platform),
+            ])
+          )}
+
           platformState={platformState}
           accounts={accounts}
           facebookPage={selectedFacebookPage}

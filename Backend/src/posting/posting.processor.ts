@@ -98,30 +98,118 @@ export class PostingProcessor {
 
         // Resolve URLs for this platform's media
         const mediaList = await Promise.all(
-          platformSlots.map(async (slot) => {
-            // Check if there is a ready, edited variant
-            const readyVariant = slot.edit?.variants.find(v => v.status === VariantStatus.READY);
-            
-            // Use gcsPath from new Media schema
-            const targetPath = readyVariant?.gcsPath || slot.media.gcsPath;
-            let signedUrl = '';
+  platformSlots.map(async (slot) => {
 
-            if (targetPath) {
-              try {
-                signedUrl = await this.storageService.getSignedReadUrl(targetPath, 'application/octet-stream');
-              } catch (e: any) {
-                this.logger.warn(`Could not sign URL for ${targetPath}: ${e.message}`);
-              }
-            }
+    // =====================================================
+    // 1. EDIT MUST EXIST
+    // =====================================================
 
-            return {
-              url: signedUrl,
-              storagePath: targetPath,
-              type: slot.media.fileType, // IMAGE or VIDEO from new schema
-              placement: slot.edit?.placement // FEED, STORY, REEL, etc.
-            };
-          })
+    if (!slot.edit) {
+      throw new Error(
+        `Missing edit configuration for Media #${slot.media.id}`,
+      );
+    }
+
+    // =====================================================
+    // 2. GET CURRENT EDIT VERSION
+    // =====================================================
+
+    const currentEditVersion = slot.edit.version;
+
+    this.logger.log(
+      `[MEDIA-VERSION] ` +
+      `MediaId=${slot.media.id} | ` +
+      `EditId=${slot.edit.id} | ` +
+      `CurrentVersion=${currentEditVersion}`,
+    );
+
+    // =====================================================
+    // 3. FIND ONLY READY VARIANT FOR CURRENT VERSION
+    // =====================================================
+
+    const readyVariant =
+      slot.edit.variants.find(
+        (variant) =>
+          variant.status === VariantStatus.READY &&
+          variant.editVersion === currentEditVersion,
+      );
+
+    // =====================================================
+    // 4. NEVER FALL BACK TO ORIGINAL MEDIA
+    // =====================================================
+
+    if (!readyVariant) {
+      throw new Error(
+        `Rendered variant is not ready for ` +
+        `Media #${slot.media.id}. ` +
+        `Current edit version=${currentEditVersion}. ` +
+        `Post cannot be published.`,
+      );
+    }
+
+    // =====================================================
+    // 5. USE ONLY MATCHING VARIANT
+    // =====================================================
+
+    const targetPath = readyVariant.gcsPath;
+
+    this.logger.log(
+      `[MEDIA-VERSION] MATCHED ` +
+      `MediaId=${slot.media.id} | ` +
+      `EditId=${slot.edit.id} | ` +
+      `EditVersion=${currentEditVersion} | ` +
+      `VariantVersion=${readyVariant.editVersion} | ` +
+      `Path=${targetPath}`,
+    );
+
+    // =====================================================
+    // 6. GENERATE SIGNED URL
+    // =====================================================
+
+    let signedUrl = '';
+
+    if (readyVariant.cdnUrl) {
+      try {
+        new URL(readyVariant.cdnUrl);
+        signedUrl = readyVariant.cdnUrl;
+      } catch {
+        this.logger.warn(
+          `[MEDIA] Invalid cdnUrl "${readyVariant.cdnUrl}". ` +
+          `Generating signed URL.`,
         );
+      }
+    }
+
+    if (!signedUrl && targetPath) {
+      try {
+        signedUrl =
+          await this.storageService.getSignedReadUrl(
+            targetPath,
+            'application/octet-stream',
+          );
+      } catch (e: any) {
+        this.logger.error(
+          `[MEDIA] Failed to generate signed URL ` +
+          `for ${targetPath}: ${e.message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[MEDIA] targetPath=${targetPath} | finalUrl=${signedUrl}`,
+    );
+
+    return {
+      url: signedUrl,
+      storagePath: targetPath,
+      type: slot.media.fileType,
+      placement: slot.edit.placement,
+      editId: slot.edit.id,
+      editVersion: currentEditVersion,
+      variantVersion: readyVariant.editVersion,
+    };
+  }),
+);
            const invalidMedia = mediaList.find((m) => !m.url || m.url.trim() === '');
         if (invalidMedia) {
           throw new Error(
@@ -130,12 +218,19 @@ export class PostingProcessor {
         }
         if (platformEntry.platform === Platform.FACEBOOK) {
             if (mediaList.length === 0) throw new Error('Media URL is required for Facebook');
+            
             const pageId = (post as any).contentMetadata?.platformOverrides?.facebook?.pageId;
             if (!pageId) throw new Error('Facebook Page ID missing');
             const facebookPostType = (post as any).contentMetadata?.platformOverrides?.facebook?.postType || 'feed';
 
             const urlsParam = mediaList.length === 1 ? mediaList[0].url : mediaList.map((m: any) => m.url);
+this.logger.log(
+  `[FACEBOOK] mediaList=${JSON.stringify(mediaList, null, 2)}`
+);
 
+this.logger.log(
+  `[FACEBOOK] urlsParam=${JSON.stringify(urlsParam)}`
+);
             const result = await this.facebookService.postToFacebook(
                 post.userId, 
                 pageId, 

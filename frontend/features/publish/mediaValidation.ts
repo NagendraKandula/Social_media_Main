@@ -3,7 +3,7 @@ import type { PlatformState } from '../../components/PlatformFields';
 import { validateInstagramMediaSpecs } from '../../utils/instagramMediaSpecs';
 import { ALLOWED_MEDIA_TYPES, MEDIA_LIMITS } from './constants';
 
-const getImageDimensions = (file: File) =>
+export const getImageDimensions = (file: File) =>
   new Promise<{ width: number; height: number }>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -18,7 +18,7 @@ const getImageDimensions = (file: File) =>
     image.src = url;
   });
 
-const getVideoDimensions = (file: File) =>
+export const getVideoDimensions = (file: File) =>
   new Promise<{ width: number; height: number; duration: number }>((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const video = document.createElement('video');

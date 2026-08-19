@@ -57,17 +57,36 @@ export class StorageService {
   }
 
   async deleteFile(gcsPath: string) {
-    try {
-      const file = this.storage.bucket(this.bucket).file(gcsPath);
-      await file.delete();
-      this.logger.log(`🗑️ Deleted file from GCS: ${gcsPath}`);
+  try {
+    const file = this.storage
+      .bucket(this.bucket)
+      .file(gcsPath);
+
+    const [exists] = await file.exists();
+
+    if (!exists) {
+      this.logger.debug(
+        `ℹ️ File already absent from GCS: ${gcsPath}`,
+      );
+
       return true;
-    } catch (error: any) {
-      // Perfect safety net. Logs the error but doesn't crash the app.
-      this.logger.warn(`Failed to delete file ${gcsPath}: ${error.message}`);
-      return false;
     }
+
+    await file.delete();
+
+    this.logger.log(
+      `🗑️ Deleted file from GCS: ${gcsPath}`,
+    );
+
+    return true;
+  } catch (error: any) {
+    this.logger.warn(
+      `Failed to delete file ${gcsPath}: ${error.message}`,
+    );
+
+    return false;
   }
+}
 
   // ---------------------------------------------------------
   // NEW METHODS ADDED FOR THE RENDER PIPELINE (SHARP INTEGRATION)

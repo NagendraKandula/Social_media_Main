@@ -17,6 +17,10 @@ interface Props {
   channelContents: ChannelContentMap;
   fallbackContent: string;
   files: File[];
+  
+  // 🌟 NEW: Added prop to receive cropped files mapped by platform
+  mediaFilesByPlatform?: Record<string, File[]>;
+  
   platformState: PlatformState;
   accounts: Partial<Record<Channel, SocialAccount>>;
   facebookPage?: FacebookPage;
@@ -32,6 +36,7 @@ export default function PublishReviewModal({
   channelContents,
   fallbackContent,
   files,
+  mediaFilesByPlatform, // 🌟 NEW: Destructured here
   platformState,
   accounts,
   facebookPage,
@@ -76,7 +81,7 @@ export default function PublishReviewModal({
               {channels.map((channel) => (
                 <div key={channel}>
                   <strong>{CHANNEL_LABELS[channel]}</strong>
-                  <p className={styles.captionPreview}>{channelContents[channel] || 'No caption added.'}</p>
+                  <p className={styles.captionPreview} dangerouslySetInnerHTML={{ __html: channelContents[channel] || 'No caption added.' }}></p>
                 </div>
               ))}
             </div>
@@ -88,6 +93,10 @@ export default function PublishReviewModal({
               content={fallbackContent}
               channelContents={channelContents}
               mediaFiles={files}
+              
+              // 🌟 NEW: Pass the cropped media down to the Preview component
+              mediaFilesByPlatform={mediaFilesByPlatform}
+              
               facebookPostType={platformState.facebookPostType}
               instagramPostType={platformState.instagramPostType}
               youtubeType={platformState.youtubeType}
