@@ -59,7 +59,7 @@ try {
         {/* HEADER */}
         <header className={styles.authHeader}>
           <div className={styles.logo}>
-            SOci
+            Socia
           </div>
         </header>
 

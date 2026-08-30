@@ -1,0 +1,400 @@
+.schedulePanel {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 2px 2px;
+}
+
+.scheduleIntro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.scheduleIcon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  background: rgba(125, 113, 242, 0.12);
+  color: var(--publish-primary);
+}
+
+.scheduleIntro h3 {
+  margin: 2px 0 6px;
+  color: var(--publish-ink);
+  font-size: 0.9rem;
+}
+
+.scheduleIntro p {
+  margin: 0;
+  color: var(--publish-muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.scheduleFormCard {
+  display: grid;
+  gap: 9px;
+  padding: 16px;
+  border: 1px solid rgba(79, 76, 190, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 24px rgba(79, 76, 190, 0.06);
+}
+
+.scheduleFormCard label {
+  color: var(--publish-ink);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.scheduleFormCard input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 11px;
+  border: 1px solid rgba(79, 76, 190, 0.24);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--publish-ink);
+  font: inherit;
+  outline: none;
+}
+
+.scheduleFormCard input:focus {
+  border-color: var(--publish-secondary);
+  box-shadow: 0 0 0 3px rgba(125, 113, 242, 0.14);
+}
+
+.themedDateTimePicker {
+  position: relative;
+}
+
+.themedDateTimeTrigger {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 11px;
+  border: 1px solid rgba(79, 76, 190, 0.24);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--publish-ink);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.themedDateTimeTrigger svg {
+  flex: 0 0 auto;
+  color: var(--publish-primary);
+}
+
+.themedDateTimeTrigger:hover,
+.themedDateTimeTriggerOpen {
+  border-color: var(--publish-secondary);
+  box-shadow: 0 0 0 3px rgba(125, 113, 242, 0.11);
+}
+
+.themedDateTimePopover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 80;
+  display: grid;
+  width: 480px;
+  min-width: 480px;
+  max-width: calc(100vw - 48px);
+  max-height: 380px;
+  overflow: hidden;
+  grid-template-columns: minmax(270px, 1fr) 160px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid rgba(79, 76, 190, 0.16);
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(54, 49, 130, 0.16);
+}
+
+.themedCalendarHeader {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.themedCalendarHeader strong {
+  color: var(--publish-ink);
+  font-size: 0.9rem;
+}
+
+.themedCalendarHeader > div {
+  display: flex;
+  gap: 5px;
+}
+
+.themedCalendarHeader button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(79, 76, 190, 0.14);
+  border-radius: 8px;
+  background: rgba(125, 113, 242, 0.05);
+  color: var(--publish-primary);
+  cursor: pointer;
+}
+
+.themedCalendarHeader button:hover {
+  background: rgba(125, 113, 242, 0.13);
+}
+
+.themedCalendarGrid {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px 4px;
+}
+
+.themedCalendarGrid > span {
+  display: grid;
+  min-height: 20px;
+  place-items: center;
+  color: var(--publish-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.themedCalendarGrid > button {
+  display: grid;
+  min-height: 28px;
+  min-width: 0;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--publish-ink);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.themedCalendarGrid > button:hover:not(:disabled) {
+  border-color: rgba(79, 76, 190, 0.18);
+  background: rgba(125, 113, 242, 0.1);
+  color: var(--publish-primary);
+}
+
+.themedCalendarGrid > button:disabled {
+  color: #c7c8d2;
+  cursor: not-allowed;
+}
+
+.themedCalendarGrid > .themedCalendarToday {
+  border-color: rgba(79, 76, 190, 0.3);
+  color: var(--publish-primary);
+  font-weight: 750;
+}
+
+.themedCalendarGrid > .themedCalendarSelected {
+  border-color: var(--publish-primary);
+  background: var(--publish-primary);
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 5px 12px rgba(79, 76, 190, 0.24);
+}
+
+.themedCalendarGrid > .themedCalendarSelected:hover:not(:disabled) {
+  background: var(--publish-secondary);
+  color: #fff;
+}
+
+.themedTimeControls {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  align-items: start;
+  gap: 8px;
+  padding-left: 16px;
+  border-left: 1px solid var(--publish-line);
+}
+
+.themedTimeControls label {
+  display: grid;
+  gap: 5px;
+}
+
+.themedTimeControls label > span {
+  color: var(--publish-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.themedTimeControls select {
+  min-height: 38px;
+  padding: 5px 8px;
+  border: 1px solid rgba(79, 76, 190, 0.18);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--publish-ink);
+  font: inherit;
+  outline: none;
+}
+
+.themedTimeControls select:focus {
+  border-color: var(--publish-secondary);
+  box-shadow: 0 0 0 2px rgba(125, 113, 242, 0.12);
+}
+
+.themedPeriodControl {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  min-height: 38px;
+  overflow: hidden;
+  border: 1px solid rgba(79, 76, 190, 0.18);
+  border-radius: 8px;
+}
+
+.themedPeriodControl button {
+  min-width: 39px;
+  border: 0;
+  background: #fff;
+  color: var(--publish-muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.themedPeriodControl .themedPeriodActive {
+  background: var(--publish-primary);
+  color: #fff;
+}
+
+.themedCalendarFooter {
+  grid-column: 1;
+  grid-row: 3;
+  display: flex;
+  min-height: 18px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.themedCalendarFooter button {
+  padding: 4px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--publish-primary);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.themedDateTimePicker button:focus-visible,
+.themedDateTimePicker select:focus-visible {
+  outline: 3px solid rgba(125, 113, 242, 0.22);
+  outline-offset: 2px;
+}
+
+.scheduleTimezone {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--publish-muted);
+  font-size: 0.72rem;
+}
+
+.scheduleSummary {
+  display: grid;
+  gap: 5px;
+  padding: 15px 16px;
+  border-radius: 12px;
+  background: rgba(125, 113, 242, 0.08);
+}
+
+.scheduleSummary span,
+.scheduleSummary small {
+  color: var(--publish-muted);
+  font-size: 0.72rem;
+}
+
+.scheduleSummary strong {
+  color: var(--publish-primary);
+  font-size: 0.94rem;
+}
+
+.scheduleReviewButton {
+  width: 100%;
+  min-height: 46px;
+  margin-top: auto;
+  border: 1px solid var(--publish-primary);
+  border-radius: 10px;
+  background: var(--publish-primary);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.scheduleReviewButton:hover:not(:disabled) {
+  background: var(--publish-secondary);
+  border-color: var(--publish-secondary);
+}
+
+.scheduleReviewButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+@media (max-width: 760px) {
+  .themedDateTimePopover {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: 100%;
+    min-width: 0;
+    max-height: none;
+    overflow: visible;
+    min-height: 0;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    margin-top: 10px;
+    padding: 14px;
+  }
+
+  .themedCalendarHeader,
+  .themedCalendarGrid,
+  .themedTimeControls,
+  .themedCalendarFooter {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .themedTimeControls {
+    padding-top: 13px;
+    padding-left: 0;
+    border-top: 1px solid var(--publish-line);
+    border-left: 0;
+  }
+
+  .themedCalendarGrid > button {
+    min-height: 36px;
+  }
+}

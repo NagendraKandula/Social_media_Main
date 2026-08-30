@@ -1,7 +1,7 @@
 import type { Channel } from '../../components/ChannelSelector';
 
 export type ChannelContentMap = Partial<Record<Channel, string>>;
-export type PublishSidePanel = 'ai' | 'preview' | null;
+export type PublishSidePanel = 'ai' | 'preview' | 'schedule' | null;
 export type ReviewMode = 'publish' | 'schedule';
 
 export type MediaPlacement = 'FEED' | 'STORY' | 'REEL' | 'SHORT' | 'CAROUSEL';

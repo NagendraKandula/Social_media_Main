@@ -1,7 +1,7 @@
 .mainContent {
   --primary: #4f4cbe;
   --secondary: #7d71f2;
-  --highlight: #f7f37e;
+  --highlight: #a69df8;
   --ink: #17172b;
   --muted: #6f7085;
   --line: rgba(79, 76, 190, 0.16);
@@ -9,7 +9,7 @@
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  min-height: calc(100vh - 70px);
+  min-height: calc(100vh - 80px);
   background: #ffffff;
   box-sizing: border-box;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -23,9 +23,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(560px circle at 88% -6%, rgba(247, 243, 126, 0.25), transparent 60%),
-    radial-gradient(680px circle at -8% 12%, rgba(125, 113, 242, 0.12), transparent 60%),
-    radial-gradient(760px circle at 50% 100%, rgba(79, 76, 190, 0.05), transparent 65%);
+  background: #ffffff;
 }
 
 /* ---------- Shared Typography ---------- */
@@ -40,14 +38,10 @@
   text-transform: uppercase;
   color: var(--primary);
   margin-bottom: 1rem;
-}
-
-.eyebrowDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  box-shadow: 0 0 0 4px rgba(79, 76, 190, 0.12);
+  padding: 0.42rem 0.75rem;
+  border: 1px solid rgba(125, 113, 242, 0.42);
+  border-radius: 999px;
+  background: rgba(125, 113, 242, 0.14);
 }
 
 .sectionHeader {
@@ -58,29 +52,51 @@
 .sectionHeading {
   margin: 0;
   color: var(--ink);
-  font-family: "Poppins", "Inter", sans-serif;
+  font-family: "Playfair Display", Georgia, serif;
   font-size: clamp(2rem, 3.5vw, 2.8rem);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1.2;
 }
 
 .sectionLabel {
-  font-size: 0.85rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-weight: 600;
-  margin: 0 0 2rem 0;
+  max-width: 920px;
+  font-size: clamp(0.9rem, 1.15vw, 1.05rem);
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.55;
+  font-weight: 300;
+  margin: 0 auto 2rem;
   text-align: center;
+  transform: translateY(-22px);
+}
+
+.descriptionLine {
+  display: block;
 }
 
 /* ---------- 1. Hero Section ---------- */
 .hero {
   width: 100%;
-  max-width: 1240px;
+  max-width: none;
   margin: 0 auto;
-  padding: clamp(4rem, 10vh, 6rem) clamp(1.5rem, 4vw, 4rem) clamp(3rem, 6vh, 5rem);
+  padding: clamp(2.5rem, 6vh, 4rem) 0 clamp(3rem, 6vh, 5rem);
+  text-align: center;
+}
+
+.heroIntro {
+  width: min(1040px, calc(100% - 3rem));
+  margin-inline: auto;
+}
+
+.heroIntro {
+  position: relative;
+  z-index: 2;
+}
+
+.heroHeadingBreak {
+  display: block;
 }
 
 .heroGrid {
@@ -100,17 +116,19 @@
 .heading {
   margin: 0;
   color: var(--ink);
-  font-family: "Poppins", "Inter", sans-serif;
-  font-size: clamp(2.5rem, 4vw, 3.8rem);
-  font-weight: 760;
-  line-height: 1.1;
+  font-family: "Playfair Display", Georgia, serif;
+  max-width: 1040px;
+  margin-inline: auto;
+  font-size: clamp(2.30rem, 3.5vw, 3.8rem);
+  font-weight: 500;
+  line-height: 1.08;
   letter-spacing: -0.02em;
   animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 0.05s;
 }
 
 .subheading {
-  max-width: 540px;
+  max-width: 500px;
   margin: 1.25rem 0 0;
   color: var(--muted);
   font-size: clamp(1.02rem, 1.3vw, 1.15rem);
@@ -125,6 +143,7 @@
   align-items: center;
   gap: 0.9rem;
   margin-top: 2.1rem;
+  justify-content: center;
   animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 0.25s;
 }
@@ -344,7 +363,7 @@
   flex: 1;
   min-height: 40px;
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(79, 76, 190, 0.14), rgba(247, 243, 126, 0.3));
+  background: linear-gradient(135deg, rgba(79, 76, 190, 0.14), rgba(125, 113, 242, 0.24));
 }
 
 .floatingBadgeTop,
@@ -397,8 +416,9 @@
 .platformsSection {
   width: 100%;
   padding: 3rem 1.5rem;
-  border-top: 1px solid rgba(23, 23, 43, 0.04);
-  background: rgba(250, 250, 252, 0.5);
+  border-top: 0;
+  background: #ffffff;
+  transform: translateY(-18px);
 }
 
 .platformGrid {
@@ -408,6 +428,7 @@
   gap: 1rem;
   max-width: 900px;
   margin: 0 auto;
+  transform: translateY(-18px);
 }
 
 .platformBadge {
@@ -428,6 +449,7 @@
 .platformBadge:hover {
   transform: translateY(-2px);
   border-color: var(--secondary);
+  box-shadow: 0 8px 20px rgba(125, 113, 242, 0.2);
 }
 
 .platformMark {
@@ -441,6 +463,11 @@
   color: #ffffff;
   font-size: 0.7rem;
   font-weight: 700;
+}
+
+.platformMark svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* ---------- 3. Why SOci — Value props ---------- */
@@ -482,7 +509,8 @@
   width: 40px;
   height: 40px;
   border-radius: 11px;
-  background: linear-gradient(135deg, rgba(79, 76, 190, 0.12), rgba(125, 113, 242, 0.16));
+  background: linear-gradient(135deg, rgba(125, 113, 242, 0.3), rgba(79, 76, 190, 0.12));
+  border: 1px solid rgba(125, 113, 242, 0.42);
   color: var(--primary);
 }
 
@@ -494,9 +522,9 @@
 .valueTitle {
   margin: 0.2rem 0 0;
   color: var(--ink);
-  font-family: "Poppins", "Inter", sans-serif;
+  font-family: "Playfair Display", Georgia, serif;
   font-size: 1.05rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .valueDescription {
@@ -546,7 +574,7 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(79, 76, 190, 0.1), rgba(125, 113, 242, 0.15));
+  background: linear-gradient(135deg, rgba(125, 113, 242, 0.28), rgba(79, 76, 190, 0.12));
   color: var(--primary);
   border: 1px solid var(--line);
 }
@@ -559,8 +587,9 @@
 .workflowStepTitle {
   margin: 0;
   color: var(--ink);
+  font-family: "Playfair Display", Georgia, serif;
   font-size: 1rem;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .workflowConnector {
@@ -587,7 +616,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 700;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 500;
   color: var(--ink);
   font-size: 0.98rem;
   padding-bottom: 1rem;
@@ -726,7 +756,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  background: linear-gradient(90deg, var(--primary), var(--highlight), var(--secondary));
   transform: scaleX(0);
   transform-origin: left;
   transition: transform 0.35s ease;
@@ -754,7 +784,7 @@
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(79, 76, 190, 0.12), rgba(125, 113, 242, 0.16));
+  background: linear-gradient(135deg, rgba(125, 113, 242, 0.3), rgba(79, 76, 190, 0.12));
   color: var(--primary);
   margin-bottom: 1rem;
   transition: background 0.25s ease, color 0.25s ease;
@@ -773,9 +803,9 @@
 .featureTitle {
   margin: 0 0 0.55rem;
   color: var(--ink);
-  font-family: "Poppins", "Inter", sans-serif;
+  font-family: "Playfair Display", Georgia, serif;
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .featureDescription {
@@ -803,6 +833,11 @@
   grid-template-columns: 1.2fr 1fr;
 }
 
+.publishScreenshotSection {
+  max-width: 1320px;
+  grid-template-columns: 1.4fr 0.9fr;
+}
+
 .screenshotText {
   display: flex;
   flex-direction: column;
@@ -821,6 +856,20 @@
   justify-content: center;
   gap: 0.75rem;
   overflow: hidden;
+}
+
+.publishScreenshotFrame {
+  aspect-ratio: 2500 / 1500;
+  background: #fff;
+  border-style: solid;
+}
+
+.publishScreenshot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .placeholderIcon {
@@ -847,66 +896,130 @@
   text-align: center;
 }
 
-/* ---------- 8. Bottom CTA ---------- */
-.bottomCtaSection {
+/* ---------- 9. Site Footer ---------- */
+.siteFooter {
   width: 100%;
-  padding: clamp(6rem, 12vh, 8rem) clamp(1.5rem, 4vw, 4rem);
-  margin-top: 2rem;
-  background: var(--ink);
   color: #ffffff;
+  background: linear-gradient(135deg, #4f4cbe 0%, #7d71f2 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.footerInner {
+  width: min(100%, 1400px);
+  margin: 0 auto;
+  padding: clamp(3.5rem, 7vw, 5.5rem) clamp(1.5rem, 5vw, 5rem) 1.75rem;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.25fr) minmax(480px, 1.75fr);
+  gap: clamp(3rem, 7vw, 7rem);
+  align-items: start;
+}
+
+.footerBrand {
+  max-width: 440px;
+}
+
+.footerLogo {
+  display: inline-block;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.footerTagline {
+  margin: 1.25rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.98rem;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.footerSocials {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.65rem;
 }
 
-.bottomCtaContent {
-  text-align: center;
-  max-width: 700px;
-}
-
-.ctaHeading {
-  font-family: "Poppins", sans-serif;
-  font-size: clamp(2rem, 4vw, 3rem);
-  font-weight: 700;
-  line-height: 1.2;
-  margin: 0 0 2.5rem 0;
-  color: #ffffff;
-}
-
-.ctaButtonHighlight {
+.footerSocialLink {
   display: inline-flex;
+  width: 38px;
+  height: 38px;
   align-items: center;
   justify-content: center;
-  min-height: 56px;
-  padding: 0 2.5rem;
-  border-radius: 999px;
-  font-size: 1.15rem;
-  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
   text-decoration: none;
-  background: var(--highlight);
-  color: var(--ink);
-  box-shadow: 0 12px 24px rgba(247, 243, 126, 0.15);
-  transition: all 0.2s ease;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
-.ctaButtonHighlight:hover {
-  background: #e5e165;
+.footerSocialLink:hover,
+.footerSocialLink:focus-visible {
+  color: var(--primary);
+  background: #ffffff;
+  border-color: #ffffff;
   transform: translateY(-2px);
-  box-shadow: 0 16px 32px rgba(247, 243, 126, 0.25);
 }
 
-.ctaFlow {
-  margin: 1.5rem 0 0;
-  font-size: 0.95rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.85);
+.footerNav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: clamp(1.75rem, 4vw, 4rem);
 }
 
-.ctaSubtext {
-  margin: 0.6rem 0 0;
-  font-size: 0.85rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
+.footerNavGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.footerNavGroup h3 {
+  margin: 0 0 0.35rem;
+  color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.footerNavGroup a {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.94rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 0.16s ease, transform 0.16s ease;
+}
+
+.footerNavGroup a:hover,
+.footerNavGroup a:focus-visible {
+  color: #ffffff;
+  transform: translateX(3px);
+}
+
+.footerBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-top: clamp(3rem, 6vw, 5rem);
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footerBottom p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.8rem;
+  font-weight: 400;
 }
 
 /* ---------- Motion & Responsive ---------- */
@@ -1012,9 +1125,39 @@
     max-width: 380px;
     margin: 0 auto;
   }
+
+  .footerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .footerBrand {
+    max-width: 560px;
+  }
+}
+
+@media (max-height: 820px) and (min-width: 1024px) {
+  .mainContent {
+    min-height: calc(100vh - 76px);
+  }
 }
 
 @media (max-width: 768px) {
+  .mainContent {
+    min-height: calc(100vh - 72px);
+  }
+
+  .heroHeadingBreak {
+    display: none;
+  }
+
+  .descriptionLine {
+    display: inline;
+  }
+
+  .descriptionLine:not(:last-child)::after {
+    content: " ";
+  }
+
   .heroActions {
     flex-direction: column;
     align-items: stretch;
@@ -1033,5 +1176,23 @@
   .mockupSidebar {
     flex-direction: row;
     justify-content: center;
+  }
+
+  .footerInner {
+    padding-inline: 1.5rem;
+  }
+
+  .footerGrid,
+  .footerNav {
+    grid-template-columns: 1fr;
+  }
+
+  .footerNav {
+    gap: 2rem;
+  }
+
+  .footerBottom {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

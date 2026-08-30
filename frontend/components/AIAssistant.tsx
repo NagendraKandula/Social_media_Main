@@ -1,6 +1,6 @@
 // frontend/components/AIAssistant.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, ArrowUp, LoaderCircle, Sparkles, Star } from 'lucide-react';
 import { AiAnalysisResult, MediaItem } from '../types';
 import apiClient from '../lib/axios';
 import styles from '../styles/AIAssistant.module.css';
@@ -13,8 +13,9 @@ interface Props {
   onResultControlsChange?: (controls: { onBack: () => void } | null) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
-  onAutoSelectPlatforms: (platforms: any[]) => void;
+  onAutoSelectPlatforms?: (platforms: any[]) => void;
   onApplyPlatformData?: (platformsData: any[]) => void; // 👈 1. Add to interface
+  hideResultBackButton?: boolean;
 }
 
 export default function AIAssistant({ 
@@ -27,6 +28,7 @@ export default function AIAssistant({
   onApplyHashtags, 
   onAutoSelectPlatforms ,
   onApplyPlatformData,
+  hideResultBackButton = false,
 }: Props) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<any | null>(null);
@@ -99,7 +101,7 @@ const handleAnalyze = useCallback(async () => {
         
         if (platformList.length > 0) {
           // Auto-select the platform tabs in the UI
-          onAutoSelectPlatforms(platformList);
+          onAutoSelectPlatforms?.(platformList);
           
           // Send the array to populate the editor's text areas (Fixed 'props.' reference)
           if (onApplyPlatformData) {
@@ -229,7 +231,7 @@ const handleAnalyze = useCallback(async () => {
   if (analysis) {
     return (
       <div className={styles.container}>
-        {!onResultControlsChange && (
+        {!hideResultBackButton && !onResultControlsChange && (
           <div className={styles.resultActions}>
             <button
               type="button"
@@ -245,7 +247,7 @@ const handleAnalyze = useCallback(async () => {
         
         {/* ---------------- SUCCESS STATE ---------------- */}
         <div style={{ textAlign: 'center', padding: '2rem 0', marginTop: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#10b981' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', color: '#5952cc' }}>
             <Sparkles size={36} aria-hidden="true" />
           </div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px' }}>
@@ -275,7 +277,7 @@ const handleAnalyze = useCallback(async () => {
               className={styles.chatInput}
               disabled={isChatLoading}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                   e.preventDefault();
                   handleChat();
                 }
@@ -283,12 +285,20 @@ const handleAnalyze = useCallback(async () => {
               aria-label="Refine with AI instruction"
             />
             <button
+              type="button"
               onClick={handleChat}
               disabled={isChatLoading || !instruction.trim()}
               className={styles.chatButton}
+              aria-label={isChatLoading ? "AI is responding" : "Send refinement"}
+              title={isChatLoading ? "AI is responding" : "Send"}
             >
-              {isChatLoading ? "Thinking..." : "Send"}
+              {isChatLoading
+                ? <LoaderCircle className={styles.chatButtonSpinner} size={18} aria-hidden="true" />
+                : <ArrowUp size={19} strokeWidth={2.4} aria-hidden="true" />}
             </button>
+            <span className={styles.chatStatus} role="status" aria-live="polite">
+              {isChatLoading ? "AI is responding" : ""}
+            </span>
           </div>
         </div>
 

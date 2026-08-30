@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import dynamic from "next/dynamic";
+import { Maximize2, X } from 'lucide-react';
 import axios from "../../../lib/axios";
 import styles from "../../../styles/LandingCSS/Tabs/Planning.module.css";
 
@@ -9,9 +10,11 @@ import { PlatformState } from '../../../components/PlatformFields';
 import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { usePostCreation } from '../../../hooks/usePostCreation';
 import { addNotification } from '../../../utils/notifications';
-import { AiAnalysisResult, PlatformRecommendation } from '../../../types';
+import { AiAnalysisResult } from '../../../types';
 import ContentChannelTabs from '../../../components/publish/ContentChannelTabs';
 import ChannelPostOptions from '../../../components/publish/ChannelPostOptions';
+import { ScheduleDateTimePicker } from '../../../components/publish/Schedule';
+import { getCalendarScheduleDate } from '../../../features/planning/calendarDate.mjs';
 
 import type {
   ChannelContentMap,
@@ -24,6 +27,12 @@ import {
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
 import { getSelectedImageFitWarnings } from '../../../features/publish/imageFitAnalysis.mjs';
+import {
+  getDisabledChannels,
+  getFacebookValidationErrors,
+  getInstagramValidationErrors,
+  validateFilesForSelectedChannels,
+} from '../../../features/publish/mediaValidation';
 import {
   getImageEditDestinations,
   getMediaEditKey,
@@ -209,6 +218,8 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   const [sharedContent, setSharedContent] = useState('');
   const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
   const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
+  const activeEditorChannelRef = useRef<Channel | null>(activeEditorChannel);
+  activeEditorChannelRef.current = activeEditorChannel;
   const [files, setFiles] = useState<any[]>([]);
   const [mediaEdits, setMediaEdits] = useState<MediaEditMap>({});
   const [mediaEditPreviews, setMediaEditPreviews] = useState<Record<string, File>>({});
@@ -217,6 +228,7 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   const [isScheduling, setIsScheduling] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
   const [rightTab, setRightTab] = useState<'ai' | 'preview'>('ai');
+  const [isPreviewMaximized, setIsPreviewMaximized] = useState(false);
   
   const [platformState, setPlatformState] = useState<PlatformState>({
     facebookPostType: 'feed',
@@ -232,7 +244,22 @@ const AdvancedScheduleModal = ({ post, initialDate, onClose, onSave, onDelete, i
   const [facebookPages, setFacebookPages] = useState<any[]>([]);
   const [accounts, setAccounts] = useState<Partial<Record<Channel, any>>>({});
 
-  const currentLocalTime = toLocalInput(new Date().toISOString());
+  useEffect(() => {
+    if (!isPreviewMaximized) return;
+
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsPreviewMaximized(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isPreviewMaximized]);
 
   // 🌟 Hydration Effect (Runs once when modal opens)
   useEffect(() => {
@@ -376,6 +403,25 @@ itemsToProcess.forEach((item: any, index: number) => {
   const effectiveRules = resolveEditorRules(activeEditorChannel ? [activeEditorChannel] : selectedChannelList);
   const selectedFacebookPage = facebookPages.find((page: any) => page.id === platformState.facebookPageId);
 
+  const hasPublishableContent = selectedChannelList.some(
+    (channel) => Boolean((channelContents[channel] ?? content).trim())
+  );
+
+  const disabledChannels = useMemo(
+    () => getDisabledChannels(files as File[], platformState),
+    [files, platformState]
+  );
+
+  const channelSelectorDisabledChannels = useMemo(
+    () =>
+      new Set(
+        Array.from(disabledChannels).filter(
+          (channel) => !selectedChannels.has(channel)
+        )
+      ),
+    [disabledChannels, selectedChannels]
+  );
+
   const cropDestinations = useMemo(
     () => getImageEditDestinations(selectedChannelList, platformState) as ImageEditDestination[],
     [selectedChannelList, platformState]
@@ -445,21 +491,69 @@ itemsToProcess.forEach((item: any, index: number) => {
   const getCurrentImageFitWarnings = (newFiles: File[]) =>
     getSelectedImageFitWarnings(newFiles, selectedChannels, platformState);
 
+  const validateCurrentFiles = (nextFiles: File[]) =>
+    validateFilesForSelectedChannels(
+      selectedChannels.has('instagram')
+        ? getFilesWithMediaEdits(nextFiles, 'instagram')
+        : nextFiles,
+      selectedChannels,
+      platformState
+    );
+
+  const getCurrentInstagramValidationErrors = () => {
+    const browserFiles = getFilesWithMediaEdits(files, 'instagram').filter(
+      (file): file is File => file instanceof File
+    );
+    return getInstagramValidationErrors(browserFiles, selectedChannels, platformState);
+  };
+
+  const getCurrentFacebookValidationErrors = () =>
+    getFacebookValidationErrors(files as File[], selectedChannels, platformState);
+
   // AI Handlers
   const handleAnalysisComplete = (result: AiAnalysisResult) => setAiAnalysis(result);
   const handleAnalysisReset = () => setAiAnalysis(null);
   const handleApplyCaption = (caption: string) => handleChannelContentChange(content ? `${content}<br/><br/>${caption}` : caption);
   const handleApplyHashtags = (hashtags: string[]) => handleChannelContentChange(content ? `${content}<br/><br/>${hashtags.join(" ")}` : hashtags.join(" "));
-  const handleAutoSelectPlatforms = (recommendations: PlatformRecommendation[]) => {
-    const next = new Set<Channel>(selectedChannels);
-    recommendations.forEach((r) => { if (r.rating >= 4) next.add(r.platform.toLowerCase() as Channel); });
-    setSelectedChannels(next);
+  const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
+    const generatedContents = aiPlatforms.reduce<ChannelContentMap>((contents, aiPlatform) => {
+      const targetId = aiPlatform.platform.toLowerCase() as Channel;
+      const hashtags = Array.isArray(aiPlatform.hashtags) && aiPlatform.hashtags.length > 0
+        ? aiPlatform.hashtags.join(' ')
+        : '';
+      const callToAction = aiPlatform.cta
+        ? `<br/><br/><strong>${aiPlatform.cta}</strong>`
+        : '';
+
+      contents[targetId] = `${aiPlatform.caption || ''}${callToAction}<br/><br/>${hashtags}`.trim();
+      return contents;
+    }, {});
+
+    setChannelContents((previousContents) => ({
+      ...previousContents,
+      ...generatedContents,
+    }));
+
+    const currentActiveEditorChannel = activeEditorChannelRef.current;
+    if (currentActiveEditorChannel) {
+      const activeGeneratedContent = generatedContents[currentActiveEditorChannel];
+      if (activeGeneratedContent !== undefined) setContent(activeGeneratedContent);
+      return;
+    }
+
+    const allTabGeneratedContent = Object.values(generatedContents).find(
+      (generatedContent): generatedContent is string => Boolean(generatedContent)
+    );
+    if (allTabGeneratedContent !== undefined) {
+      setSharedContent(allTabGeneratedContent);
+      setContent(allTabGeneratedContent);
+    }
   };
 
   const handleSubmit = async (status: 'DRAFT' | 'SCHEDULED') => {
     if (isReadOnly || isScheduling) return;
     if (selectedChannels.size === 0) return alert('Select at least one channel.');
-    if (!content && files.length === 0) return alert('Add content or media.');
+    if (!hasPublishableContent && files.length === 0) return alert('Add content or media.');
     if (status === 'SCHEDULED' && !scheduleDate) return alert('Please select a date and time.');
     if (status === 'SCHEDULED' && new Date(scheduleDate) < new Date()) {
        return alert('You cannot schedule a post in the past.');
@@ -468,6 +562,18 @@ itemsToProcess.forEach((item: any, index: number) => {
     setIsScheduling(true);
 
     try {
+      const instagramErrors = await getCurrentInstagramValidationErrors();
+      if (instagramErrors.length > 0) {
+        alert(`Instagram media does not match the required specs:\n\n${instagramErrors.join('\n')}`);
+        return;
+      }
+
+      const facebookErrors = getCurrentFacebookValidationErrors();
+      if (facebookErrors.length > 0) {
+        alert(`Facebook media does not match the selected post type:\n\n${facebookErrors.join('\n')}`);
+        return;
+      }
+
       let uploadedMediaItems: any[] = [];
       if (files.length > 0) {
         const filesToUpload = files.filter(f => f instanceof File);
@@ -484,6 +590,19 @@ itemsToProcess.forEach((item: any, index: number) => {
         });
       }
 
+      const mediaDimensions = await Promise.all(
+        files.map(async (file) => {
+          const type = (file.type || file.mimeType || file.fileType || '').toLowerCase();
+          const isImage = type.startsWith('image') || type === 'image';
+
+          if (file instanceof File && isImage) return await readImageDimensions(file);
+          if (isImage && Number(file.width) > 0 && Number(file.height) > 0) {
+            return { width: Number(file.width), height: Number(file.height) };
+          }
+          return null;
+        })
+      );
+
       const mediaSlots: any[] = [];
       if (uploadedMediaItems.length > 0) {
         selectedChannelList.forEach((platform) => {
@@ -496,8 +615,9 @@ const typeStr = (files[index].type || files[index].mimeType || files[index].file
 
 // Check if it starts with 'image' (handles 'image/jpeg') OR equals 'image' (handles your backend 'IMAGE' enum)
 const isImage = typeStr.startsWith('image') || typeStr === 'image';
-            const width = media.width || files[index].width || 1080;
-            const height = media.height || files[index].height || 1080;
+            const dimensions = mediaDimensions[index];
+            const width = dimensions?.width || media.width || files[index].width || 1080;
+            const height = dimensions?.height || media.height || files[index].height || 1080;
 
             mediaSlots.push({
               mediaId: media.id,
@@ -570,14 +690,14 @@ const isImage = typeStr.startsWith('image') || typeStr === 'image';
             </h2>
           </div>
           <div className={styles.scheduleActions}>
-            <input 
-              type="datetime-local" 
-              value={scheduleDate} 
-              min={currentLocalTime} 
-              onChange={(e) => setScheduleDate(e.target.value)} 
-              disabled={isReadOnly || isScheduling}
-              className={styles.scheduleDateInput}
-            />
+            <div className={styles.scheduleDatePicker}>
+              <ScheduleDateTimePicker
+                id="planning-schedule-date"
+                value={scheduleDate}
+                onChange={setScheduleDate}
+                disabled={isReadOnly || isScheduling}
+              />
+            </div>
             {!isReadOnly && (
               <>
                 {post && (
@@ -603,48 +723,63 @@ const isImage = typeStr.startsWith('image') || typeStr === 'image';
 
         <div className={styles.scheduleBody}>
           <div className={`${styles.scheduleEditorPane} ${isReadOnly ? styles.readOnlyPane : ""}`}>
-            <ChannelSelector
-              accounts={accounts}
-              selectedChannels={selectedChannels}
-              onSelectionChange={setSelectedChannels}
-              facebookPages={facebookPages}
-              selectedFacebookPageId={platformState.facebookPageId}
-              onFacebookPageSelect={(pageId) =>
-                setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
-              }
-            />
-
-            {selectedChannelList.length > 0 && (
-              <ContentChannelTabs
-                selectedChannels={selectedChannelList}
-                activeChannel={activeEditorChannel}
-                onSelect={handleEditorTabSelect}
+            <div className={styles.scheduleChannelSelector}>
+              <ChannelSelector
+                accounts={accounts}
+                selectedChannels={selectedChannels}
+                onSelectionChange={setSelectedChannels}
+                disabledChannels={channelSelectorDisabledChannels}
+                facebookPages={facebookPages}
+                selectedFacebookPageId={platformState.facebookPageId}
+                onFacebookPageSelect={(pageId) =>
+                  setPlatformState((prev) => ({ ...prev, facebookPageId: pageId }))
+                }
               />
-            )}
-            {activeEditorChannel && (
-              <ChannelPostOptions
-                channel={activeEditorChannel}
-                platformState={platformState}
-                setPlatformState={setPlatformState}
-              />
-            )}
+            </div>
 
-            <LazyContentEditor
-              content={content}
-              onContentChange={handleChannelContentChange}
-              files={files}
-              onFilesChange={setFiles}
-              effectiveRules={effectiveRules}
-              validation={{}}
-              isReadOnly={isReadOnly}
-              selectedChannels={selectedChannelList}
-              cropDestinations={cropDestinations}
-              getSavedMediaEdit={getSavedMediaEdit}
-              getImageFitWarnings={getCurrentImageFitWarnings}
-              onMediaEditApply={handleMediaEditApply}
-              aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
-              platformState={platformState}
-            />
+            <div className={styles.scheduleComposer}>
+              {selectedChannelList.length > 0 && (
+                <div className={styles.scheduleComposerControls}>
+                  <ContentChannelTabs
+                    selectedChannels={selectedChannelList}
+                    activeChannel={activeEditorChannel}
+                    onSelect={handleEditorTabSelect}
+                  />
+                  {activeEditorChannel && (
+                    <div className={styles.scheduleInlinePlatformSlot}>
+                      <ChannelPostOptions
+                        channel={activeEditorChannel}
+                        platformState={platformState}
+                        setPlatformState={setPlatformState}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className={styles.scheduleEditorSlot}>
+                <LazyContentEditor
+                  content={content}
+                  onContentChange={handleChannelContentChange}
+                  files={files}
+                  onFilesChange={setFiles}
+                  effectiveRules={effectiveRules}
+                  validation={{}}
+                  isReadOnly={isReadOnly}
+                  selectedChannels={selectedChannelList}
+                  characterLimitChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
+                  cropDestinations={cropDestinations}
+                  getSavedMediaEdit={getSavedMediaEdit}
+                  validateFilesForSelectedChannels={validateCurrentFiles}
+                  getImageFitWarnings={getCurrentImageFitWarnings}
+                  onMediaEditApply={handleMediaEditApply}
+                  onOpenAIAssistant={() => setRightTab('ai')}
+                  size="publish"
+                  aiRecommendations={aiAnalysis?.analysis?.recommendedPlatforms ?? []}
+                  platformState={platformState}
+                />
+              </div>
+            </div>
           </div>
           
           <aside className={styles.scheduleSidePane}>
@@ -664,38 +799,110 @@ const isImage = typeStr.startsWith('image') || typeStr === 'image';
             </div>
             <div className={styles.scheduleSideContent}>
               {rightTab === 'ai' ? (
-               <LazyAIAssistant 
-                 files={files}
-                 content={content}
-                 onAnalysisComplete={handleAnalysisComplete}
-                 onAnalysisReset={handleAnalysisReset}
-                 onApplyCaption={handleApplyCaption}
-                 onApplyHashtags={handleApplyHashtags}
-                 onAutoSelectPlatforms={handleAutoSelectPlatforms}
-               />
+                <>
+                  <div className={styles.scheduleSideHeader}>
+                    <h2>AI Assistant</h2>
+                  </div>
+                  <LazyAIAssistant
+                    files={files}
+                    content={content}
+                    hideResultBackButton
+                    onAnalysisComplete={handleAnalysisComplete}
+                    onAnalysisReset={handleAnalysisReset}
+                    onApplyCaption={handleApplyCaption}
+                    onApplyHashtags={handleApplyHashtags}
+                    onApplyPlatformData={handleApplyAiPlatformData}
+                  />
+                </>
               ) : (
-                <LazyDynamicPreview
-                  selectedPlatforms={selectedChannelList}
-                  content={content}
-                  channelContents={channelContents}
-                  mediaFiles={files}
-                  mediaFilesByPlatform={Object.fromEntries(
-                    selectedChannelList.map((platform) => [
-                      platform,
-                      getFilesWithMediaEdits(files, platform),
-                    ])
-                  )}
-                  facebookPostType={platformState.facebookPostType}
-                  instagramPostType={platformState.instagramPostType}
-                  youtubeType={platformState.youtubeType}
-                  accounts={accounts}
-                  facebookPage={selectedFacebookPage}
-                />
+                <>
+                  <div className={styles.scheduleSideHeader}>
+                    <h2>Post Preview</h2>
+                    <button
+                      type="button"
+                      className={styles.schedulePreviewIconBtn}
+                      onClick={() => setIsPreviewMaximized(true)}
+                      aria-label="Maximize post preview"
+                      title="Maximize preview"
+                    >
+                      <Maximize2 size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <LazyDynamicPreview
+                    selectedPlatforms={selectedChannelList}
+                    content={content}
+                    channelContents={channelContents}
+                    mediaFiles={files}
+                    mediaFilesByPlatform={Object.fromEntries(
+                      selectedChannelList.map((platform) => [
+                        platform,
+                        getFilesWithMediaEdits(files, platform),
+                      ])
+                    )}
+                    facebookPostType={platformState.facebookPostType}
+                    instagramPostType={platformState.instagramPostType}
+                    youtubeType={platformState.youtubeType}
+                    accounts={accounts}
+                    facebookPage={selectedFacebookPage}
+                  />
+                </>
               )}
             </div>
           </aside>
         </div>
       </div>
+
+      {isPreviewMaximized && (
+        <div
+          className={styles.planningPreviewModalBackdrop}
+          role="presentation"
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsPreviewMaximized(false);
+          }}
+        >
+          <section
+            className={styles.planningPreviewModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="planning-maximized-preview-title"
+          >
+            <header className={styles.planningPreviewModalHeader}>
+              <h2 id="planning-maximized-preview-title">Post Preview</h2>
+              <button
+                type="button"
+                className={styles.schedulePreviewIconBtn}
+                onClick={() => setIsPreviewMaximized(false)}
+                aria-label="Close maximized post preview"
+                title="Close preview"
+                autoFocus
+              >
+                <X size={21} aria-hidden="true" />
+              </button>
+            </header>
+            <div className={styles.planningPreviewModalBody}>
+              <LazyDynamicPreview
+                horizontal
+                selectedPlatforms={selectedChannelList}
+                content={content}
+                channelContents={channelContents}
+                mediaFiles={files}
+                mediaFilesByPlatform={Object.fromEntries(
+                  selectedChannelList.map((platform) => [
+                    platform,
+                    getFilesWithMediaEdits(files, platform),
+                  ])
+                )}
+                facebookPostType={platformState.facebookPostType}
+                instagramPostType={platformState.instagramPostType}
+                youtubeType={platformState.youtubeType}
+                accounts={accounts}
+                facebookPage={selectedFacebookPage}
+              />
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 };
@@ -778,20 +985,10 @@ const Planning = () => {
     return targetDate.toISOString();
   };
 
-  const setTimeOnDate = (date: Date, hourStr = "9 AM") => {
-    const nextDate = new Date(date);
-    const [time, modifier] = hourStr.split(" ");
-    let hours = parseInt(time, 10);
-    if (hours === 12) hours = 0;
-    if (modifier === "PM") hours += 12;
-    nextDate.setHours(hours, 0, 0, 0);
-    return nextDate;
-  };
-
   const openCreateForDate = (date: Date, hour = "9 AM") => {
-    const targetDate = setTimeOnDate(date, hour);
+    const targetDate = getCalendarScheduleDate(date, hour);
 
-    if (targetDate < new Date()) {
+    if (!targetDate) {
       alert("You cannot schedule a post in the past!");
       return;
     }

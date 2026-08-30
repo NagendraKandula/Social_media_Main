@@ -1,0 +1,106 @@
+.tunnel {
+  position: relative;
+  width: 100vw;
+  height: clamp(340px, 28vw, 460px);
+  /* Visually center the moving posts between the hero heading and integrations. */
+  margin: 1rem calc(50% - 50vw) -1.75rem;
+  overflow: hidden;
+  isolation: isolate;
+  perspective: 1200px;
+  background: #ffffff;
+}
+
+.track {
+  position: absolute;
+  inset: 0;
+}
+
+.centerBackdrop {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: clamp(420px, 34vw, 680px);
+  height: clamp(108px, 9vw, 148px);
+  background: #08090c;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform-origin: center center;
+  backface-visibility: hidden;
+  overflow: visible;
+  width: 195px;
+  height: 195px;
+  aspect-ratio: 1;
+  will-change: transform, opacity;
+  pointer-events: none;
+  background: transparent;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  filter: none;
+  user-select: none;
+}
+
+@media (max-width: 720px) {
+  .tunnel {
+    height: 340px;
+    margin-top: 0.5rem;
+    margin-bottom: -1.25rem;
+  }
+
+  .card { width: 290px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tunnel {
+    height: 330px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    mask-image: none;
+    scrollbar-width: thin;
+  }
+
+  .track {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: max-content;
+    min-width: 100%;
+    height: 100%;
+    padding: 1rem 5vw;
+    box-sizing: border-box;
+  }
+
+  .card {
+    position: relative;
+    left: auto;
+    bottom: auto;
+    flex: 0 0 auto;
+    transform: none !important;
+    opacity: 1 !important;
+    width: 230px !important;
+    height: 300px !important;
+    margin-inline: clamp(-54px, -3vw, -28px);
+  }
+
+  .card:nth-of-type(2),
+  .card:nth-of-type(3) {
+    width: 220px !important;
+    height: 220px !important;
+  }
+}

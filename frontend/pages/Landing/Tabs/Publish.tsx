@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { ChevronLeft, Eye, Maximize2, Sparkles, X } from 'lucide-react';
+import { CalendarClock, ChevronLeft, Eye, Maximize2, Sparkles, X } from 'lucide-react';
 import styles from '../../../styles/LandingCSS/Tabs/Publish.module.css';
 
 import ChannelSelector, { Channel } from '../../../components/ChannelSelector';
@@ -13,7 +13,7 @@ import { resolveEditorRules } from '../../../utils/resolveEditorRules';
 import { addNotification } from '../../../utils/notifications';
 import { useAppDispatch } from '../../../store/hooks';
 import { DASHBOARD_TABS, setActiveTab } from '../../../store/dashboardSlice';
-import PublishScheduleModal from '../../../components/publish/PublishScheduleModal';
+import Schedule from '../../../components/publish/Schedule';
 import PublishReviewModal from '../../../components/publish/PublishReviewModal';
 import ContentChannelTabs from '../../../components/publish/ContentChannelTabs';
 import ChannelPostOptions from '../../../components/publish/ChannelPostOptions';
@@ -71,6 +71,8 @@ export default function Publish() {
   const [sharedContent, setSharedContent] = useState('');
   const [channelContents, setChannelContents] = useState<ChannelContentMap>({});
   const [activeEditorChannel, setActiveEditorChannel] = useState<Channel | null>(null);
+  const activeEditorChannelRef = useRef<Channel | null>(activeEditorChannel);
+  activeEditorChannelRef.current = activeEditorChannel;
   const [files, setFiles] = useState<File[]>([]);
   
   // 🌟 Holds crop edits per file/platform combo
@@ -78,7 +80,7 @@ export default function Publish() {
   const [mediaEditPreviews, setMediaEditPreviews] = useState<Record<string, File>>({});
   const [selectedChannels, setSelectedChannels] = useState<Set<Channel>>(new Set());
 
-  const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | null>('ai');
+  const [activeSidePanel, setActiveSidePanel] = useState<'ai' | 'preview' | 'schedule' | null>('ai');
   const [isPreviewMaximized, setIsPreviewMaximized] = useState(false);
   const [aiRecommendations, setAiRecommendations] = useState<PlatformRecommendation[]>([]);
   const [aiEngagement, setAiEngagement] = useState<string | null>(null);
@@ -124,25 +126,42 @@ export default function Publish() {
   };
 
   const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
-    setChannelContents((prevContents) => {
-      const updatedContents = { ...prevContents };
+    const generatedContents = aiPlatforms.reduce<ChannelContentMap>((contents, aiPlatform) => {
+      const targetId = aiPlatform.platform.toLowerCase() as Channel;
+      const hashtags = Array.isArray(aiPlatform.hashtags) && aiPlatform.hashtags.length > 0
+        ? aiPlatform.hashtags.join(' ')
+        : '';
+      const callToAction = aiPlatform.cta
+        ? `<br/><br/><strong>${aiPlatform.cta}</strong>`
+        : '';
 
-      aiPlatforms.forEach((aiPlat) => {
-        let rawPlatform = aiPlat.platform.toLowerCase();
-        const targetId = rawPlatform as Channel;
+      contents[targetId] = `${aiPlatform.caption || ''}${callToAction}<br/><br/>${hashtags}`.trim();
+      return contents;
+    }, {});
 
-        const hashtagsStr = aiPlat.hashtags && aiPlat.hashtags.length > 0 
-          ? aiPlat.hashtags.join(' ') 
-          : '';
-        const ctaStr = aiPlat.cta ? `<br/><br/><strong>${aiPlat.cta}</strong>` : '';
-        
-        const fullContent = `${aiPlat.caption}${ctaStr}<br/><br/>${hashtagsStr}`.trim();
+    setChannelContents((previousContents) => ({
+      ...previousContents,
+      ...generatedContents,
+    }));
 
-        updatedContents[targetId] = fullContent;
-      });
+    const currentActiveEditorChannel = activeEditorChannelRef.current;
+    if (currentActiveEditorChannel) {
+      const activeGeneratedContent = generatedContents[currentActiveEditorChannel];
+      if (activeGeneratedContent !== undefined) {
+        setContent(activeGeneratedContent);
+      }
+      return;
+    }
 
-      return updatedContents;
-    });
+    // "All" has no platform key of its own. Show a generated caption there
+    // immediately, while preserving the tailored versions in each channel tab.
+    const allTabGeneratedContent = Object.values(generatedContents).find(
+      (generatedContent): generatedContent is string => Boolean(generatedContent)
+    );
+    if (allTabGeneratedContent !== undefined) {
+      setSharedContent(allTabGeneratedContent);
+      setContent(allTabGeneratedContent);
+    }
   };
 
   const [platformState, setPlatformState] = useState<PlatformState>({
@@ -154,7 +173,6 @@ export default function Publish() {
   const [facebookPages, setFacebookPages] = useState<FacebookPage[]>([]);
   const [accounts, setAccounts] = useState<Partial<Record<Channel, SocialAccount>>>({});
 
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewMode, setReviewMode] = useState<ReviewMode>('publish');
   const [scheduleDate, setScheduleDate] = useState('');
@@ -660,7 +678,6 @@ const htmlToPlainText = (html: string) => {
       setFiles([]);
       setSelectedChannels(new Set());
       setScheduleDate('');
-      setShowScheduleModal(false);
       setShowReviewModal(false);
     } catch (err: any) {
       console.error(err);
@@ -697,7 +714,6 @@ const htmlToPlainText = (html: string) => {
     }
 
     setReviewMode(mode);
-    setShowScheduleModal(false);
     setShowReviewModal(true);
   };
 
@@ -715,7 +731,7 @@ const htmlToPlainText = (html: string) => {
 
       </div>
 
-      <div className={`${styles.mainLayout} ${!activeSidePanel ? styles.previewHidden : ''}`}>
+      <div className={`${styles.mainLayout} ${!activeSidePanel ? styles.previewHidden : ''} ${activeSidePanel === 'schedule' ? styles.schedulePanelOpen : ''}`}>
         <div className={styles.topRow}>
           <ChannelSelector
             accounts={accounts}
@@ -750,9 +766,12 @@ const htmlToPlainText = (html: string) => {
               Preview
             </button>
             <button
-              className={styles.secondaryBtn}
-              onClick={() => setShowScheduleModal(true)}
+              type="button"
+              className={`${styles.secondaryBtn} ${activeSidePanel === 'schedule' ? styles.headerToolActive : ''}`}
+              onClick={() => setActiveSidePanel((panel) => panel === 'schedule' ? null : 'schedule')}
+              aria-pressed={activeSidePanel === 'schedule'}
             >
+              <CalendarClock size={15} aria-hidden="true" />
               Schedule
             </button>
             <button
@@ -792,6 +811,7 @@ const htmlToPlainText = (html: string) => {
               effectiveRules={effectiveRules}
               validation={{}}
               selectedChannels={selectedChannelList}
+              characterLimitChannels={activeEditorChannel ? [activeEditorChannel] : selectedChannelList}
               cropDestinations={cropDestinations}
               getSavedMediaEdit={getSavedMediaEdit}
               validateFilesForSelectedChannels={validateCurrentFiles}
@@ -805,7 +825,7 @@ const htmlToPlainText = (html: string) => {
           </div>
         </section>
 
-        {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : 'AI Assistant'}>
+        {activeSidePanel && <aside className={`${styles.previewPane} ${activeSidePanel === 'ai' ? styles.aiPane : ''} ${activeSidePanel === 'schedule' ? styles.schedulePane : ''}`} aria-label={activeSidePanel === 'preview' ? 'Post preview' : activeSidePanel === 'schedule' ? 'Schedule post' : 'AI Assistant'}>
           <div className={`${styles.rightHeader} ${activeSidePanel === 'ai' ? styles.aiRightHeader : ''}`}>
             <div className={styles.rightHeaderTitleGroup}>
               {activeSidePanel === 'ai' && aiResultControls && (
@@ -819,7 +839,7 @@ const htmlToPlainText = (html: string) => {
                   <ChevronLeft size={20} aria-hidden="true" />
                 </button>
               )}
-              <h2>{activeSidePanel === 'preview' ? 'Post Preview' : 'AI Assistant'}</h2>
+              <h2>{activeSidePanel === 'preview' ? 'Post Preview' : activeSidePanel === 'schedule' ? 'Schedule Post' : 'AI Assistant'}</h2>
             </div>
             <div className={styles.rightHeaderActionGroup}>
               {activeSidePanel === 'preview' && (
@@ -859,6 +879,14 @@ const htmlToPlainText = (html: string) => {
                 youtubeType={platformState.youtubeType}
                 accounts={accounts}
                 facebookPage={selectedFacebookPage}
+              />
+            ) : activeSidePanel === 'schedule' ? (
+                  <Schedule
+                scheduleDate={scheduleDate}
+                onScheduleDateChange={setScheduleDate}
+                onReview={() => openReview('schedule')}
+                selectedChannelCount={selectedChannelList.length}
+                busy={uploading || publishing}
               />
             ) : (
               <LazyAIAssistant
@@ -926,15 +954,6 @@ const htmlToPlainText = (html: string) => {
             </div>
           </section>
         </div>
-      )}
-
-      {showScheduleModal && (
-        <PublishScheduleModal
-          scheduleDate={scheduleDate}
-          onScheduleDateChange={setScheduleDate}
-          onCancel={() => setShowScheduleModal(false)}
-          onReview={() => openReview('schedule')}
-        />
       )}
 
       {showReviewModal && (

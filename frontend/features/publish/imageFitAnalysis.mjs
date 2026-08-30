@@ -1,8 +1,10 @@
 const STORY_RATIO = 9 / 16;
 const RATIO_TOLERANCE = 0.02;
 
-const storyTarget = (label) => ({
+const storyTarget = (label, platform) => ({
   label,
+  platform,
+  placement: "STORY",
   minRatio: STORY_RATIO,
   maxRatio: STORY_RATIO,
   idealRatio: STORY_RATIO,
@@ -16,15 +18,17 @@ export const getImageFitTargets = (selectedChannels, platformState = {}) => {
     selectedChannels.has("facebook") &&
     platformState.facebookPostType === "story"
   ) {
-    targets.push(storyTarget("Facebook Story"));
+    targets.push(storyTarget("Facebook Story", "facebook"));
   }
 
   if (selectedChannels.has("instagram")) {
     if (platformState.instagramPostType === "story") {
-      targets.push(storyTarget("Instagram Story"));
+      targets.push(storyTarget("Instagram Story", "instagram"));
     } else if ((platformState.instagramPostType || "post") === "post") {
       targets.push({
         label: "Instagram Feed",
+        platform: "instagram",
+        placement: "FEED",
         minRatio: 4 / 5,
         maxRatio: 1.91,
         idealRatio: 1,
@@ -57,6 +61,8 @@ export const analyzeImageFit = ({ width, height }, targets) => {
       : target.maxRatio;
 
     return [{
+      platform: target.platform,
+      placement: target.placement,
       label: target.label,
       width,
       height,

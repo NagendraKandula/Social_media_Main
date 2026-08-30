@@ -14,10 +14,14 @@ test('AI refine instructions grow upward to five lines and preserve multiline in
   assert.match(assistantSource, /<textarea/);
   assert.match(assistantSource, /rows=\{3\}/);
   assert.match(assistantSource, /resizeInstructionInput/);
-  assert.match(assistantSource, /\(e\.metaKey \|\| e\.ctrlKey\)/);
+  assert.match(assistantSource, /e\.key === "Enter" && !e\.shiftKey && !e\.nativeEvent\.isComposing/);
+  assert.match(assistantSource, /type="button"/);
+  assert.match(assistantSource, /role="status" aria-live="polite"/);
   assert.doesNotMatch(assistantSource, /<input\s+[\s\S]*?className=\{styles\.chatInput\}/);
 
   assert.match(stylesSource, /\.chatInput\s*\{[\s\S]*?max-height:\s*calc\([^;]*5/);
   assert.match(stylesSource, /\.chatInput\s*\{[\s\S]*?min-height:\s*calc\([^;]*3/);
-  assert.match(stylesSource, /\.chatInputRow\s*\{[\s\S]*?align-items:\s*flex-end/);
+  assert.match(stylesSource, /\.chatInputRow\s*\{[\s\S]*?position:\s*relative/);
+  assert.match(stylesSource, /\.chatButton\s*\{[\s\S]*?position:\s*absolute/);
+  assert.match(stylesSource, /@media \(prefers-reduced-motion:\s*reduce\)/);
 });

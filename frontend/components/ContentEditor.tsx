@@ -22,7 +22,11 @@ const LazyEmojiPicker = dynamic(() => import("emoji-picker-react"), {
   loading: () => <div>Loading emojis...</div>,
 });
 
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? React.useLayoutEffect : useEffect;
+
 type ValidationMap = Record<string, string[]>;
+const getFileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}`;
 const PLATFORM_LABELS: Partial<Record<Platform, string>> = {
   facebook: "Facebook",
   instagram: "Instagram",
@@ -57,6 +61,7 @@ export interface ContentEditorProps {
     destination: ImageEditDestination
   ) => void;
   selectedChannels?: string[];
+  characterLimitChannels?: string[];
   cropDestinations?: ImageEditDestination[];
   getSavedMediaEdit?: (file: File, destination: ImageEditDestination) => MediaEditDraft | undefined;
   onOpenAIAssistant?: () => void;
@@ -76,6 +81,7 @@ export default function ContentEditor({
   getImageFitWarnings,
   onMediaEditApply,
   selectedChannels = [],
+  characterLimitChannels,
   cropDestinations = [],
   getSavedMediaEdit,
   onOpenAIAssistant,
@@ -92,9 +98,11 @@ export default function ContentEditor({
   const [mediaError, setMediaError] = useState<string | null>(null);
   const [areRecommendationsDismissed, setAreRecommendationsDismissed] = useState(false);
   const [isCharLimitAlertDismissed, setIsCharLimitAlertDismissed] = useState(false);
+  const [charCount, setCharCount] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const cropFeatureRef = useRef<CropfeatureHandle>(null);
   const [imageFitIssues, setImageFitIssues] = useState<Record<number, any[]>>({});
+  const [pendingImageCrops, setPendingImageCrops] = useState<Record<string, boolean>>({});
   
   // 🌟 Track local previews and edits to force re-renders
   const [localCropPreviews, setLocalCropPreviews] = useState<Record<number, string>>({});
@@ -113,6 +121,16 @@ export default function ContentEditor({
         ...prev,
         [index]: URL.createObjectURL(renderedPreview)
       }));
+      setImageFitIssues((current) => {
+        const next = { ...current };
+        delete next[index];
+        return next;
+      });
+      setPendingImageCrops((current) => {
+        const next = { ...current };
+        delete next[getFileKey(file)];
+        return next;
+      });
     }
 
 
@@ -137,8 +155,9 @@ export default function ContentEditor({
 
           if (issues.length > 0 && getSavedMediaEdit) {
             issues = issues.filter(issue => {
-              const dest = cropDestinations.find(
-                d => d.platform.toLowerCase() === issue.platform.toLowerCase()
+              const dest = cropDestinations.find((destination) =>
+                destination.platform.toLowerCase() === issue.platform?.toLowerCase() &&
+                destination.placement === issue.placement
               );
 
               if (dest && getSavedMediaEdit(file, dest)) {
@@ -165,7 +184,7 @@ export default function ContentEditor({
   } else {
     setImageFitIssues({});
   }
-}, [files]); // <-- Dependency array reduced to just [files]
+}, [files, selectedChannels.join("|"), JSON.stringify(platformState)]);
 
   const recommendedPlatforms = aiRecommendations
     .map((recommendation) => ({
@@ -183,12 +202,13 @@ export default function ContentEditor({
   }, [recommendationSignature]);
 
   /* ---------- Sync external content ---------- */
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!editorRef.current) return;
 
     if (editorRef.current.innerHTML !== content) {
       editorRef.current.innerHTML = content;
     }
+    setCharCount(editorRef.current.innerText.length);
   }, [content]);
 
   /* ---------- Helpers ---------- */
@@ -214,12 +234,10 @@ export default function ContentEditor({
     return () => document.removeEventListener("selectionchange", updateActiveFormats);
   }, []);
 
-  const getPlainTextLength = () =>
-    editorRef.current?.innerText.length || 0;
-
   /* ---------- Input ---------- */
   const handleInput = () => {
     if (isReadOnly || !editorRef.current) return;
+    setCharCount(editorRef.current.innerText.length);
     onContentChange(editorRef.current.innerHTML);
   };
 
@@ -228,6 +246,17 @@ export default function ContentEditor({
     setMediaError(null);
 
     const nextFiles = [...files, ...selectedFiles];
+    const markUploadedImagesForCrop = () => {
+      setPendingImageCrops((current) => {
+        const next = { ...current };
+        selectedFiles.forEach((file) => {
+          if (file.type.startsWith("image/")) {
+            next[getFileKey(file)] = true;
+          }
+        });
+        return next;
+      });
+    };
     const validationErrors = validateFilesForSelectedChannels
       ? await validateFilesForSelectedChannels(nextFiles)
       : [];
@@ -240,6 +269,7 @@ export default function ContentEditor({
         pendingImageIndices.length > 0
       ) {
         setMediaError(null);
+        markUploadedImagesForCrop();
         onFilesChange(nextFiles);
         cropFeatureRef.current?.open(pendingImageIndices[0], {
           originalFiles: [...files],
@@ -261,6 +291,7 @@ export default function ContentEditor({
       return;
     }
 
+    markUploadedImagesForCrop();
     onFilesChange(nextFiles);
   };
 
@@ -312,10 +343,10 @@ export default function ContentEditor({
   }, [files]);
 
   /* ---------- Counts ---------- */
-  const charCount = getPlainTextLength();
   const maxLength = effectiveRules?.text?.maxLength;
   const overLimit = maxLength && charCount > maxLength;
-  const charLimitWarnings = selectedChannels
+  const channelsForCharacterLimit = characterLimitChannels ?? selectedChannels;
+  const charLimitWarnings = channelsForCharacterLimit
     .map((channel) => channel.toLowerCase() as Platform)
     .map((platform) => {
       const max = PLATFORM_RULES[platform]?.text?.maxLength;
@@ -399,62 +430,33 @@ export default function ContentEditor({
             <div className={styles.mediaGrid}>
               {filePreviews.map((preview, index) => {
                 const issues = imageFitIssues[index];
-                const needsCropping = issues && issues.length > 0;
+                const fileKey = preview.file instanceof File
+                  ? getFileKey(preview.file)
+                  : String(index);
+                const needsCropping = preview.isImage && (pendingImageCrops[fileKey] || Boolean(issues?.length));
+                const issueLabels = issues?.map((issue) => issue.label).filter(Boolean) || [];
 
                 return (
-                  <div key={index} className={styles.mediaItem} style={{ position: 'relative' }}>
+                  <div key={fileKey} className={styles.mediaItem}>
                     {preview.isImage ? (
-                      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                        {/* 🌟 Show local cropped preview if it exists */}
+                      <div className={styles.mediaImageFrame}>
                         <img 
                           src={localCropPreviews[index] || preview.url} 
                           alt="Uploaded media preview" 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                         />
-                        
-                        {/* 🌟 THE NEW EXPLICIT WARNING OVERLAY */}
+
                         {needsCropping && (
-                          <div style={{
-                            position: 'absolute',
-                            top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: 'white',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '12px',
-                            textAlign: 'center',
-                            zIndex: 10
-                          }}>
-                            <AlertTriangle size={24} color="#fca5a5" style={{ marginBottom: '8px' }} />
-                            <span style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '6px' }}>
-                              Crop required for:
-                            </span>
-                            <div style={{ fontSize: '11px', marginBottom: '12px', color: '#fecaca' }}>
-                              {issues.map((i, idx) => (
-                                <div key={idx}>• {i.label || i.platform}</div>
-                              ))}
-                            </div>
+                          <div className={styles.cropRequiredBadge} role="alert">
                             <button
                               type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                cropFeatureRef.current?.open(index);
-                              }}
-                              style={{
-                                backgroundColor: '#dc2626',
-                                color: 'white',
-                                border: 'none',
-                                padding: '6px 12px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '12px',
-                                fontWeight: 'bold',
-                                animation: 'pulse 2s infinite'
-                              }}
+                              className={styles.cropRequiredAction}
+                              onClick={() => cropFeatureRef.current?.open(index)}
+                              aria-label={issueLabels.length > 0
+                                ? `Crop required for ${issueLabels.join(", ")}. Open crop editor`
+                                : "Crop required. Open crop editor"}
                             >
-                              Edit Crop
+                              <AlertTriangle size={15} aria-hidden="true" />
+                              <span>Crop required</span>
                             </button>
                           </div>
                         )}
@@ -467,18 +469,18 @@ export default function ContentEditor({
                       />
                     )}
 
-                    {!isReadOnly && !needsCropping && (
+                    {!isReadOnly && (
                       <>
-                        // ✅ New Code: Allows both local files and scheduled URLs
-                      {preview.isImage && (!onMediaEditApply || cropDestinations.length > 0) && (
-                       <button
-                         type="button"
-                         className={styles.cropButton}
-                         onClick={() => cropFeatureRef.current?.open(index)}
-                         >
+                        {preview.isImage && (!onMediaEditApply || cropDestinations.length > 0) && (
+                          <button
+                            type="button"
+                            className={styles.cropButton}
+                            onClick={() => cropFeatureRef.current?.open(index)}
+                            aria-label="Crop image"
+                          >
                           <Crop size={12} />
-                         </button>
-                       )}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className={styles.removeButton}
@@ -486,6 +488,11 @@ export default function ContentEditor({
                             setLocalCropPreviews(prev => {
                               const next = { ...prev };
                               delete next[index];
+                              return next;
+                            });
+                            setPendingImageCrops((current) => {
+                              const next = { ...current };
+                              delete next[fileKey];
                               return next;
                             });
                             onFilesChange(files.filter((_, fileIndex) => fileIndex !== index));

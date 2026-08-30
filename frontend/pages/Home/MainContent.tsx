@@ -2,6 +2,10 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaTwitter, FaYoutube } from "react-icons/fa";
+import { FaThreads } from "react-icons/fa6";
+import HeroPostTunnel from "./HeroPostTunnel";
 import styles from "../../styles/HomeCSS/MainContent.module.css";
 
 /* ---------- Icon set (shared line-icon style, 20px, currentColor) ---------- */
@@ -111,12 +115,12 @@ const FEATURES: Feature[] = [
 ];
 
 const PLATFORMS = [
-  { id: "linkedin", label: "LinkedIn", mark: "in" },
-  { id: "x", label: "X", mark: "X" },
-  { id: "instagram", label: "Instagram", mark: "IG" },
-  { id: "facebook", label: "Facebook", mark: "f" },
-  { id: "youtube", label: "YouTube", mark: "▶" },
-  { id: "threads", label: "Threads", mark: "@" },
+  { id: "linkedin", label: "LinkedIn", mark: <FaLinkedinIn /> },
+  { id: "twitter", label: "Twitter", mark: <FaTwitter /> },
+  { id: "instagram", label: "Instagram", mark: <FaInstagram /> },
+  { id: "facebook", label: "Facebook", mark: <FaFacebookF /> },
+  { id: "youtube", label: "YouTube", mark: <FaYoutube /> },
+  { id: "threads", label: "Threads", mark: <FaThreads /> },
 ];
 
 const VALUE_PROPS = [
@@ -200,89 +204,30 @@ export default function MainContent() {
       <div className={styles.backgroundGlow} aria-hidden="true" />
 
       {/* 1. HERO SECTION */}
-      <section className={styles.hero}>
-        <div className={styles.heroGrid}>
-          <div className={styles.heroCopy}>
-            <span className={styles.eyebrow}>
-              <span className={styles.eyebrowDot} />
-              AI-powered social media management
-            </span>
-
-            <h1 className={styles.heading}>
-              Manage every social channel from one AI-powered workspace
-            </h1>
-
-            <p className={styles.subheading}>
-              Create, review with AI, schedule, and publish content across Facebook,
-              Instagram, LinkedIn, X, Threads, and YouTube — all from a single workspace.
-            </p>
-
-            <div className={styles.heroActions}>
-              <Link href="/Auth/register" className={styles.ctaButton}>
-                Get Started Free
-              </Link>
-              <Link href="/Auth/login" className={styles.secondaryButton}>
-                Log in
-              </Link>
-            </div>
-          </div>
-
-          <div className={styles.heroVisual}>
-            <div className={styles.appMockupHero}>
-              <div className={styles.dashboardChrome}>
-                <span className={styles.chromeDots}>
-                  <span className={styles.chromeDot} />
-                  <span className={styles.chromeDot} />
-                  <span className={styles.chromeDot} />
-                </span>
-                <span className={styles.dashboardTitle}>Publish</span>
-              </div>
-
-              {/*
-                Swap this mockup for a real screenshot of your Publish page
-                once you have one, e.g.:
-                <Image src="/images/publish-preview.png" alt="Publish dashboard" fill />
-              */}
-              <div className={styles.mockupBodyHero}>
-                <div className={styles.mockupSidebar}>
-                  <span className={styles.mockupSidebarIcon}>{Icon.sparkle}</span>
-                  <span className={styles.mockupSidebarLabel}>AI Assistant</span>
-                  <span className={styles.mockupSidebarPulse} />
-                </div>
-
-                <div className={styles.mockupContent}>
-                  <span className={styles.mockupLine} style={{ width: "88%" }} />
-                  <span className={styles.mockupLine} style={{ width: "64%" }} />
-                  <span className={styles.mockupLine} style={{ width: "72%" }} />
-                  <span className={styles.mockupMediaChip}>Media attached</span>
-                </div>
-
-                <div className={styles.mockupPreview}>
-                  <div className={styles.mockupPreviewAvatar} />
-                  <span className={styles.mockupPreviewLine} style={{ width: "70%" }} />
-                  <span className={styles.mockupPreviewLine} style={{ width: "50%" }} />
-                  <div className={styles.mockupPreviewImage} />
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.floatingBadgeTop}>
-              <span className={styles.floatingIconCalendar} aria-hidden="true" />
-              Ready to publish
-            </div>
-            <div className={styles.floatingBadgeBottom}>
-              <span className={styles.floatingIconSparkle} aria-hidden="true">
-                {Icon.sparkle}
-              </span>
-              AI caption generated
-            </div>
-          </div>
+  <section className={styles.hero} id="about">
+    <div className={styles.heroIntro}>
+      <h1 className={styles.heading}>
+        Manage Every Social Channel From
+            <br className={styles.heroHeadingBreak} /> One AI-Powered Workspace
+          </h1>
         </div>
+
+        <HeroPostTunnel />
       </section>
 
       {/* 2. TRUSTED PLATFORMS */}
-      <section className={styles.platformsSection}>
-        <p className={styles.sectionLabel}>Seamlessly integrated with</p>
+      <section className={styles.platformsSection} id="integrations">
+        <p className={styles.sectionLabel}>
+          <span className={styles.descriptionLine}>
+            Create, review, schedule, and publish content across
+          </span>
+          <span className={styles.descriptionLine}>
+           Facebook, LinkedIn, YouTube, Threads, Twitter,
+          </span>
+          <span className={styles.descriptionLine}>
+            all from one single AI powered workspace.
+          </span>
+        </p>
         <div className={styles.platformGrid}>
           {PLATFORMS.map((platform) => (
             <div key={platform.id} className={styles.platformBadge}>
@@ -309,10 +254,9 @@ export default function MainContent() {
       </section>
 
       {/* 4. AI WORKFLOW + ASSISTANT PREVIEW */}
-      <section className={styles.aiWorkflowSection}>
+      <section className={styles.aiWorkflowSection} id="ai-workflow">
         <div className={styles.sectionHeader}>
           <span className={styles.eyebrow}>
-            <span className={styles.eyebrowDot} />
             Smart Publishing
           </span>
           <h2 className={styles.sectionHeading}>AI-powered from draft to publish</h2>
@@ -366,7 +310,7 @@ export default function MainContent() {
       </section>
 
       {/* 5. CORE FEATURES (6 Cards) */}
-      <section className={styles.featuresSection}>
+      <section className={styles.featuresSection} id="features">
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionHeading}>Everything your team needs</h2>
         </div>
@@ -392,11 +336,37 @@ export default function MainContent() {
         </div>
       </section>
 
-      {/* 6. PLANNING CALENDAR PREVIEW */}
-      <section className={styles.screenshotSection}>
+      {/* 6. PUBLISH PREVIEW */}
+      <section
+        className={`${styles.screenshotSectionAlt} ${styles.publishScreenshotSection}`}
+        id="publishing"
+      >
+        <div className={styles.screenshotVisual}>
+          <div className={`${styles.appMockupStandard} ${styles.publishScreenshotFrame}`}>
+            <Image
+              src="/images/home/publish-preview.png"
+              alt="SOci Publish workspace showing the content editor and Instagram post preview"
+              width={2500}
+              height={1500}
+              className={styles.publishScreenshot}
+              sizes="(max-width: 980px) calc(100vw - 48px), 50vw"
+            />
+          </div>
+        </div>
+        <div className={styles.screenshotText}>
+          <span className={styles.eyebrow}>Publishing</span>
+          <h2 className={styles.sectionHeading}>Publish everywhere.</h2>
+          <p className={styles.subheading}>
+            Create channel-ready content, review every variation, and publish to all
+            your connected social profiles from one workspace.
+          </p>
+        </div>
+      </section>
+
+      {/* 7. PLANNING CALENDAR PREVIEW */}
+      <section className={styles.screenshotSection} id="planning">
         <div className={styles.screenshotText}>
           <span className={styles.eyebrow}>
-            <span className={styles.eyebrowDot} />
             Organization
           </span>
           <h2 className={styles.sectionHeading}>Plan with precision.</h2>
@@ -414,8 +384,8 @@ export default function MainContent() {
         </div>
       </section>
 
-      {/* 7. ANALYTICS PREVIEW */}
-      <section className={styles.screenshotSectionAlt}>
+      {/* 8. ANALYTICS PREVIEW */}
+      <section className={styles.screenshotSectionAlt} id="analytics">
         <div className={styles.screenshotVisual}>
           <div className={styles.appMockupStandard}>
             {/* Swap for <Image src="/images/analytics-preview.png" alt="Analytics dashboard" fill /> */}
@@ -425,7 +395,6 @@ export default function MainContent() {
         </div>
         <div className={styles.screenshotText}>
           <span className={styles.eyebrow}>
-            <span className={styles.eyebrowDot} />
             Insights
           </span>
           <h2 className={styles.sectionHeading}>Measure what matters.</h2>
@@ -436,19 +405,58 @@ export default function MainContent() {
         </div>
       </section>
 
-      {/* 8. FINAL CTA */}
-      <section className={styles.bottomCtaSection}>
-        <div className={styles.bottomCtaContent}>
-          <h2 className={styles.ctaHeading}>
-            Start managing every social channel from one intelligent workspace.
-          </h2>
-          <Link href="/Auth/register" className={styles.ctaButtonHighlight}>
-            Get Started Free
-          </Link>
-          <p className={styles.ctaFlow}>Create · Review · Schedule · Publish</p>
-          <p className={styles.ctaSubtext}>No credit card required · Start scheduling in under 2 minutes.</p>
+      <footer className={styles.siteFooter} id="pricing">
+        <div className={styles.footerInner}>
+          <div className={styles.footerGrid}>
+            <div className={styles.footerBrand}>
+              <span className={styles.footerLogo}>Socia</span>
+              <p className={styles.footerTagline}>
+                One intelligent workspace to create, review, schedule, and publish
+                content across every social channel.
+              </p>
+              <div className={styles.footerSocials} aria-label="Social platforms">
+                {PLATFORMS.map((platform) => (
+                  <Link
+                    key={platform.id}
+                    href="#integrations"
+                    className={styles.footerSocialLink}
+                    aria-label={platform.label}
+                  >
+                    {platform.mark}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <nav className={styles.footerNav} aria-label="Footer navigation">
+              <div className={styles.footerNavGroup}>
+                <h3>Product</h3>
+                <Link href="#ai-workflow">AI Assistant</Link>
+                <Link href="#publishing">Publishing</Link>
+                <Link href="#planning">Scheduling</Link>
+                <Link href="#analytics">Analytics</Link>
+              </div>
+              <div className={styles.footerNavGroup}>
+                <h3>Explore</h3>
+                <Link href="#about">About</Link>
+                <Link href="#features">Features</Link>
+                <Link href="#integrations">Integrations</Link>
+                <Link href="#pricing">Pricing</Link>
+              </div>
+              <div className={styles.footerNavGroup}>
+                <h3>Account</h3>
+                <Link href="/Auth/login">Log In</Link>
+                <Link href="/Auth/register">Create Account</Link>
+              </div>
+            </nav>
+          </div>
+
+          <div className={styles.footerBottom}>
+            <p>© {new Date().getFullYear()} Socia. All rights reserved.</p>
+            <p>Built for smarter social publishing.</p>
+          </div>
         </div>
-      </section>
+      </footer>
     </main>
   );
 }
