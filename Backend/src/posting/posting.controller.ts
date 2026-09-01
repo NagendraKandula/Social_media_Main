@@ -20,7 +20,7 @@ export class PostingController {
   async getPresignedUrl(@Request() req, @Query('fileName') fileName: string, @Query('contentType') contentType: string) {
     try {
       const userId = req.user.id || req.user.userId; // Safely handle JWT payload differences
-      return await this.storageService.getPresignedUrl(fileName, contentType, userId);
+      return await this.storageService.generatePresignedUrl(fileName, contentType, userId);
     } catch (error: any) {
       this.logger.error(`Presigned URL Error: ${error.message}`);
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
