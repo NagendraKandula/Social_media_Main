@@ -1,131 +1,158 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Storage } from '@google-cloud/storage';
 import { ConfigService } from '@nestjs/config';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 @Injectable()
 export class StorageService {
-  private storage: Storage;
+  private s3Client: S3Client;
   private bucket: string;
   private readonly logger = new Logger(StorageService.name);
 
   constructor(private config: ConfigService) {
-    this.storage = new Storage({
-      credentials: JSON.parse(this.config.get('GCP_JSON_KEY')!), 
-      projectId: this.config.get('GCP_PROJECT_ID'),
+    this.bucket = this.config.get('AWS_S3_BUCKET_NAME')!;
+    const region = this.config.get('AWS_REGION') || 'ap-south-2';
+
+    this.s3Client = new S3Client({
+      region: region,
+      credentials: {
+        accessKeyId: this.config.get('AWS_ACCESS_KEY_ID')!,
+        secretAccessKey: this.config.get('AWS_SECRET_ACCESS_KEY')!,
+      },
+      requestChecksumCalculation: 'WHEN_REQUIRED',
     });
-    this.bucket = this.config.get('GCP_BUCKET_NAME')!;
+  }
+
+  // ALIAS: Your controller calls generatePresignedUrl, but the service defined getPresignedUrl. 
+  // This ensures both work without breaking anything.
+  async generatePresignedUrl(fileName: string, contentType: string, userId: number) {
+    return this.getPresignedUrl(fileName, contentType, userId);
   }
 
   async getPresignedUrl(fileName: string, contentType: string, userId: number) {
     // 1. Sanitize the filename to prevent signature errors with spaces/special chars
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const gcsPath = `uploads/${userId}/${Date.now()}-${sanitizedFileName}`;
-    
-    const file = this.storage.bucket(this.bucket).file(gcsPath);
 
-    const [uploadUrl] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'write',
-      expires: Date.now() + 15 * 60 * 1000, // 15 minutes
-      contentType,
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: gcsPath,
+      ContentType: contentType,
+    });
+
+    const uploadUrl = await getSignedUrl(this.s3Client, command, {
+      expiresIn: 15 * 60, // 15 minutes
     });
 
     return {
       uploadUrl,
-      storagePath: gcsPath // 2. Renamed to match your new Prisma schema terminology
-      // Removed publicUrl since the bucket is private and it would throw a 403 anyway
+      storagePath: gcsPath, // Keeping exact same return format for your Prisma schema
     };
   }
 
   async getSignedReadUrl(gcsPath: string, contentType?: string): Promise<string> {
-    const file = this.storage.bucket(this.bucket).file(gcsPath);
-    
-    // Check if file exists first to avoid 404 errors
-    const [exists] = await file.exists();
-    if (!exists) {
-        throw new Error(`File not found in storage: ${gcsPath}`);
+    try {
+      // Check if file exists first to avoid 404 errors (matches your GCP logic)
+      const headCmd = new HeadObjectCommand({ Bucket: this.bucket, Key: gcsPath });
+      await this.s3Client.send(headCmd);
+    } catch (error) {
+      throw new Error(`File not found in storage: ${gcsPath}`);
     }
 
-    const [url] = await file.getSignedUrl({
-      version: 'v4',
-      action: 'read',
-      expires: Date.now() + 60 * 60 * 1000, // Valid for 1 hour
-      responseType: contentType,
+    const command = new GetObjectCommand({
+      Bucket: this.bucket,
+      Key: gcsPath,
+      ResponseContentType: contentType,
     });
 
-    return url;
+    return await getSignedUrl(this.s3Client, command, {
+      expiresIn: 60 * 60, // Valid for 1 hour
+    });
   }
 
   async deleteFile(gcsPath: string) {
-  try {
-    const file = this.storage
-      .bucket(this.bucket)
-      .file(gcsPath);
-
-    const [exists] = await file.exists();
-
-    if (!exists) {
-      this.logger.debug(
-        `ℹ️ File already absent from GCS: ${gcsPath}`,
-      );
-
+    try {
+      // Check if it exists first
+      const headCmd = new HeadObjectCommand({ Bucket: this.bucket, Key: gcsPath });
+      await this.s3Client.send(headCmd);
+    } catch (error) {
+      this.logger.debug(`ℹ️ File already absent from S3: ${gcsPath}`);
       return true;
     }
 
-    await file.delete();
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: gcsPath,
+      });
 
-    this.logger.log(
-      `🗑️ Deleted file from GCS: ${gcsPath}`,
-    );
+      await this.s3Client.send(command);
 
-    return true;
-  } catch (error: any) {
-    this.logger.warn(
-      `Failed to delete file ${gcsPath}: ${error.message}`,
-    );
-
-    return false;
+      this.logger.log(`🗑️ Deleted file from S3: ${gcsPath}`);
+      return true;
+    } catch (error: any) {
+      this.logger.warn(`Failed to delete file ${gcsPath}: ${error.message}`);
+      return false;
+    }
   }
-}
 
   // ---------------------------------------------------------
   // NEW METHODS ADDED FOR THE RENDER PIPELINE (SHARP INTEGRATION)
   // ---------------------------------------------------------
 
   /**
-   * Downloads a file from GCS directly into a Node.js Buffer
+   * Downloads a file from S3 directly into a Node.js Buffer
    * Used by RenderService to feed image data into Sharp
    */
   async downloadFile(gcsPath: string): Promise<Buffer> {
     try {
-      const file = this.storage.bucket(this.bucket).file(gcsPath);
-      const [buffer] = await file.download();
-      return buffer;
+      const command = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: gcsPath,
+      });
+      const response = await this.s3Client.send(command);
+
+      // AWS SDK v3 returns a stream; we must convert it to a Buffer for Sharp
+      const stream = response.Body as NodeJS.ReadableStream;
+      return new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        stream.on('error', reject);
+        stream.on('end', () => resolve(Buffer.concat(chunks)));
+      });
     } catch (error: any) {
-      this.logger.error(`Failed to download file from GCS: ${gcsPath}`, error.stack);
+      this.logger.error(`Failed to download file from S3: ${gcsPath}`, error.stack);
       throw new Error(`Failed to download file: ${error.message}`);
     }
   }
 
   /**
-   * Uploads a Buffer (generated by Sharp) directly to GCS
+   * Uploads a Buffer (generated by Sharp) directly to S3
    * Used by RenderService to save the new MediaVariant
    */
   async uploadFile(buffer: Buffer, destinationPath: string, contentType: string): Promise<string> {
     try {
-      const file = this.storage.bucket(this.bucket).file(destinationPath);
-      
-      await file.save(buffer, {
-        metadata: { contentType },
-        resumable: false, // Must be false when streaming/uploading small buffers directly
+      const command = new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: destinationPath,
+        Body: buffer,
+        ContentType: contentType,
       });
 
-      this.logger.log(`⬆️ Uploaded new variant to GCS: ${destinationPath}`);
-      
-      // Returning the raw GCS Path to store in the MediaVariant.gcsPath column
-      return destinationPath; 
+      await this.s3Client.send(command);
+
+      this.logger.log(`⬆️ Uploaded new variant to S3: ${destinationPath}`);
+
+      // Returning the raw S3 Path to store in the MediaVariant.gcsPath column
+      return destinationPath;
     } catch (error: any) {
-      this.logger.error(`Failed to upload file to GCS: ${destinationPath}`, error.stack);
+      this.logger.error(`Failed to upload file to S3: ${destinationPath}`, error.stack);
       throw new Error(`Failed to upload file: ${error.message}`);
     }
   }

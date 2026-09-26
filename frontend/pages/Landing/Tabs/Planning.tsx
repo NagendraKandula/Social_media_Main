@@ -608,13 +608,23 @@ itemsToProcess.forEach((item: any, index: number) => {
         selectedChannelList.forEach((platform) => {
           uploadedMediaItems.forEach((media, index) => {
             const placement = getPlatformPlacement(platform, platformState).toUpperCase();
-            const editKey = getMediaEditKey(files[index], platform, placement.toLowerCase());
-            const savedEdit = mediaEdits[editKey];
-            // Safely grab the type, fallback to an empty string, and convert to lowercase
-const typeStr = (files[index].type || files[index].mimeType || files[index].fileType || '').toLowerCase();
+            const exactEditKey = getMediaEditKey(files[index], platform, placement.toLowerCase());
+            
+            // 1. Try to find the exact crop for this specific platform
+            let savedEdit = mediaEdits[exactEditKey];
 
-// Check if it starts with 'image' (handles 'image/jpeg') OR equals 'image' (handles your backend 'IMAGE' enum)
-const isImage = typeStr.startsWith('image') || typeStr === 'image';
+            // 🌟 CRITICAL FIX: 2. If missing, borrow the crop from ANY other platform for this file
+            if (!savedEdit) {
+              const fileIdentifier = String(files[index].id || files[index].name);
+              const fallbackKey = Object.keys(mediaEdits).find(key => key.includes(fileIdentifier));
+              if (fallbackKey) {
+                savedEdit = mediaEdits[fallbackKey];
+              }
+            }
+
+            // Safely grab the type, fallback to an empty string, and convert to lowercase
+            const typeStr = (files[index].type || files[index].mimeType || files[index].fileType || '').toLowerCase();
+            const isImage = typeStr.startsWith('image') || typeStr === 'image';
             const dimensions = mediaDimensions[index];
             const width = dimensions?.width || media.width || files[index].width || 1080;
             const height = dimensions?.height || media.height || files[index].height || 1080;
