@@ -10,13 +10,14 @@ test('AI platform content immediately updates the currently active editor', asyn
     /const handleApplyAiPlatformData = \(aiPlatforms: any\[\]\) => \{([\s\S]*?)\n  \};/,
   )?.[1] ?? '';
 
-  assert.match(handler, /const generatedContents = aiPlatforms\.reduce<ChannelContentMap>/);
+  assert.match(handler, /const generatedContents = buildAiPlatformContents\(aiPlatforms\)/);
   assert.match(handler, /setChannelContents\(\(previousContents\) => \(\{/);
   assert.match(handler, /\.\.\.generatedContents/);
   assert.match(handler, /const currentActiveEditorChannel = activeEditorChannelRef\.current/);
   assert.match(handler, /const activeGeneratedContent = generatedContents\[currentActiveEditorChannel\]/);
   assert.match(handler, /setContent\(activeGeneratedContent\)/);
-  assert.match(handler, /const allTabGeneratedContent = Object\.values\(generatedContents\)\.find/);
+  assert.match(handler, /const \{ content: allTabGeneratedContent \} = getStrictestSharedAiContent/);
+  assert.match(handler, /selectedChannelList/);
   assert.match(handler, /setSharedContent\(allTabGeneratedContent\)/);
   assert.match(handler, /setContent\(allTabGeneratedContent\)/);
   assert.match(source, /activeEditorChannelRef\.current = activeEditorChannel/);

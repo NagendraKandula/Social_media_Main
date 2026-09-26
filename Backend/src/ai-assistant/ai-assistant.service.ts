@@ -63,13 +63,15 @@ export class AiAssistantService {
       select: { provider: true },
     });
 
-    let activePlatforms = profiles.map((p) => p.provider.toLowerCase());
-
-    if (activePlatforms.length === 0 && dto.platforms && dto.platforms.length > 0) {
-      activePlatforms = dto.platforms.map((p) => p.toLowerCase());
-    } else if (activePlatforms.length === 0) {
-      activePlatforms = ['twitter', 'instagram', 'linkedin', 'facebook', 'threads'];
-    }
+    const connectedPlatforms = profiles.map((p) => p.provider.toLowerCase());
+    const requestedPlatforms = (dto.platforms || [])
+      .map((platform) => platform.toLowerCase())
+      .filter((platform) => Boolean(PLATFORM_LIMITS[platform]));
+    const activePlatforms = requestedPlatforms.length > 0
+      ? [...new Set(requestedPlatforms)]
+      : connectedPlatforms.length > 0
+        ? connectedPlatforms
+        : ['twitter', 'instagram', 'linkedin', 'facebook', 'threads'];
 
     const platformRulesStr = activePlatforms
       .map((p) => `- ${p.toUpperCase()} (Max character limit: ${PLATFORM_LIMITS[p] || 2200})`)

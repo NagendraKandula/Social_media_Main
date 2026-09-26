@@ -26,6 +26,10 @@ import {
   getChannelContent,
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
+import {
+  buildAiPlatformContents,
+  getStrictestSharedAiContent,
+} from '../../../features/publish/aiSharedContent.mjs';
 import { getSelectedImageFitWarnings } from '../../../features/publish/imageFitAnalysis.mjs';
 import {
   getDisabledChannels,
@@ -516,23 +520,18 @@ itemsToProcess.forEach((item: any, index: number) => {
   const handleApplyCaption = (caption: string) => handleChannelContentChange(content ? `${content}<br/><br/>${caption}` : caption);
   const handleApplyHashtags = (hashtags: string[]) => handleChannelContentChange(content ? `${content}<br/><br/>${hashtags.join(" ")}` : hashtags.join(" "));
   const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
-    const generatedContents = aiPlatforms.reduce<ChannelContentMap>((contents, aiPlatform) => {
-      const targetId = aiPlatform.platform.toLowerCase() as Channel;
-      const hashtags = Array.isArray(aiPlatform.hashtags) && aiPlatform.hashtags.length > 0
-        ? aiPlatform.hashtags.join(' ')
-        : '';
-      const callToAction = aiPlatform.cta
-        ? `<br/><br/><strong>${aiPlatform.cta}</strong>`
-        : '';
-
-      contents[targetId] = `${aiPlatform.caption || ''}${callToAction}<br/><br/>${hashtags}`.trim();
-      return contents;
-    }, {});
+    const generatedContents = buildAiPlatformContents(aiPlatforms) as ChannelContentMap;
 
     setChannelContents((previousContents) => ({
       ...previousContents,
       ...generatedContents,
     }));
+
+    const { content: allTabGeneratedContent } = getStrictestSharedAiContent(
+      selectedChannelList,
+      generatedContents,
+    );
+    if (allTabGeneratedContent) setSharedContent(allTabGeneratedContent);
 
     const currentActiveEditorChannel = activeEditorChannelRef.current;
     if (currentActiveEditorChannel) {
@@ -541,11 +540,7 @@ itemsToProcess.forEach((item: any, index: number) => {
       return;
     }
 
-    const allTabGeneratedContent = Object.values(generatedContents).find(
-      (generatedContent): generatedContent is string => Boolean(generatedContent)
-    );
-    if (allTabGeneratedContent !== undefined) {
-      setSharedContent(allTabGeneratedContent);
+    if (allTabGeneratedContent) {
       setContent(allTabGeneratedContent);
     }
   };
@@ -815,6 +810,7 @@ itemsToProcess.forEach((item: any, index: number) => {
                   </div>
                   <LazyAIAssistant
                     files={files}
+                    selectedChannels={selectedChannelList}
                     content={content}
                     hideResultBackButton
                     onAnalysisComplete={handleAnalysisComplete}

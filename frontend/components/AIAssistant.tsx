@@ -7,26 +7,26 @@ import styles from '../styles/AIAssistant.module.css';
 
 interface Props {
   files: MediaItem[] | File[];
+  selectedChannels: string[];
   content?: string;
   onAnalysisComplete: (result: AiAnalysisResult) => void;
   onAnalysisReset?: () => void;
   onResultControlsChange?: (controls: { onBack: () => void } | null) => void;
   onApplyCaption: (caption: string) => void;
   onApplyHashtags: (hashtags: string[]) => void;
-  onAutoSelectPlatforms?: (platforms: any[]) => void;
   onApplyPlatformData?: (platformsData: any[]) => void; // 👈 1. Add to interface
   hideResultBackButton?: boolean;
 }
 
 export default function AIAssistant({ 
   files, 
+  selectedChannels,
   content = '',
   onAnalysisComplete, 
   onAnalysisReset,
   onResultControlsChange,
   onApplyCaption, 
   onApplyHashtags, 
-  onAutoSelectPlatforms ,
   onApplyPlatformData,
   hideResultBackButton = false,
 }: Props) {
@@ -62,7 +62,7 @@ export default function AIAssistant({
   const hasMedia = mediaSignature.length > 0;
 
 const handleAnalyze = useCallback(async () => {
-    if (!hasMedia) return;
+    if (!hasMedia || selectedChannels.length === 0) return;
 
     const existingText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -80,6 +80,7 @@ const handleAnalyze = useCallback(async () => {
     }
     if (existingText) formData.append('content', existingText);
     formData.append('action', 'analyze_media');
+    selectedChannels.forEach((platform) => formData.append('platforms', platform));
 
     try {
       const response = await apiClient.post('/ai/generate', formData, {
@@ -100,9 +101,6 @@ const handleAnalyze = useCallback(async () => {
         const platformList = resultData.recommendedPlatforms || resultData.analysis?.recommendedPlatforms || [];
         
         if (platformList.length > 0) {
-          // Auto-select the platform tabs in the UI
-          onAutoSelectPlatforms?.(platformList);
-          
           // Send the array to populate the editor's text areas (Fixed 'props.' reference)
           if (onApplyPlatformData) {
             onApplyPlatformData(platformList);
@@ -118,7 +116,7 @@ const handleAnalyze = useCallback(async () => {
       setIsAnalyzing(false);
     }
     // Fixed dependency array here by replacing 'props' with 'onApplyPlatformData'
-  }, [content, files, hasMedia, onAnalysisComplete, onAutoSelectPlatforms, onApplyPlatformData]);
+  }, [content, files, hasMedia, onAnalysisComplete, onApplyPlatformData, selectedChannels]);
 
   const handleChat = useCallback(async () => {
     if (!analysis || !instruction.trim()) return;
@@ -310,19 +308,21 @@ const handleAnalyze = useCallback(async () => {
     <div className={`${styles.container} ${styles.chatStart}`}>
       <div className={styles.welcome}>
         <Sparkles size={24} aria-hidden="true" />
-        <strong>{hasMedia ? 'Ready to analyze your media' : 'Add media to start analysis'}</strong>
-        <p>
-          {hasMedia
-            ? 'AI will review the uploaded media and suggest strategy, platform-specific captions, hashtags, and limits.'
-            : 'Upload an image or video in the editor, then run AI analysis when you are ready.'}
-        </p>
+          <strong>{!hasMedia ? 'Add media to start analysis' : selectedChannels.length === 0 ? 'Select a channel to continue' : 'Ready to analyze your media'}</strong>
+          <p>
+            {!hasMedia
+              ? 'Upload an image or video in the editor, then run AI analysis when you are ready.'
+              : selectedChannels.length === 0
+                ? 'Choose at least one channel so AI generates content only for your selection.'
+                : 'AI will review the uploaded media and suggest strategy, platform-specific captions, hashtags, and limits.'}
+          </p>
       </div>
 
       <button
         type="button"
         className={styles.analyzeButton}
         onClick={handleAnalyze}
-        disabled={!hasMedia}
+        disabled={!hasMedia || selectedChannels.length === 0}
       >
         <Sparkles size={18} aria-hidden="true" />
         Analyze with AI

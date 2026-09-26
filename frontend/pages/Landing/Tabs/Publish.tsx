@@ -38,6 +38,10 @@ import {
   getChannelContent,
   reconcileChannelContents,
 } from '../../../utils/channelContent.mjs';
+import {
+  buildAiPlatformContents,
+  getStrictestSharedAiContent,
+} from '../../../features/publish/aiSharedContent.mjs';
 import { getSelectedImageFitWarnings } from '../../../features/publish/imageFitAnalysis.mjs';
 import {
   getImageEditDestinations,
@@ -115,34 +119,19 @@ export default function Publish() {
     handleChannelContentChange(content ? `${content}<br/><br/>${tagsString}` : tagsString);
   };
 
-  const handleAutoSelectPlatforms = (platforms: PlatformRecommendation[]) => {
-    const next = new Set(selectedChannels);
-    platforms.forEach((p) => {
-      if (p.rating >= 4) {
-        next.add(p.platform.toLowerCase() as Channel);
-      }
-    });
-    setSelectedChannels(next);
-  };
-
   const handleApplyAiPlatformData = (aiPlatforms: any[]) => {
-    const generatedContents = aiPlatforms.reduce<ChannelContentMap>((contents, aiPlatform) => {
-      const targetId = aiPlatform.platform.toLowerCase() as Channel;
-      const hashtags = Array.isArray(aiPlatform.hashtags) && aiPlatform.hashtags.length > 0
-        ? aiPlatform.hashtags.join(' ')
-        : '';
-      const callToAction = aiPlatform.cta
-        ? `<br/><br/><strong>${aiPlatform.cta}</strong>`
-        : '';
-
-      contents[targetId] = `${aiPlatform.caption || ''}${callToAction}<br/><br/>${hashtags}`.trim();
-      return contents;
-    }, {});
+    const generatedContents = buildAiPlatformContents(aiPlatforms) as ChannelContentMap;
 
     setChannelContents((previousContents) => ({
       ...previousContents,
       ...generatedContents,
     }));
+
+    const { content: allTabGeneratedContent } = getStrictestSharedAiContent(
+      selectedChannelList,
+      generatedContents,
+    );
+    if (allTabGeneratedContent) setSharedContent(allTabGeneratedContent);
 
     const currentActiveEditorChannel = activeEditorChannelRef.current;
     if (currentActiveEditorChannel) {
@@ -153,13 +142,7 @@ export default function Publish() {
       return;
     }
 
-    // "All" has no platform key of its own. Show a generated caption there
-    // immediately, while preserving the tailored versions in each channel tab.
-    const allTabGeneratedContent = Object.values(generatedContents).find(
-      (generatedContent): generatedContent is string => Boolean(generatedContent)
-    );
-    if (allTabGeneratedContent !== undefined) {
-      setSharedContent(allTabGeneratedContent);
+    if (allTabGeneratedContent) {
       setContent(allTabGeneratedContent);
     }
   };
@@ -891,13 +874,13 @@ const htmlToPlainText = (html: string) => {
             ) : (
               <LazyAIAssistant
                 files={files}
+                selectedChannels={selectedChannelList}
                 content={content}
                 onAnalysisComplete={handleAnalysisComplete}
                 onAnalysisReset={handleAnalysisReset}
                 onResultControlsChange={setAiResultControls}
                 onApplyCaption={handleApplyCaption}
                 onApplyHashtags={handleApplyHashtags}
-                onAutoSelectPlatforms={handleAutoSelectPlatforms}
                 onApplyPlatformData={handleApplyAiPlatformData}
               />
             )}
