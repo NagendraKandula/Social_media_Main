@@ -18,11 +18,11 @@
 }
 
 .logo {
-  font-family: "Poppins", "Inter", sans-serif;
-  font-size: 32px;
-  font-weight: 720;
-  color: #17172b;
-  letter-spacing: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 40px;
+  font-weight: 500;
+  color: #4f4cbe;
+  letter-spacing: -0.01em;
   line-height: 1;
 }
 
@@ -299,6 +299,8 @@
 }
 
 .illustrationSection {
+  position: relative;
+  transform: translateX(24px);
   min-height: 520px;
   padding: 0;
   border: 0;
@@ -312,7 +314,7 @@
 
 .illustrationSection img {
   display: block;
-  width: min(100%, 520px);
+  width: min(100%, 560px);
   max-height: 540px;
   height: auto;
   object-fit: contain;

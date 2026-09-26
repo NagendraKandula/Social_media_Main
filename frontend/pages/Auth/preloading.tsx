@@ -48,7 +48,7 @@ export default function PreloadingPage() {
     <main className={styles.page} aria-label="Loading dashboard">
       <div className={styles.loaderContent}>
         <h1 className={styles.logo}>
-          SOci
+          Socia
         </h1>
         <p className={styles.loadingText}>Preparing your workspace</p>
         <div className={styles.progressTrack} aria-hidden="true">
