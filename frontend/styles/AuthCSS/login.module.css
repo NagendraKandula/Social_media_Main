@@ -269,6 +269,7 @@
 
 .illustrationSection {
   position: relative;
+  transform: translateX(24px);
   min-height: 520px;
   padding: 0;
   border: 0;

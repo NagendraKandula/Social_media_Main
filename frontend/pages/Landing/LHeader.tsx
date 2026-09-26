@@ -167,7 +167,7 @@ const LHeader: React.FC<LHeaderProps> = () => {
     <header className={styles.header}>
       {/* Logo */}
       <div className={styles.logo}>
-        SOci
+        Socia
       </div>
 
       {/* Platforms */}

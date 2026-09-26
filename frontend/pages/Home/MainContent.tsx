@@ -287,10 +287,6 @@ export default function MainContent() {
                 <p className={styles.aiCaptionText}>{AI_BEFORE_CAPTION}</p>
               </div>
 
-              <span className={styles.aiArrow} aria-hidden="true">
-                {Icon.send}
-              </span>
-
               <div className={`${styles.aiCaptionBlock} ${styles.aiCaptionAfter}`}>
                 <span className={styles.aiCaptionLabel}>After</span>
                 <p className={styles.aiCaptionText}>{AI_AFTER_CAPTION}</p>
@@ -376,10 +372,15 @@ export default function MainContent() {
           </p>
         </div>
         <div className={styles.screenshotVisual}>
-          <div className={styles.appMockupStandard}>
-            {/* Swap for <Image src="/images/calendar-preview.png" alt="Planning calendar" fill /> */}
-            <span className={styles.placeholderIcon}>{Icon.calendar}</span>
-            <span className={styles.placeholderText}>Add your Planning Calendar screenshot here</span>
+          <div className={`${styles.appMockupStandard} ${styles.sampleDashboardFrame}`}>
+            <Image
+              src="/calimg.png"
+              alt="Sample monthly content calendar with scheduled posts for multiple social platforms"
+              width={2880}
+              height={1624}
+              className={styles.sampleDashboardImage}
+              sizes="(max-width: 980px) calc(100vw - 48px), 50vw"
+            />
           </div>
         </div>
       </section>
@@ -387,10 +388,15 @@ export default function MainContent() {
       {/* 8. ANALYTICS PREVIEW */}
       <section className={styles.screenshotSectionAlt} id="analytics">
         <div className={styles.screenshotVisual}>
-          <div className={styles.appMockupStandard}>
-            {/* Swap for <Image src="/images/analytics-preview.png" alt="Analytics dashboard" fill /> */}
-            <span className={styles.placeholderIcon}>{Icon.barChart}</span>
-            <span className={styles.placeholderText}>Add your Analytics Dashboard screenshot here</span>
+          <div className={`${styles.appMockupStandard} ${styles.sampleDashboardFrame} ${styles.analyticsDashboardFrame}`}>
+            <Image
+              src="/analyticsimg.png"
+              alt="Sample YouTube analytics dashboard with performance metrics and a views, likes, and comments chart"
+              width={1596}
+              height={1260}
+              className={styles.sampleDashboardImage}
+              sizes="(max-width: 980px) calc(100vw - 48px), 50vw"
+            />
           </div>
         </div>
         <div className={styles.screenshotText}>

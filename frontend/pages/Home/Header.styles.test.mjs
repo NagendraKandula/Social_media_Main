@@ -39,6 +39,14 @@ test("provides accessible dropdowns for grouped home navigation content", () => 
   assert.match(stylesheet, /\.dropdownMenu\s*\{/);
 });
 
+test("leaves a visible gap between navigation titles and their dropdowns", () => {
+  const dropdownRule = stylesheet.match(
+    /\.dropdownMenu\s*\{([\s\S]*?)\}/,
+  )?.[1] ?? "";
+
+  assert.match(dropdownRule, /top:\s*calc\(100% \+ 10px\)/);
+});
+
 test("does not show About in the home navigation", () => {
   assert.doesNotMatch(component, />About<\/Link>/);
 });

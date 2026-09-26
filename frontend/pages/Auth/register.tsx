@@ -112,7 +112,7 @@ export default function SignupPage() {
         {/* HEADER */}
         <header className={styles.authHeader}>
           <div className={styles.logo}>
-            SOci
+            Socia
           </div>
         </header>
 
@@ -214,7 +214,10 @@ export default function SignupPage() {
 
           {/* RIGHT */}
           <section className={styles.illustrationSection}>
-            <img src="/registerimg.png" alt="Register illustration" />
+            <img
+              src="/registerimg.png"
+              alt="Socia: Your social world, all together. Content creation, community, analytics, brand planning, post scheduling, and social publishing."
+            />
           </section>
         </main>
 
@@ -226,7 +229,7 @@ export default function SignupPage() {
           <span>Privacy Policy</span>
           <span>Cookie Policy</span>
           <span>Accessibility</span>
-          <span>© 2026 SOci.</span>
+          <span>© 2026 Socia.</span>
         </footer>
       </div>
 
